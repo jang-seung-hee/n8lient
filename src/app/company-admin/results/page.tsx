@@ -1,109 +1,80 @@
-// 이 파일은 회사 관리자가 소속 구성원들의 모든 자동화 실행 결과 로그를 조회하는 화면입니다. (Mock)
+// 이 파일은 회사 관리자가 소속 구성원들의 모든 자동화 실행 결과 로그를 조회하는 화면입니다.
 
 "use client";
 
-import { mockSubmissions } from "@/mocks/mockData";
+import { useState } from "react";
+import { useAuthUser } from "@/features/auth/useAuthUser";
+import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
+import { CompanyResultDetailModal } from "@/components/custom/CompanyResultDetailModal";
+import type { Submission } from "@/types/n8lient";
 
 export default function AdminResults() {
-  const getBadgeStyles = (status: string) => {
-    switch (status) {
-      case "success":
-        return { bg: "#d1fae5", text: "#065f46", label: "성공" };
-      case "processing":
-        return { bg: "#dbeafe", text: "#1e40af", label: "처리중" };
-      case "failed":
-        return { bg: "#fde8e8", text: "#9b1c1c", label: "실패" };
-      default:
-        return { bg: "#f3f4f6", text: "#4b5563", label: "대기" };
-    }
+  const { userDoc } = useAuthUser();
+  
+  // 검색 및 필터 상태
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<Record<string, string>>({});
+
+  // 상세 모달 상태
+  const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const filterFields: FilterField[] = [
+    {
+      key: "status",
+      label: "상태",
+      options: [
+        { value: "success", label: "성공" },
+        { value: "processing", label: "처리중" },
+        { value: "failed", label: "실패" },
+      ],
+    },
+  ];
+
+  const handleFilterChange = (query: string, filterValues: Record<string, string>) => {
+    setSearchQuery(query);
+    setFilters(filterValues);
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div>
         <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
-          📜 회사 자동화 실행 로그
+          📜 N8N 워크플로우 실행 로그
         </h2>
         <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
-          소속 직원들의 n8n 자동화 실행 요청 및 최종 응답 결과 기록입니다.
+          소속 직원들의 N8N 워크플로우 실행 요청 및 최종 응답 결과 기록입니다. 로그 행을 클릭하여 실행 상세 내역을 볼 수 있습니다.
         </p>
       </div>
+
+      {/* 검색 및 필터 UI */}
+      <ListSearchFilterBar
+        searchPlaceholder="실행 ID, 워크플로우 Key, 실행명 검색..."
+        filterFields={filterFields}
+        onChange={handleFilterChange}
+      />
 
       <div
         style={{
           backgroundColor: "#ffffff",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
-          overflow: "hidden",
+          padding: "40px 16px",
+          textAlign: "center",
+          color: "#6b7280",
+          fontSize: "14px",
         }}
       >
-        {/* 테이블 헤더 */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 1fr 2fr 1fr 1fr",
-            padding: "10px 16px",
-            backgroundColor: "#f9fafb",
-            borderBottom: "1px solid #e5e7eb",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "#374151",
-          }}
-        >
-          <span>실행 ID</span>
-          <span>요청자 UID</span>
-          <span>실행명 (입력 정보)</span>
-          <span>상태</span>
-          <span style={{ textAlign: "right" }}>일시</span>
-        </div>
-
-        {/* 목록 */}
-        {mockSubmissions.map((sub, idx) => {
-          const badge = getBadgeStyles(sub.status);
-          return (
-            <div
-              key={sub.submissionId}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.2fr 1fr 2fr 1fr 1fr",
-                padding: "12px 16px",
-                borderBottom: idx < mockSubmissions.length - 1 ? "1px solid #f3f4f6" : "none",
-                fontSize: "13px",
-                color: "#111111",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontFamily: "monospace" }}>{sub.submissionId}</span>
-              <span style={{ color: "#6b7280", fontSize: "12px" }}>{sub.uid.slice(0, 10)}...</span>
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <span style={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {sub.input.title}
-                </span>
-                <span style={{ fontSize: "11px", color: "#9ca3af" }}>
-                  자동화: {sub.workflowKey}
-                </span>
-              </div>
-              <div>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 600,
-                    backgroundColor: badge.bg,
-                    color: badge.text,
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {badge.label}
-                </span>
-              </div>
-              <span style={{ color: "#6b7280", fontSize: "12px", textAlign: "right" }}>
-                {new Date(sub.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-          );
-        })}
+        실행 로그 기록이 없습니다. (실시간 Firestore 연동 준비 중)
       </div>
+
+      {/* 상세 모달 */}
+      <CompanyResultDetailModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        submission={selectedSub}
+      />
     </div>
   );
 }
+

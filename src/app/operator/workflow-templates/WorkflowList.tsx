@@ -11,7 +11,6 @@ interface WorkflowListProps {
   loading: boolean;
   onSelect: (template: WorkflowTemplate) => void;
   onCreateClick: () => void;
-  onRegisterSample: () => void;
 }
 
 const statusFilterFields: FilterField[] = [
@@ -31,7 +30,6 @@ export function WorkflowList({
   loading,
   onSelect,
   onCreateClick,
-  onRegisterSample,
 }: WorkflowListProps) {
   const [filteredTemplates, setFilteredTemplates] = useState<WorkflowTemplate[]>([]);
 
@@ -181,48 +179,6 @@ export function WorkflowList({
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* 개발자용 테스트 샘플 데이터 생성 패널 (하단 구석으로 축소 이전) */}
-      <div
-        style={{
-          border: "1px dashed #d1d5db",
-          borderRadius: "8px",
-          padding: "12px 16px",
-          backgroundColor: "#f9fafb",
-          marginTop: "12px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <h4 style={{ fontSize: "12px", fontWeight: 700, color: "#4b5563", margin: "0 0 2px 0" }}>
-            🛠️ 개발자용 테스트 샘플 데이터 로더
-          </h4>
-          <p style={{ fontSize: "11.5px", color: "#6b7280", margin: 0 }}>
-            테스트 검증을 돕는 기본 샘플 워크플로우(지출결의서 정리, `expense-report`)를 원터치로 Firestore에 적재합니다.
-          </p>
-        </div>
-        <button
-          onClick={onRegisterSample}
-          disabled={loading}
-          style={{
-            backgroundColor: "#ffffff",
-            color: "#374151",
-            border: "1px solid #d1d5db",
-            borderRadius: "6px",
-            padding: "6px 12px",
-            fontSize: "11.5px",
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-            transition: "all 0.15s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f3f4f6")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ffffff")}
-        >
-          {loading ? "로딩..." : "🚀 샘플 데이터 등록"}
-        </button>
       </div>
     </div>
   );

@@ -2,17 +2,45 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { useAuthUser } from "@/features/auth/useAuthUser";
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { userDoc } = useAuthUser();
+  const [companyName, setCompanyName] = useState<string>("");
+
+  useEffect(() => {
+    if (userDoc && typeof userDoc.clientId === "string") {
+      const clientId = userDoc.clientId;
+      const fetchCompanyName = async () => {
+        try {
+          const docRef = doc(db, "clients", clientId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            setCompanyName(data.companyName || clientId);
+          } else {
+            setCompanyName(clientId);
+          }
+        } catch (err) {
+          console.error("[AdminSidebar] 회사 정보 조회 실패:", err);
+          setCompanyName(clientId);
+        }
+      };
+      fetchCompanyName();
+    }
+  }, [userDoc]);
 
   const menuItems = [
     { label: "대시보드 홈", path: "/company-admin", icon: "📊" },
     { label: "사용자 승인", path: "/company-admin/approvals", icon: "👤" },
     { label: "사용자 목록", path: "/company-admin/users", icon: "👥" },
-    { label: "자동화 설정", path: "/company-admin/automations", icon: "⚙️" },
+    { label: "N8N 워크플로우 설정", path: "/company-admin/automations", icon: "⚙️" },
     { label: "실행 결과", path: "/company-admin/results", icon: "📜" },
   ];
 
@@ -33,8 +61,8 @@ export function AdminSidebar() {
       <div>
         {/* 콘솔명 */}
         <div style={{ padding: "0 8px 20px 8px", borderBottom: "1px solid #374151", marginBottom: "20px" }}>
-          <h1 style={{ fontSize: "16px", fontWeight: 700, color: "#ffffff", margin: 0 }}>
-            N8Lient Admin
+          <h1 style={{ fontSize: "16px", fontWeight: 700, color: "#ffffff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {companyName || userDoc?.clientId || "N8Lient Admin"}
           </h1>
           <p style={{ fontSize: "11px", color: "#9ca3af", margin: "4px 0 0 0" }}>
             회사 관리자 콘솔

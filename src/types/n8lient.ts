@@ -261,6 +261,25 @@ export interface ClientAutomation {
 }
 
 /**
+ * userAutomationSettings 컬렉션 — 개별 사용자의 실무 맞춤형 사용자 개인 자동화 설정값 (문서 ID = {uid}_{automationId})
+ */
+export interface UserAutomationSettings {
+  settingId: string;
+  uid: Uid;
+  clientId: ClientId;
+  automationId: AutomationId;
+  workflowKey: WorkflowKey;
+  /**
+   * 개인 설정값 — configSchema.key와 동일한 key를 사용하며,
+   * 빈 값은 회사 기본값(Fallback)을 사용하겠다는 의미임
+   */
+  settings: Record<string, string | number | boolean>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+/**
  * submissions 컬렉션 — 자동화 실행 요청 및 처리 상태
  */
 export interface Submission {
@@ -287,6 +306,12 @@ export interface Submission {
   };
   /** 재전송 시 원본 submissionId 참조 */
   retryOf?: SubmissionId | null;
+  /** 디버깅용 비민감 설정 병합 요약 정보 */
+  settingsMergeSummary?: {
+    hasUserSetting: boolean;
+    mergedKeys: string[];
+    fallbackKeys: string[];
+  } | null;
   createdAt: string;
   updatedAt: string;
   completedAt?: string | null;

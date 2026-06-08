@@ -7,11 +7,12 @@ import {
   getDocs,
   doc,
   setDoc,
+  getDoc,
   orderBy,
   onSnapshot,
   Firestore,
 } from "firebase/firestore";
-import type { ClientAutomation, Submission } from "@/types/n8lient";
+import type { ClientAutomation, Submission, UserAutomationSettings } from "@/types/n8lient";
 
 /**
  * 로그인한 사용자의 clientId 기준, 활성화되고 설정이 완료된 자동화(clientAutomations) 목록을 조회합니다.
@@ -114,3 +115,41 @@ export function subscribeMySubmissions(
     }
   );
 }
+
+/**
+ * 특정 사용자의 특정 자동화에 대한 개인 설정(userAutomationSettings)을 조회합니다.
+ */
+export async function getUserAutomationSettings(
+  db: Firestore,
+  uid: string,
+  automationId: string
+): Promise<UserAutomationSettings | null> {
+  try {
+    const docRef = doc(db, "userAutomationSettings", `${uid}_${automationId}`);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as UserAutomationSettings;
+    }
+    return null;
+  } catch (error) {
+    console.error("[userService] 개인 설정 조회 실패:", error);
+    throw error;
+  }
+}
+
+/**
+ * 특정 사용자의 자동화 개인 설정(userAutomationSettings)을 저장(생성 또는 덮어쓰기)합니다.
+ */
+export async function saveUserAutomationSettings(
+  db: Firestore,
+  data: UserAutomationSettings
+): Promise<void> {
+  try {
+    const docRef = doc(db, "userAutomationSettings", data.settingId);
+    await setDoc(docRef, data);
+  } catch (error) {
+    console.error("[userService] 개인 설정 저장 실패:", error);
+    throw error;
+  }
+}
+

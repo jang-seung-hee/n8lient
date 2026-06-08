@@ -161,7 +161,71 @@ export async function POST(req: NextRequest) {
     }
 
     const workflowKey: string = autoDoc.workflowKey;
-    const settings: Record<string, any> = autoDoc.settings || {};
+    const companySettings: Record<string, any> = autoDoc.settings || {};
+
+    // ── 4.5. userAutomationSettings/{uid}_{automationId} 조회 및 병합 ──────
+    const finalSettings = { ...companySettings };
+    const userSettingId = `${uid}_${automationId}`;
+    const userSettingSnap = await db.collection("userAutomationSettings").doc(userSettingId).get();
+
+    let hasUserSetting = false;
+    const mergedKeys: string[] = [];
+    const fallbackKeys: string[] = [];
+
+    if (userSettingSnap.exists) {
+      const userSettingDoc = userSettingSnap.data()!;
+
+      // 정합성 검증: uid, clientId, automationId, workflowKey 확인
+      const isUidMatch = !userSettingDoc.uid || userSettingDoc.uid === uid;
+      const isClientIdMatch = !userSettingDoc.clientId || userSettingDoc.clientId === clientId;
+      const isAutomationIdMatch = !userSettingDoc.automationId || userSettingDoc.automationId === automationId;
+      const isWorkflowKeyMatch = !userSettingDoc.workflowKey || userSettingDoc.workflowKey === workflowKey;
+
+      if (isUidMatch && isClientIdMatch && isAutomationIdMatch && isWorkflowKeyMatch) {
+        hasUserSetting = true;
+        const userSettings: Record<string, any> = userSettingDoc.settings || {};
+
+        // 병합 규칙 적용
+        for (const [key, val] of Object.entries(userSettings)) {
+          // 빈 문자열, null, undefined, 공백 문자열 무시
+          const isInvalid =
+            val === null ||
+            val === undefined ||
+            (typeof val === "string" && val.trim() === "");
+
+          if (!isInvalid) {
+            finalSettings[key] = val;
+            mergedKeys.push(key);
+          }
+        }
+      } else {
+        console.warn(
+          `[execute] 개인 설정 정합성 검증 실패: userSettingId=${userSettingId}. 개인 설정을 무시하고 회사 설정을 사용합니다.`,
+          {
+            expected: { uid, clientId, automationId, workflowKey },
+            actual: {
+              uid: userSettingDoc.uid,
+              clientId: userSettingDoc.clientId,
+              automationId: userSettingDoc.automationId,
+              workflowKey: userSettingDoc.workflowKey,
+            }
+          }
+        );
+      }
+    }
+
+    // fallback 키 계산 (최종 병합된 키 중 개인 설정으로 덮어써지지 않은 키들)
+    for (const key of Object.keys(finalSettings)) {
+      if (!mergedKeys.includes(key)) {
+        fallbackKeys.push(key);
+      }
+    }
+
+    const settingsMergeSummary = {
+      hasUserSetting,
+      mergedKeys,
+      fallbackKeys,
+    };
 
     // ── 5. workflowTemplates/{workflowKey} 조회 (Webhook 참조값 확인) ────
     const templateSnap = await db.collection("workflowTemplates").doc(workflowKey).get();
@@ -209,6 +273,7 @@ export async function POST(req: NextRequest) {
         message: null,
       },
       retryOf: null,
+      settingsMergeSummary,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       completedAt: null,
@@ -236,7 +301,7 @@ export async function POST(req: NextRequest) {
       uid,
       workflowKey,
       automationId,
-      settings,
+      settings: finalSettings,
       input: submissionData.input,
       requestedAt: now.toISOString(),
       callbackUrl: `${baseUrl}/api/automation/callback`,

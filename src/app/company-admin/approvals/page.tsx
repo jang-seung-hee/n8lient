@@ -11,12 +11,16 @@ import {
   rejectJoinRequest,
 } from "@/features/admin/companyAdminService";
 import type { CompanyJoinRequest } from "@/types/n8lient";
+import { ListSearchFilterBar } from "@/components/core/ListSearchFilterBar";
 
 export default function AdminApprovals() {
   const { user, userDoc } = useAuthUser();
   const [requests, setRequests] = useState<CompanyJoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // 검색 상태
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadRequests = async () => {
     if (!userDoc?.clientId) return;
@@ -58,6 +62,8 @@ export default function AdminApprovals() {
 
   const handleReject = async (requestId: string) => {
     if (!user) return;
+    if (!confirm("해당 사용자의 가입을 거절하시겠습니까?")) return;
+    
     const reason = prompt("거절 사유를 입력해 주십시오:", "회사 코드 불일치");
     if (reason === null) return; // 취소 누른 경우
 
@@ -77,6 +83,22 @@ export default function AdminApprovals() {
       setActionLoading(null);
     }
   };
+
+  // 프론트엔드 필터링 적용
+  const filteredRequests = requests.filter((req) => {
+    const name = req.displayName || "이름 없음";
+    const email = req.email || "";
+    const code = req.requestedCompanyCode || "";
+    const date = req.requestedAt ? new Date(req.requestedAt).toLocaleString() : "";
+
+    const matchSearch =
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      date.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchSearch;
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -98,100 +120,118 @@ export default function AdminApprovals() {
           style={{
             backgroundColor: "#ffffff",
             border: "1px solid #e5e7eb",
-            borderRadius: "8px",
+            borderRadius: "6px",
             padding: "40px 16px",
             textAlign: "center",
             color: "#6b7280",
-            fontSize: "14px",
+            fontSize: "13.5px",
+            boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
           현재 승인 대기 중인 가입요청이 없습니다.
         </div>
       ) : (
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            overflow: "hidden",
-          }}
-        >
-          {/* 테이블 헤더 */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.5fr 1.5fr 1fr 1.5fr 1.5fr",
-              padding: "10px 16px",
-              backgroundColor: "#f9fafb",
-              borderBottom: "1px solid #e5e7eb",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "#374151",
-            }}
-          >
-            <span>신청인</span>
-            <span>이메일</span>
-            <span>입력 코드</span>
-            <span>신청 일시</span>
-            <span style={{ textAlign: "right" }}>작업</span>
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <ListSearchFilterBar
+            searchPlaceholder="이름, 이메일, 요청 코드 검색..."
+            filterFields={[]}
+            onChange={(query) => setSearchQuery(query)}
+          />
 
-          {/* 목록 */}
-          {requests.map((req, idx) => (
+          {filteredRequests.length === 0 ? (
+            <div style={{ padding: "32px", textAlign: "center", color: "#9ca3af", backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
+              검색 조건과 일치하는 승인 대기자가 없습니다.
+            </div>
+          ) : (
             <div
-              key={req.requestId}
               style={{
-                display: "grid",
-                gridTemplateColumns: "1.5fr 1.5fr 1fr 1.5fr 1.5fr",
-                padding: "12px 16px",
-                borderBottom: idx < requests.length - 1 ? "1px solid #f3f4f6" : "none",
-                fontSize: "13px",
-                color: "#111111",
-                alignItems: "center",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "6px",
+                overflow: "hidden",
+                boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
               }}
             >
-              <span style={{ fontWeight: 500 }}>{req.displayName || "이름 없음"}</span>
-              <span style={{ color: "#4b5563" }}>{req.email}</span>
-              <span style={{ fontFamily: "monospace" }}>{req.requestedCompanyCode}</span>
-              <span style={{ color: "#6b7280" }}>
-                {new Date(req.requestedAt).toLocaleString()}
-              </span>
-              <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => handleApprove(req.requestId)}
-                  disabled={actionLoading !== null}
-                  style={{
-                    backgroundColor: "#10b981",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {actionLoading === req.requestId ? "처리중" : "승인"}
-                </button>
-                <button
-                  onClick={() => handleReject(req.requestId)}
-                  disabled={actionLoading !== null}
-                  style={{
-                    backgroundColor: "#ef4444",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {actionLoading === req.requestId ? "처리중" : "거절"}
-                </button>
+              {/* 테이블 헤더 */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.5fr 2fr 1.2fr 1.8fr 1fr",
+                  padding: "10px 16px",
+                  backgroundColor: "#f9fafb",
+                  borderBottom: "1px solid #e5e7eb",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#374151",
+                }}
+              >
+                <span>신청인</span>
+                <span>이메일</span>
+                <span>입력 코드</span>
+                <span>신청 일시</span>
+                <span style={{ textAlign: "right" }}>작업</span>
               </div>
+
+              {/* 목록 */}
+              {filteredRequests.map((req, idx) => (
+                <div
+                  key={req.requestId}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.5fr 2fr 1.2fr 1.8fr 1fr",
+                    padding: "12px 16px",
+                    borderBottom: idx < filteredRequests.length - 1 ? "1px solid #f3f4f6" : "none",
+                    fontSize: "13px",
+                    color: "#111111",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: "#111827" }}>{req.displayName || "이름 없음"}</span>
+                  <span style={{ color: "#4b5563" }}>{req.email}</span>
+                  <span style={{ fontFamily: "monospace", color: "#374151" }}>{req.requestedCompanyCode}</span>
+                  <span style={{ color: "#6b7280" }}>
+                    {new Date(req.requestedAt).toLocaleString()}
+                  </span>
+                  <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => handleApprove(req.requestId)}
+                      disabled={actionLoading !== null}
+                      style={{
+                        backgroundColor: "#10b981",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "5px 10px",
+                        fontSize: "11px",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        boxShadow: "0 1px 2px 0 rgba(16, 185, 129, 0.2)",
+                      }}
+                    >
+                      {actionLoading === req.requestId ? "처리중" : "승인"}
+                    </button>
+                    <button
+                      onClick={() => handleReject(req.requestId)}
+                      disabled={actionLoading !== null}
+                      style={{
+                        backgroundColor: "#ef4444",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "5px 10px",
+                        fontSize: "11px",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        boxShadow: "0 1px 2px 0 rgba(239, 68, 68, 0.2)",
+                      }}
+                    >
+                      {actionLoading === req.requestId ? "처리중" : "거절"}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

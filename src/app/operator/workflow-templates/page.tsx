@@ -122,78 +122,6 @@ export default function OperatorTemplates() {
     }
   };
 
-  // 5. 개발자용 테스트 샘플 데이터 등록
-  const handleRegisterSample = async () => {
-    const sampleTemplate: WorkflowTemplate = {
-      workflowKey: "expense-report",
-      name: "지출결의서 자동 정리",
-      shortName: "지결자",
-      description: "지출결의서 관련 자료를 정리하고 회계 담당자에게 전달합니다.",
-      version: "1.0.0",
-      status: "published",
-      webhookSecretId: "expense-report",
-      n8nServerKey: "main",
-      configSchemaVersion: 1,
-      inputSchema: {
-        acceptedInputTypes: ["text", "file"],
-        allowedFileTypes: ["pdf", "jpg", "png", "xlsx"],
-        maxFileSizeMB: 50,
-      },
-      configSchema: [
-        {
-          key: "googleDriveFolderId", // 기존 googleDriveId -> googleDriveFolderId 보정 정책 유지
-          label: "구글드라이브 폴더 ID",
-          type: "text",
-          required: true,
-          placeholder: "자료를 업로드할 구글 드라이브 폴더 고유 ID",
-          description: "n8n 공용 Google 계정에 공유 설정된 대상 폴더 ID를 기재합니다.",
-        },
-        {
-          key: "targetSheetId", // targetSheetId 보정 명칭 정책 유지
-          label: "구글시트 ID",
-          type: "text",
-          required: true,
-          placeholder: "내역이 기록될 구글 스프레드시트 고유 ID",
-          description: "n8n 공용 Google 계정에 쓰기 권한으로 공유된 구글시트 ID입니다.",
-        },
-        {
-          key: "reportEmailTo", // reportEmailTo 보정 명칭 정책 유지
-          label: "보고 대상 이메일",
-          type: "email",
-          required: true,
-          placeholder: "결과 및 요약 내용을 보고할 이메일 주소",
-          description: "자동화 처리가 완료된 후 메일 알림을 수신할 최종 수신자 이메일입니다.",
-        },
-        {
-          key: "userEmail",
-          label: "사용자 이메일",
-          type: "email",
-          required: true,
-          defaultValueSource: "auth.email",
-          placeholder: "기본 제출자 이메일 주소",
-          description: "제출 시 기본값으로 설정되는 발송 사용자 이메일 주소입니다.",
-        },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      setLoading(true);
-      const res = await createWorkflowTemplate(db, sampleTemplate);
-      if (res.success) {
-        alert("샘플 N8N 워크플로우(지결자)가 Firestore에 성공적으로 등록되었습니다.");
-        loadTemplates();
-      } else {
-        alert(`등록 실패: ${res.message}`);
-      }
-    } catch (err: any) {
-      alert(`에러 발생: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px", position: "relative" }}>
       {/* 상단 헤더 영역 */}
@@ -362,14 +290,12 @@ export default function OperatorTemplates() {
         <p style={{ margin: 0 }}>• 큰 구조 변경이 필요할 경우, 우측 목록에서 <strong>[복제]</strong>를 클릭하여 새로운 워크플로우 Key를 부여해 신규 등록하십시오.</p>
       </div>
 
-      {/* 뷰 모드에 따른 화면 렌더링 스위칭 */}
       {viewMode === "list" && (
         <WorkflowList
           templates={templates}
           loading={loading}
           onSelect={handleSelect}
           onCreateClick={handleCreateClick}
-          onRegisterSample={handleRegisterSample}
         />
       )}
 

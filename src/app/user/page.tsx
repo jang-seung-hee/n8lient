@@ -1,17 +1,48 @@
 // 이 파일은 승인된 일반 사용자의 홈 화면을 나타냅니다.
-// 회사 정보, 자주 쓰는 자동화 카드, 최근 실행 결과를 조밀하게 표시합니다.
+// 회사 정보, 자주 쓰는 N8N 워크플로우 카드, 최근 실행 결과를 조밀하게 표시합니다.
 
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
-import { mockSubmissions, mockWorkflowTemplates } from "@/mocks/mockData";
+import { getActiveAutomations, subscribeMySubmissions } from "@/features/user/userService";
+import type { ClientAutomation, Submission } from "@/types/n8lient";
 
 export default function UserHome() {
-  const { userDoc } = useAuthUser();
+  const { user, userDoc } = useAuthUser();
+  const [automations, setAutomations] = useState<ClientAutomation[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 사용자 관련 Mock 최근 실행결과 (최대 3개)
-  const userSubmissions = mockSubmissions.slice(0, 3);
+  useEffect(() => {
+    if (!user || !userDoc?.clientId) {
+      setLoading(false);
+      return;
+    }
+
+    // 1. 활성 N8N 워크플로우 설정 조회
+    getActiveAutomations(db, userDoc.clientId)
+      .then((list) => setAutomations(list.slice(0, 3)))
+      .catch((err) => console.error("워크플로우 로드 실패:", err));
+
+    // 2. 본인의 실행 결과 실시간 구독 (최근 3개)
+    const unsubscribe = subscribeMySubmissions(
+      db,
+      user.uid,
+      (list) => {
+        setSubmissions(list.slice(0, 3));
+        setLoading(false);
+      },
+      (err) => {
+        console.error("실행결과 구독 에러:", err);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, userDoc]);
 
   return (
     <div style={{ padding: "12px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -30,7 +61,7 @@ export default function UserHome() {
               소속 회사
             </h2>
             <p style={{ fontSize: "13px", color: "#4b5563" }}>
-              {userDoc?.clientId === "client_rentaltoktok_001" ? "렌탈톡톡" : userDoc?.clientId}
+              {userDoc?.clientId === "client_rentaltoktok_001" ? "렌탈톡톡" : userDoc?.clientId || "회사 지정 없음"}
             </p>
           </div>
           <span
@@ -48,7 +79,7 @@ export default function UserHome() {
         </div>
       </section>
 
-      {/* 자주 쓰는 자동화 섹션 */}
+      {/* 자주 쓰는 N8N 워크플로우 섹션 */}
       <section>
         <h3
           style={{
@@ -58,58 +89,68 @@ export default function UserHome() {
             marginBottom: "8px",
           }}
         >
-          자주 쓰는 자동화
+          배정된 N8N 워크플로우
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {mockWorkflowTemplates.map((template) => (
-            <div
-              key={template.workflowKey}
-              style={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                padding: "12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <h4 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", marginBottom: "2px" }}>
-                  {template.name} ({template.shortName})
-                </h4>
-                <p style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.3 }}>
-                  {template.description}
-                </p>
-              </div>
-              <Link
-                href="/user/execute"
+          {loading ? (
+            <div style={{ padding: "16px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
+              불러오는 중...
+            </div>
+          ) : automations.length === 0 ? (
+            <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", color: "#6b7280", fontSize: "13px" }}>
+              배정되거나 활성화된 N8N 워크플로우가 없습니다.
+            </div>
+          ) : (
+            automations.map((auto) => (
+              <div
+                key={auto.automationId}
                 style={{
-                  height: "30px",
-                  padding: "0 10px",
-                  backgroundColor: "#111111",
-                  color: "#ffffff",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  borderRadius: "6px",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  textDecoration: "none",
                 }}
               >
-                실행
-              </Link>
-            </div>
-          ))}
+                <div>
+                  <h4 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", marginBottom: "2px" }}>
+                    {auto.automationName}
+                  </h4>
+                  <p style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.3 }}>
+                    Key: {auto.workflowKey}
+                  </p>
+                </div>
+                <Link
+                  href="/user/execute"
+                  style={{
+                    height: "30px",
+                    padding: "0 10px",
+                    backgroundColor: "#111111",
+                    color: "#ffffff",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  이동
+                </Link>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
       {/* 최근 실행 결과 목록 */}
       <section>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <h3 style={{ fontSize: "13px", fontWeight: 600, color: "#4b5563" }}>최근 실행 결과 (Mock)</h3>
+          <h3 style={{ fontSize: "13px", fontWeight: 600, color: "#4b5563" }}>최근 실행 로그</h3>
           <Link href="/user/results" style={{ fontSize: "12px", color: "#4b5563", textDecoration: "none" }}>
             더보기 &gt;
           </Link>
@@ -123,93 +164,103 @@ export default function UserHome() {
             overflow: "hidden",
           }}
         >
-          {userSubmissions.map((sub, idx) => {
-            const isSuccess = sub.status === "success";
-            const isProcessing = sub.status === "processing";
-            const isFailed = sub.status === "failed";
-            
-            let badgeBg = "#f3f4f6";
-            let badgeColor = "#4b5563";
-            let statusText = "대기";
-            
-            if (isSuccess) {
-              badgeBg = "#d1fae5";
-              badgeColor = "#065f46";
-              statusText = "성공";
-            } else if (isProcessing) {
-              badgeBg = "#dbeafe";
-              badgeColor = "#1e40af";
-              statusText = "진행중";
-            } else if (isFailed) {
-              badgeBg = "#fde8e8";
-              badgeColor = "#9b1c1c";
-              statusText = "실패";
-            }
+          {loading ? (
+            <div style={{ padding: "16px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
+              로딩 중...
+            </div>
+          ) : submissions.length === 0 ? (
+            <div style={{ padding: "32px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
+              실행 이력이 없습니다.
+            </div>
+          ) : (
+            submissions.map((sub, idx) => {
+              const isSuccess = sub.status === "success";
+              const isProcessing = sub.status === "processing";
+              const isFailed = sub.status === "failed";
+              
+              let badgeBg = "#f3f4f6";
+              let badgeColor = "#4b5563";
+              let statusText = "대기";
+              
+              if (isSuccess) {
+                badgeBg = "#d1fae5";
+                badgeColor = "#065f46";
+                statusText = "성공";
+              } else if (isProcessing) {
+                badgeBg = "#dbeafe";
+                badgeColor = "#1e40af";
+                statusText = "진행중";
+              } else if (isFailed) {
+                badgeBg = "#fde8e8";
+                badgeColor = "#9b1c1c";
+                statusText = "실패";
+              }
 
-            return (
-              <div
-                key={sub.submissionId}
-                style={{
-                  padding: "10px 12px",
-                  borderBottom: idx < userSubmissions.length - 1 ? "1px solid #f3f4f6" : "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      backgroundColor: badgeBg,
-                      color: badgeColor,
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {statusText}
-                  </span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <p
+              return (
+                <div
+                  key={sub.submissionId}
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: idx < submissions.length - 1 ? "1px solid #f3f4f6" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
+                    <span
                       style={{
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        color: "#111111",
-                        margin: 0,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        backgroundColor: badgeBg,
+                        color: badgeColor,
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        flexShrink: 0,
                       }}
                     >
-                      {sub.input.title}
-                    </p>
-                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0" }}>
-                      {sub.workflowKey === "expense-report" ? "지출결의서" : "통자요"} · {new Date(sub.createdAt).toLocaleTimeString()}
-                    </p>
+                      {statusText}
+                    </span>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "#111111",
+                          margin: 0,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {sub.input.title}
+                      </p>
+                      <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0" }}>
+                        {sub.workflowKey} · {new Date(sub.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
                   </div>
+                  
+                  {isSuccess && sub.result.resultUrl && (
+                    <a
+                      href={sub.result.resultUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        fontSize: "11px",
+                        color: "#3b82f6",
+                        textDecoration: "none",
+                        marginLeft: "8px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      결과보기
+                    </a>
+                  )}
                 </div>
-                
-                {isSuccess && sub.result.resultUrl && (
-                  <a
-                    href={sub.result.resultUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      fontSize: "11px",
-                      color: "#3b82f6",
-                      textDecoration: "none",
-                      marginLeft: "8px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    결과보기
-                  </a>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </section>
     </div>

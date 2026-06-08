@@ -152,42 +152,6 @@ export default function OperatorContracts() {
     }
   };
 
-  // 4. 개발자용 테스트 샘플 계약 배정
-  const handleRegisterSampleContract = async () => {
-    if (!user) return;
-    const clientId = "client_rentaltoktok_001";
-    const workflowKey = "expense-report";
-    const contractId = `${clientId}_${workflowKey}`;
-
-    const sampleContract: ClientContract = {
-      contractId,
-      clientId,
-      workflowKey,
-      enabled: true,
-      contractStatus: "active",
-      startedAt: new Date().toISOString(),
-      endedAt: null,
-      createdBy: user.uid,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      setLoading(true);
-      const res = await createClientContract(db, sampleContract);
-      if (res.success) {
-        alert("샘플 매핑(렌탈톡톡 - 지결자)이 성공적으로 등록되었습니다.");
-        await loadData();
-      } else {
-        alert(res.message);
-      }
-    } catch (err: any) {
-      alert(`매핑 등록 실패: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* 상단 타이틀 영역 */}
@@ -215,7 +179,6 @@ export default function OperatorContracts() {
           loading={loading}
           onSelect={handleSelect}
           onCreateClick={handleCreateClick}
-          onRegisterSampleContract={handleRegisterSampleContract}
         />
       )}
 

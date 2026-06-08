@@ -1,4 +1,4 @@
-// 이 파일은 사용자가 요청한 자동화 실행 내역(submissions)을 Firestore로부터 실시간 구독하여 처리 결과 상태를 모니터링하는 결과 화면입니다.
+// 이 파일은 사용자가 요청한 N8N 워크플로우 실행 내역(submissions)을 Firestore로부터 실시간 구독하여 처리 결과 상태를 모니터링하는 결과 화면입니다.
 
 "use client";
 
@@ -32,7 +32,7 @@ export default function UserResults() {
       },
       (err) => {
         console.error(err);
-        setError("실행 이력을 불러오는 중 오류가 발생했습니다.");
+        setError("실행 로그를 불러오는 중 오류가 발생했습니다.");
         setLoading(false);
       }
     );
@@ -49,18 +49,18 @@ export default function UserResults() {
   const getBadgeStyles = (status: string) => {
     switch (status) {
       case "success":
-        return { bg: "#d1fae5", text: "#065f46", label: "성공" };
+        return { bg: "#e2fbf0", text: "#0d9488", label: "성공" };
       case "processing":
-        return { bg: "#dbeafe", text: "#1e40af", label: "진행중" };
+        return { bg: "#eff6ff", text: "#2563eb", label: "진행중" };
       case "failed":
-        return { bg: "#fde8e8", text: "#9b1c1c", label: "실패" };
+        return { bg: "#fef2f2", text: "#dc2626", label: "실패" };
       case "skipped":
-        return { bg: "#e5e7eb", text: "#4b5563", label: "제외됨" };
+        return { bg: "#f3f4f6", text: "#4b5563", label: "제외됨" };
       case "config_error":
-        return { bg: "#fee2e2", text: "#991b1b", label: "설정오류" };
+        return { bg: "#fef2f2", text: "#b91c1c", label: "설정오류" };
       case "queued":
       default:
-        return { bg: "#f3f4f6", text: "#6b7280", label: "대기중" };
+        return { bg: "#f9fafb", text: "#6b7280", label: "대기중" };
     }
   };
 
@@ -72,7 +72,7 @@ export default function UserResults() {
     <div style={{ padding: "12px", boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
         <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", margin: 0 }}>
-          📊 실행 결과 내역 (실시간 동기화)
+          📊 N8N 워크플로우 실행 로그 (실시간 동기화)
         </h2>
         
         {/* 필터 셀렉트 */}
@@ -117,7 +117,7 @@ export default function UserResults() {
       >
         {filteredSubmissions.length === 0 ? (
           <div style={{ padding: "32px 16px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
-            조회된 대기/실행 내역이 없습니다.
+            조회된 N8N 워크플로우 실행 로그가 없습니다.
           </div>
         ) : (
           filteredSubmissions.map((sub, idx) => {
@@ -180,7 +180,7 @@ export default function UserResults() {
                   }}
                 >
                   <span>
-                    자동화 Key: {sub.workflowKey} · ID: {sub.submissionId}
+                    워크플로우 Key: {sub.workflowKey} · ID: {sub.submissionId}
                   </span>
                   
                   {sub.status === "success" && sub.result.resultUrl ? (
@@ -206,3 +206,4 @@ export default function UserResults() {
     </div>
   );
 }
+

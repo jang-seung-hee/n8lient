@@ -14,7 +14,6 @@ interface ContractMappingListProps {
   loading: boolean;
   onSelect: (contract: ClientContract) => void;
   onCreateClick: () => void;
-  onRegisterSampleContract: () => void;
 }
 
 const mappingFilterFields: FilterField[] = [
@@ -44,7 +43,6 @@ export function ContractMappingList({
   loading,
   onSelect,
   onCreateClick,
-  onRegisterSampleContract,
 }: ContractMappingListProps) {
   const [filteredContracts, setFilteredContracts] = useState<ClientContract[]>([]);
 
@@ -240,49 +238,6 @@ export function ContractMappingList({
           </tbody>
         </table>
       </div>
-
-      {/* 개발자용 테스트 샘플 계약 배정 패널 (details/summary 접이식 영역 격리) */}
-      <details
-        style={{
-          border: "1px dashed #d1d5db",
-          borderRadius: "8px",
-          padding: "12px 16px",
-          backgroundColor: "#f9fafb",
-          marginTop: "12px",
-          cursor: "pointer",
-        }}
-      >
-        <summary style={{ fontSize: "12px", fontWeight: 700, color: "#4b5563", outline: "none" }}>
-          🛠️ 개발자용 테스트 도구 (격리 패널)
-        </summary>
-        <div style={{ marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "default" }}>
-          <p style={{ fontSize: "11.5px", color: "#6b7280", margin: 0, lineHeight: 1.4 }}>
-            렌탈톡톡 고객사(`client_rentaltoktok_001`)에 지출결의서 자동화 계약을 원터치로 빠르게 배정하여 가동을 도우는 테스트 도구입니다.
-          </p>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRegisterSampleContract();
-            }}
-            disabled={loading}
-            style={{
-              backgroundColor: "#ffffff",
-              color: "#374151",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f3f4f6")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ffffff")}
-          >
-            {loading ? "처리 중..." : "🤝 샘플 매핑 즉시 배정"}
-          </button>
-        </div>
-      </details>
     </div>
   );
 }
