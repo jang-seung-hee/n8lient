@@ -23,13 +23,18 @@ service cloud.firestore {
 
     // 1. 사용자 정보 (users) 규칙
     match /users/{uid} {
-      // 본인은 조회 가능하며, 회사 관리자도 소속 사용자 조회가 가능
+      // 본인은 조회 가능하며, 회사 관리자 및 운영자도 조회가 가능
       allow get: if isAuthenticated() && (
         request.auth.uid == uid ||
-        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId) ||
+        getMyUser().role == 'operator'
       );
       
-      allow list: if isAuthenticated() && isCompanyAdmin();
+      // 운영자는 이메일로 사용자 조회(ownerAdminUid 매핑)를 위해 list 허용
+      allow list: if isAuthenticated() && (
+        isCompanyAdmin() ||
+        getMyUser().role == 'operator'
+      );
       
       // 최초 가입 시 생성이 가능
       allow create: if isAuthenticated() && request.auth.uid == uid;
@@ -66,7 +71,8 @@ service cloud.firestore {
     // 2. 회사코드 룩업 (companyCodeLookups) 규칙
     match /companyCodeLookups/{normalizedCode} {
       allow get: if isAuthenticated();
-      allow write, list: if false;
+      allow write: if isAuthenticated() && getMyUser().role == 'operator';
+      allow list: if false;
     }
 
     // 3. 회사 가입 승인 요청 (companyJoinRequests) 규칙

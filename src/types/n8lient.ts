@@ -193,6 +193,8 @@ export interface ConfigSchemaField {
   defaultValueSource?: string | null;
   options?: string[];
   placeholder?: string;
+  /** 사용자/관리자 화면에 노출할 이 필드에 대한 상세 가이드 설명 */
+  description?: string;
 }
 
 /**

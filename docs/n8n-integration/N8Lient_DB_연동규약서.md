@@ -14,10 +14,10 @@ N8Lient MVP의 핵심 데이터는 Firestore에 보관되며, 아래 9개 컬렉
 | **`users`** | 사용자 프로필 및 권한 정보 | Firebase Auth의 **`uid`** |
 | **`companyCodeLookups`** | 회사코드 입력 시 clientId 조회를 위한 보안 룩업 테이블 | `trim().toUpperCase()` 기준으로 정규화된 회사코드 (예: `RTT2026`, 소문자 사용 안 함) |
 | **`companyJoinRequests`** | 사용자의 특정 회사 가입 신청 이력 기록 | **`{uid}_{clientId}`** |
-| **`workflowTemplates`** | 운영자가 등록하는 자동화 마스터 템플릿(명세서) | **`{workflowKey}`** (예: `expense-report`) |
+| **`workflowTemplates`** | 운영자가 등록하는 N8N 워크플로우 마스터 명세 | **`{workflowKey}`** (예: `expense-report`) |
 | **`clientContracts`** | 고객사별 자동화 라이선스(계약) 부여 정보 | **`{clientId}_{workflowKey}`** |
 | **`clientAutomations`** | 고객사가 계약된 자동화에 입력한 **회사 공용 기본 설정값** | 임의 생성 ID (예: `auto_expense_001`) |
-| **`userAutomationSettings`** | **[NEW]** 개별 사용자의 실무 맞춤형 **사용자 개인 자동화 설정값** | **`{uid}_{automationId}`** |
+| **`userAutomationSettings`** | 개별 사용자의 실무 맞춤형 **사용자 개인 자동화 설정값** | **`{uid}_{automationId}`** |
 | **`submissions`** | 사용자가 요청한 자동화 실행 요청서 및 이력 | **`{submissionId}`** (예: `sub_20260608_abcdef`) |
 
 ---
@@ -34,6 +34,7 @@ N8Lient MVP의 핵심 데이터는 Firestore에 보관되며, 아래 9개 컬렉
   "ownerAdminUid": "firebase_uid_001",
   "defaultTimezone": "Asia/Seoul",
   "defaultReportEmail": "report@company.com",
+  "defaultDriveRootFolderId": "company_google_drive_root_folder_id",
   "createdAt": "ISO_8601_Timestamp",
   "updatedAt": "ISO_8601_Timestamp"
 }
@@ -54,7 +55,7 @@ N8Lient MVP의 핵심 데이터는 Firestore에 보관되며, 아래 9개 컬렉
 ```
 
 ### 2.3 workflowTemplates (자동화 명세서)
-운영자가 정의하는 마스터 스펙입니다.
+운영자가 정의하는 마스터 스펙입니다. 스키마 구성 시 **구글 OAuth 연동 ID나 API Key 자체를 입력받는 필드는 배제**합니다.
 ```json
 {
   "workflowKey": "expense-report",
@@ -71,8 +72,8 @@ N8Lient MVP의 핵심 데이터는 Firestore에 보관되며, 아래 9개 컬렉
   },
   "configSchema": [
     {
-      "key": "googleDriveId",
-      "label": "구글드라이브 ID",
+      "key": "googleDriveFolderId",
+      "label": "구글 드라이브 폴더 ID",
       "type": "text",
       "required": true
     },
@@ -97,7 +98,7 @@ N8Lient MVP의 핵심 데이터는 Firestore에 보관되며, 아래 9개 컬렉
   "enabled": true,
   "configStatus": "configured", // draft | configured | invalid | disabled
   "settings": {
-    "googleDriveId": "company_default_drive_folder_id",
+    "googleDriveFolderId": "company_default_drive_folder_id",
     "googleSheetId": "company_default_sheet_id"
   },
   "createdAt": "ISO_8601_Timestamp",
@@ -261,9 +262,12 @@ $$\text{workflowTemplates.configSchema[i].key} \equiv \text{최종 병합된 Set
         *   `settings.mdFolderId`
         *   `settings.originalFileFolderId`
         *   `settings.reportEmailTo`
-2.  **예외적 직접 조회 시의 주의사항**:
-    *   n8n이 Firestore를 직접 조회하는 방식은 예외적인 고급 모드 또는 특수 자동화(예: 워크플로우 내부에서 대량의 실시간 데이터 추가 동기화 등)에서만 제한적으로 활용됩니다.
-    *   직접 조회 시에도 `clientAutomations/{automationId}` 문서를 조회하여 `clientId` 일치 여부와 `enabled == true`, `configStatus == "configured"` 상태를 확인하는 가드(Guard) 로직을 먼저 배치해야 하며, 필수 설정 스키마가 settings에 모두 존재하는지 확인해야 합니다.
+2.  **공용 Google 계정 Credential 고정 및 권한 공유 원칙**:
+    *   n8n 내부의 Google Drive, Google Sheets, Gmail 노드는 사용자별 OAuth Credential을 런타임에 동적으로 변경하지 않으며, **공용 구글 계정 Credential을 정적으로 고정 연결**해 사용합니다.
+    *   사용자의 개인 폴더/시트 또는 회사 공용 폴더/시트를 이용해 자동화가 수행되려면, 대상 리소스(Drive 폴더/시트 등)가 **n8n의 공용 Google 계정 이메일에 쓰기(편집자) 권한으로 사전 공유**되어 있어야 합니다.
+    *   `settings`에는 오직 대상 리소스 ID(예: `googleDriveFolderId`, `originalFileFolderId`, `googleSheetId`, `reportEmailTo`)만 저장하며 Access Token, Refresh Token, n8n Credential ID 등 자격증명 정보를 절대 넘기지 않습니다.
+    *   Gemini API Key 역시 `settings`로 받지 않고 n8n 내부의 Credential 또는 서버 환경변수로 관리합니다.
+    *   리소스에 대한 권한이 공유되어 있지 않아 접근에 실패한 경우, 워크플로우는 이를 안전하게 감지하여 `callback failed` 또는 `config_error` 상태로 응답을 돌려주어야 합니다.
 3.  **n8n에서 직접 수정하지 말아야 할 값**:
     *   n8n 워크플로우 내부에서 `submissions` 문서의 `clientId`, `uid`, `workflowKey`, `automationId`, `input` 등 메타데이터 필드를 직접 덮어쓰거나 임의로 수정해서는 안 됩니다.
     *   `submissions` 내역은 사용자 실행 이력이므로, n8n은 오직 결과(`result`) 및 에러(`error`) 정보 업데이트 용도로만 터치해야 합니다.

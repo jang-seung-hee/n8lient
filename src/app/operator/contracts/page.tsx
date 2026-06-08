@@ -1,4 +1,5 @@
-// 이 파일은 시스템 운영자가 각 고객사별로 계약 자동화를 수동으로 배정 및 관리하는 화면입니다.
+// 이 파일은 시스템 운영자가 각 고객사별로 N8N 워크플로우를 배정(매핑)하고 계약 상태를 관리하는 화면입니다.
+// 기존의 비즈니스 검증, 중복 체크 및 활성 상태 토글 로직을 완벽히 보존한 채 List-Detail-Form 3단계 뷰 컴포넌트로 개편했습니다.
 
 "use client";
 
@@ -13,22 +14,22 @@ import {
 import type { ClientContract, ClientDoc, WorkflowTemplate } from "@/types/n8lient";
 import { doc, updateDoc } from "firebase/firestore";
 import { useAuthUser } from "@/features/auth/useAuthUser";
-import { siteConfig } from "@/config/siteConfig";
+
+// 하위 컴포넌트 임포트
+import { ContractMappingList } from "./ContractMappingList";
+import { ContractMappingDetail } from "./ContractMappingDetail";
+import { ContractMappingForm } from "./ContractMappingForm";
 
 export default function OperatorContracts() {
+  const [viewMode, setViewMode] = useState<"list" | "detail" | "form">("list");
+  const [selectedContract, setSelectedContract] = useState<ClientContract | null>(null);
+
   const [contracts, setContracts] = useState<ClientContract[]>([]);
   const [clients, setClients] = useState<ClientDoc[]>([]);
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // 수동 배정 폼 상태
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [selectedWorkflowKey, setSelectedWorkflowKey] = useState("");
-  const [formEnabled, setFormEnabled] = useState(true);
-  const [formContractStatus, setFormContractStatus] = useState<"active" | "paused" | "ended">("active");
-  const [submitting, setSubmitting] = useState(false);
-
   const { user } = useAuthUser();
 
   const loadData = async () => {
@@ -43,9 +44,6 @@ export default function OperatorContracts() {
       setContracts(contractList);
       setClients(clientList);
       setTemplates(templateList);
-
-      if (clientList.length > 0) setSelectedClientId(clientList[0].clientId);
-      if (templateList.length > 0) setSelectedWorkflowKey(templateList[0].workflowKey);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "데이터를 불러오는 중 오류가 발생했습니다.");
@@ -58,19 +56,75 @@ export default function OperatorContracts() {
     loadData();
   }, []);
 
-  // 수동 계약 배정 제출
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !selectedClientId || !selectedWorkflowKey) return;
+  // 1. 이벤트 뷰 전환 핸들러
+  const handleSelect = (contract: ClientContract) => {
+    setSelectedContract(contract);
+    setViewMode("detail");
+  };
 
-    const contractId = `${selectedClientId}_${selectedWorkflowKey}`;
+  const handleCreateClick = () => {
+    setSelectedContract(null);
+    setViewMode("form");
+  };
+
+  const handleBackToList = () => {
+    setSelectedContract(null);
+    setViewMode("list");
+    loadData(); // 목록 최신화 동기화
+  };
+
+  // 2. 계약 활성화/비활성화 상태 토글 수정 허용 (상세 화면에서만 수행하도록 구조 변경)
+  const handleToggleEnabled = async (contract: ClientContract) => {
+    try {
+      setLoading(true);
+      const docRef = doc(db, "clientContracts", contract.contractId);
+      const nextEnabled = !contract.enabled;
+      
+      const updatePayload = {
+        enabled: nextEnabled,
+        contractStatus: nextEnabled ? ("active" as const) : ("paused" as const),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await updateDoc(docRef, updatePayload);
+
+      alert(`배정 상태가 [${nextEnabled ? "활성" : "비활성"}]으로 수정되었습니다.`);
+      
+      // 상세 뷰 정보 즉시 업데이트 동기화
+      const updatedContract: ClientContract = {
+        ...contract,
+        ...updatePayload,
+      };
+      setSelectedContract(updatedContract);
+      
+      await loadData();
+    } catch (err: any) {
+      alert("상태 수정 실패: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 3. 신규 매핑 배정 제출 (중복 방지 가드레일 완벽 보존)
+  const handleFormSubmit = async (formData: {
+    clientId: string;
+    workflowKey: string;
+    enabled: boolean;
+    contractStatus: "active" | "paused" | "ended";
+  }) => {
+    if (!user) {
+      alert("인증 정보가 확인되지 않습니다.");
+      return;
+    }
+
+    const contractId = `${formData.clientId}_${formData.workflowKey}`;
 
     const newContract: ClientContract = {
       contractId,
-      clientId: selectedClientId,
-      workflowKey: selectedWorkflowKey,
-      enabled: formEnabled,
-      contractStatus: formContractStatus,
+      clientId: formData.clientId,
+      workflowKey: formData.workflowKey,
+      enabled: formData.enabled,
+      contractStatus: formData.contractStatus,
       startedAt: new Date().toISOString(),
       endedAt: null,
       createdBy: user.uid,
@@ -79,44 +133,26 @@ export default function OperatorContracts() {
     };
 
     try {
-      setSubmitting(true);
+      setLoading(true);
       const res = await createClientContract(db, newContract);
       if (res.success) {
-        alert("성공적으로 회사 계약 자동화 배정이 완료되었습니다.");
-        loadData();
+        alert("성공적으로 N8N 워크플로우 매핑 배정이 완료되었습니다.");
+        
+        // 저장 성공 시 방금 생성한 매핑의 상세(Detail) 화면으로 이동
+        setSelectedContract(newContract);
+        setViewMode("detail");
+        await loadData();
       } else {
-        alert(res.message || "계약 배정 실패");
+        alert(res.message || "매핑 배정 실패");
       }
     } catch (err: any) {
       alert(`에러 발생: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // 계약 활성화/비활성화 상태 토글 수정 허용 (3번 조건)
-  const handleToggleEnabled = async (contract: ClientContract) => {
-    try {
-      setLoading(true);
-      const docRef = doc(db, "clientContracts", contract.contractId);
-      const nextEnabled = !contract.enabled;
-      
-      await updateDoc(docRef, {
-        enabled: nextEnabled,
-        contractStatus: nextEnabled ? "active" : "paused",
-        updatedAt: new Date().toISOString(),
-      });
-
-      alert(`계약 상태가 [${nextEnabled ? "활성화" : "비활성화"}]로 수정되었습니다.`);
-      loadData();
-    } catch (err: any) {
-      alert("상태 수정 실패: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // 개발자용 테스트 샘플 계약 배정
+  // 4. 개발자용 테스트 샘플 계약 배정
   const handleRegisterSampleContract = async () => {
     if (!user) return;
     const clientId = "client_rentaltoktok_001";
@@ -140,13 +176,13 @@ export default function OperatorContracts() {
       setLoading(true);
       const res = await createClientContract(db, sampleContract);
       if (res.success) {
-        alert("샘플 계약(렌탈톡톡 - 지결자)이 성공적으로 등록되었습니다.");
-        loadData();
+        alert("샘플 매핑(렌탈톡톡 - 지결자)이 성공적으로 등록되었습니다.");
+        await loadData();
       } else {
         alert(res.message);
       }
     } catch (err: any) {
-      alert(`계약 등록 실패: ${err.message}`);
+      alert(`매핑 등록 실패: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -154,12 +190,13 @@ export default function OperatorContracts() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* 상단 타이틀 영역 */}
       <div>
         <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
-          🤝 계약 자동화(Contracts) 관리
+          🤝 N8N 워크플로우 매핑
         </h2>
         <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
-          각 고객사가 어떤 자동화 템플릿의 라이선스를 계약하고 활성화 중인지 관리합니다.
+          고객사에 사용할 N8N 워크플로우를 배정하고 계약 상태를 관리하는 화면입니다.
         </p>
       </div>
 
@@ -169,234 +206,39 @@ export default function OperatorContracts() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px", alignItems: "flex-start" }}>
-        
-        {/* 수동 계약 배정 폼 */}
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            padding: "20px",
-          }}
-        >
-          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111111", margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "10px" }}>
-            ➕ 회사별 자동화 라이선스 배정
-          </h3>
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>배정 대상 회사 *</label>
-              <select
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-              >
-                {clients.length === 0 ? (
-                  <option value="">등록된 회사가 없습니다.</option>
-                ) : (
-                  clients.map((c) => (
-                    <option key={c.clientId} value={c.clientId}>
-                      {c.companyName} ({c.clientId})
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
+      {/* 뷰 모드 렌더링 스위칭 */}
+      {viewMode === "list" && (
+        <ContractMappingList
+          contracts={contracts}
+          clients={clients}
+          templates={templates}
+          loading={loading}
+          onSelect={handleSelect}
+          onCreateClick={handleCreateClick}
+          onRegisterSampleContract={handleRegisterSampleContract}
+        />
+      )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>배정할 자동화 템플릿 *</label>
-              <select
-                value={selectedWorkflowKey}
-                onChange={(e) => setSelectedWorkflowKey(e.target.value)}
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-              >
-                {templates.length === 0 ? (
-                  <option value="">등록된 자동화가 없습니다.</option>
-                ) : (
-                  templates.map((t) => (
-                    <option key={t.workflowKey} value={t.workflowKey}>
-                      {t.name} ({t.workflowKey})
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
+      {viewMode === "detail" && selectedContract && (
+        <ContractMappingDetail
+          contract={selectedContract}
+          clients={clients}
+          templates={templates}
+          loading={loading}
+          onToggleEnabled={handleToggleEnabled}
+          onBackClick={handleBackToList}
+        />
+      )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>계약 최초 활성화</label>
-                <select
-                  value={String(formEnabled)}
-                  onChange={(e) => setFormEnabled(e.target.value === "true")}
-                  style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-                >
-                  <option value="true">활성화 (enabled = true)</option>
-                  <option value="false">비활성화 (enabled = false)</option>
-                </select>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>계약 상태</label>
-                <select
-                  value={formContractStatus}
-                  onChange={(e: any) => setFormContractStatus(e.target.value)}
-                  style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-                >
-                  <option value="active">유효함 (active)</option>
-                  <option value="paused">일시정지 (paused)</option>
-                  <option value="ended">계약종료 (ended)</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting || clients.length === 0 || templates.length === 0}
-              style={{
-                height: "38px",
-                backgroundColor: submitting ? "#4b5563" : "#111111",
-                color: "#ffffff",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: 600,
-                border: "none",
-                cursor: (submitting || clients.length === 0 || templates.length === 0) ? "not-allowed" : "pointer",
-                marginTop: "6px",
-              }}
-            >
-              {submitting ? "계약 등록 중..." : "🤝 회사 라이선스 계약 배정"}
-            </button>
-          </form>
-        </div>
-
-        {/* 계약 목록 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
-            📋 등록된 라이선스 계약 목록
-          </h3>
-
-          {loading && contracts.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "#6b7280" }}>{siteConfig.messages.loading}</p>
-          ) : (
-            <div
-              style={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.2fr 1fr 1fr 1fr",
-                  padding: "10px 12px",
-                  backgroundColor: "#f9fafb",
-                  borderBottom: "1px solid #e5e7eb",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#374151",
-                }}
-              >
-                <span>회사 ID</span>
-                <span>자동화 Key</span>
-                <span style={{ textAlign: "center" }}>라이선스</span>
-                <span style={{ textAlign: "right" }}>계약 상태</span>
-              </div>
-
-              {contracts.length === 0 ? (
-                <div style={{ padding: "32px 12px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
-                  배정된 계약 자동화 정보가 없습니다. 좌측 폼으로 배정을 완료해 주십시오.
-                </div>
-              ) : (
-                contracts.map((contract) => (
-                  <div
-                    key={contract.contractId}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1.2fr 1fr 1fr 1fr",
-                      padding: "12px",
-                      borderBottom: "1px solid #f3f4f6",
-                      fontSize: "12.5px",
-                      color: "#111111",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span style={{ fontWeight: 500, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {contract.clientId}
-                    </span>
-                    <span style={{ color: "#4b5563" }}>{contract.workflowKey}</span>
-                    <div style={{ textAlign: "center" }}>
-                      <button
-                        onClick={() => handleToggleEnabled(contract)}
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          backgroundColor: contract.enabled ? "#d1fae5" : "#fee2e2",
-                          color: contract.enabled ? "#065f46" : "#991b1b",
-                          border: "none",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                        }}
-                        title="클릭 시 계약 활성화 상태 토글"
-                      >
-                        {contract.enabled ? "활성화" : "비활성화"}
-                      </button>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          color: contract.contractStatus === "active" ? "#047857" : "#b91c1c",
-                        }}
-                      >
-                        {contract.contractStatus === "active" ? "유효(active)" : "일시정지(paused)"}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* 개발자용 테스트 샘플 데이터 격리 패널 */}
-      <div
-        style={{
-          backgroundColor: "#f9fafb",
-          border: "1px dashed #d1d5db",
-          borderRadius: "8px",
-          padding: "16px",
-          marginTop: "12px",
-        }}
-      >
-        <h3 style={{ fontSize: "13px", fontWeight: 700, color: "#4b5563", margin: "0 0 8px 0" }}>
-          🛠️ 개발자용 테스트 샘플 계약 배정 (격리 패널)
-        </h3>
-        <p style={{ fontSize: "12px", color: "#6b7280", margin: "0 0 12px 0", lineHeight: 1.4 }}>
-          렌탈톡톡 고객사(`client_rentaltoktok_001`)에 지결자 자동화 계약을 원터치로 빠르게 배정하는 도구입니다.
-        </p>
-        <button
-          onClick={handleRegisterSampleContract}
-          disabled={loading}
-          style={{
-            backgroundColor: "#e5e7eb",
-            color: "#374151",
-            border: "1px solid #d1d5db",
-            borderRadius: "6px",
-            padding: "8px 14px",
-            fontSize: "12px",
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "처리 중..." : "🤝 테스트 샘플 계약(렌탈톡톡 - 지결자) 즉시 배정"}
-        </button>
-      </div>
+      {viewMode === "form" && (
+        <ContractMappingForm
+          clients={clients}
+          templates={templates}
+          onSubmit={handleFormSubmit}
+          onCancel={handleBackToList}
+          loading={loading}
+        />
+      )}
     </div>
   );
 }

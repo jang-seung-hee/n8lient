@@ -312,6 +312,11 @@ export default function AdminAutomations() {
                   <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
                     {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
                   </label>
+                  {field.description && (
+                    <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
+                      💡 {field.description}
+                    </span>
+                  )}
                   
                   {field.type === "boolean" ? (
                     <select

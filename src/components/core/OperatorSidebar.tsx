@@ -9,12 +9,11 @@ export function OperatorSidebar() {
   const pathname = usePathname();
 
   const menuItems = [
-    { label: "콘솔 홈", path: "/operator", icon: "🏢" },
-    { label: "회사 관리", path: "/operator/clients", icon: "🏭" },
-    { label: "템플릿 관리", path: "/operator/workflow-templates", icon: "📋" },
-    { label: "계약 자동화", path: "/operator/contracts", icon: "🤝" },
-    { label: "웹훅 관리", path: "/operator/webhooks", icon: "🔗" },
+    { label: "고객사 마스터", path: "/operator/clients", icon: "🏭" },
+    { label: "N8N 워크플로우 마스터", path: "/operator/workflow-templates", icon: "📋" },
+    { label: "N8N 워크플로우 매핑", path: "/operator/contracts", icon: "🤝" },
     { label: "시스템 로그", path: "/operator/logs", icon: "📂" },
+    { label: "콘솔 홈", path: "/operator", icon: "🏢" },
   ];
 
   return (
