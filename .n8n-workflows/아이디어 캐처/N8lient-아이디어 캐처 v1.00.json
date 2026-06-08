@@ -1,0 +1,405 @@
+{
+  "name": "JANG'S 아이디어 캐처 v1.93 - 장승희",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "idea-catcher",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1447a8be-4f78-49a1-8f2d-2e48ab90f26b",
+      "name": "01 Cloud Memo Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        7552,
+        5104
+      ],
+      "webhookId": "f2653657-214f-4678-9fb3-ee85478d4dd4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 00 환경설정\n// 필요한 값은 이 노드 안에서만 수정하면 된다.\n// Cloud Memo에서 X-N8N-TOKEN을 쓰는 경우 Webhook 노드에 Header Auth Credential을 별도로 지정한다.\n\nconst item = $input.first();\n\nconst config = {\n  workflowName: \"JANG'S 아이디어 캐처\",\n\n  // Gemini\n  // API Key는 n8n Credential: Google Gemini(PaLM) Api account(장승희-유료)에서 관리한다.\n  // 이 노드에는 키를 직접 입력하지 않는다.\n  geminiModel: 'gemini-2.5-flash',\n\n  // Google Drive folders\n  originalAudioFolderId: '1HuxWaQ9OTU0mhKC-H6S1t1l5AkIRYW-S', // 음성-카드노트\n  \n  // 장승희 위키 수집함으로 바로 들어 감 (장승희 위키/수집함)\n  mdFolderId: '1K0YTpwaVhph1d-_DEhrcTfIPtXqj66H5', // JANG'S 아이디어 캐처\n\n  // Gmail report\n  reportEmailTo: 'moral_hazard@naver.com',\n\n  // File naming\n  audioPrefix: 'idea_audio',\n  mdPrefix: 'idea_card',\n\n  // 프롬프트: AI는 title/paragraphs/keywords만 JSON으로 반환한다.\n  // MD 구조와 출처는 n8n 코드가 고정 생성한다.\n  // 긴 음성 글쓰기를 과도하게 요약하지 않고, 말의 흐름을 살리는 방향이다.\n  prompt: `너는 한국어 음성 글쓰기를 정리하는 보조 작가다.\n\n사용자는 음성으로 글을 쓴다.\n음성에는 \"음\", \"어\", 반복, 중단된 말, 되돌아간 설명, 주제 전환이 있을 수 있다.\n\n목표:\n끊긴 말과 생각의 공백은 말한 내용의 범위 안에서 자연스럽게 이어 문장화한다.\n사용자가 말한 흐름, 논리, 예시, 감정의 결을 최대한 보존한다.\n중언부언, 추임새, 반복, 말꼬리만 걷어내고 읽기 좋은 글로 정리한다.\nAI가 임의로 검열하거나 절반으로 줄이지 않는다.\n임의로 짧게 압축하지 않는다.\n\n제목 규칙:\n- title은 평범한 요약 제목으로 만들지 않는다.\n- title은 실제 발화 속에서 나온 인상적인 표현, 핵심 문장, 힘 있는 워딩을 골라 만든다.\n- 사용자가 직접 제목을 말하지 않았더라도, 말한 내용 안에서 가장 제목다운 표현을 찾아 25자 이내로 다듬는다.\n- \"아이디어 카드노트\", \"음성 메모\", \"생각 정리\", \"내용 요약\", \"아이디어 노트\" 같은 일반 제목은 쓰지 않는다.\n- 사용자가 말하지 않은 멋있는 표현을 새로 창작하지 않는다.\n- 실제 워딩을 살리되 제목으로 읽히도록 조사나 어미 정도만 자연스럽게 다듬는다.\n\n본문 규칙:\n- paragraphs는 본문 문단 배열이다.\n- 각 문단은 자연스러운 글 문장으로 작성한다.\n- 사용자가 말한 순서와 흐름을 가능한 한 유지한다.\n- 여러 생각이 이어지면 문단을 나누어 정리한다.\n- 중언부언은 제거하되, 생각의 전개와 설명은 지나치게 줄이지 않는다.\n- 사용자가 말하지 않은 사실, 사례, 결론을 새로 만들지 않는다.\n\n출력 규칙:\n- JSON만 반환한다.\n- 마크다운, 코드블록, 설명문은 쓰지 않는다.\n- keywords는 3~7개 배열로 만든다.\n\n반환 형식:\n{\"title\":\"\",\"paragraphs\":[\"\"],\"keywords\":[\"\"]}`\n};\n\nreturn [{\n  json: {\n    ...item.json,\n    _config: config,\n  },\n  binary: item.binary,\n}];"
+      },
+      "id": "1d26012f-4cc7-49c1-8f49-960b67a9e58e",
+      "name": "00 환경설정",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7808,
+        5104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cloud Memo multipart/form-data 입력 정리\n// - body.title / body.content / body.memoId 수집\n// - binary file_0, file_1 중 audio/* 우선 선택\n// - 음성 원본은 sourceAudio binary field로 정규화\n// - Gemini inlineData용 base64 생성\n\nconst item = $input.first();\nconst config = item.json._config || {};\nconst body = item.json.body || item.json || {};\nconst binary = item.binary || {};\n\nconst binaryKeys = Object.keys(binary);\nconst audioKey =\n  binaryKeys.find((key) => (binary[key].mimeType || '').startsWith('audio/')) ||\n  binaryKeys.find((key) => key.startsWith('file_')) ||\n  binaryKeys[0];\n\nif (!audioKey) {\n  throw new Error('음성 파일이 없습니다. Cloud Memo에서 음성 녹음 파일이 file_0 형식으로 전송되었는지 확인하세요.');\n}\n\nconst audioMeta = binary[audioKey];\nconst audioBuffer = await this.helpers.getBinaryDataBuffer(0, audioKey);\nconst audioBase64 = audioBuffer.toString('base64');\n\nconst now = new Date();\nconst pad = (n) => String(n).padStart(2, '0');\nconst yyyy = now.getFullYear();\nconst MM = pad(now.getMonth() + 1);\nconst dd = pad(now.getDate());\nconst hh = pad(now.getHours());\nconst mm = pad(now.getMinutes());\nconst ss = pad(now.getSeconds());\n\nconst dateText = `${yyyy}-${MM}-${dd} ${hh}:${mm}`;\nconst stamp = `${yyyy}${MM}${dd}_${hh}${mm}${ss}`;\n\nconst sourceTitle = String(body.title || '').trim();\nconst sourceContent = String(body.content || '').trim();\nconst memoId = String(body.memoId || '').trim();\n\nconst originalName = audioMeta.fileName || `voice_memo_${stamp}.webm`;\nconst extFromName = originalName.includes('.') ? originalName.split('.').pop() : 'webm';\nconst safeOriginalName = `${config.audioPrefix || 'idea_audio'}_${stamp}.${extFromName}`;\n\nreturn [{\n  json: {\n    _config: config,\n    sourceTitle,\n    sourceContent,\n    memoId,\n    receivedAt: dateText,\n    stamp,\n    originalAudioFileName: safeOriginalName,\n    originalAudioMimeType: audioMeta.mimeType || 'audio/webm',\n    originalAudioSize: audioMeta.fileSize || audioBuffer.length,\n    audioBase64,\n  },\n  binary: {\n    sourceAudio: {\n      ...audioMeta,\n      fileName: safeOriginalName,\n    },\n  },\n}];"
+      },
+      "id": "dc378a61-be38-4aca-bc19-0a2ec98abb25",
+      "name": "01 입력 정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8080,
+        5104
+      ]
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "sourceAudio",
+        "name": "={{$json.originalAudioFileName}}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$json._config.originalAudioFolderId}}"
+        },
+        "options": {}
+      },
+      "id": "7136beba-6667-4ebe-b20a-fdd1f10846b2",
+      "name": "02 원본 음성 Drive 저장",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        8336,
+        5104
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "z2ncjw6Keo5mGEqx",
+          "name": "Google Drive account(xplora.jang@gmail.com)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Drive 저장 결과 + 01 입력 정리 결과를 결합해 Gemini 요청 JSON 생성\nconst drive = $input.first().json;\nconst prep = $items('01 입력 정리')[0].json;\n\nconst audioFileId = drive.id || drive.fileId || '';\nconst audioDriveLink = drive.webViewLink || (audioFileId ? `https://drive.google.com/file/d/${audioFileId}/view?usp=drivesdk` : '');\n\nconst config = prep._config || {};\n\nconst sourceText = [\n  prep.sourceTitle ? `사용자 입력 제목: ${prep.sourceTitle}` : '',\n  prep.sourceContent ? `사용자 입력 메모: ${prep.sourceContent}` : '',\n  `워크플로우명: ${config.workflowName || \"JANG'S 아이디어 캐처\"}`,\n  `원본 음성 파일명: ${prep.originalAudioFileName}`,\n  audioDriveLink ? `원본 음성 링크: ${audioDriveLink}` : '',\n  `생성일시: ${prep.receivedAt}`,\n].filter(Boolean).join('\\n');\n\nconst instruction = `${config.prompt}\\n\\n참고 정보:\\n${sourceText}`;\n\nconst geminiPayload = {\n  contents: [\n    {\n      role: 'user',\n      parts: [\n        { text: instruction },\n        {\n          inlineData: {\n            mimeType: prep.originalAudioMimeType || 'audio/webm',\n            data: prep.audioBase64,\n          },\n        },\n      ],\n    },\n  ],\n  generationConfig: {\n    temperature: 0.25,\n    topP: 0.85,\n    maxOutputTokens: 15000,\n    responseMimeType: 'application/json',\n    responseSchema: {\n      type: 'OBJECT',\n      properties: {\n        title: { type: 'STRING' },\n        paragraphs: {\n          type: 'ARRAY',\n          items: { type: 'STRING' },\n        },\n        keywords: {\n          type: 'ARRAY',\n          items: { type: 'STRING' },\n        },\n      },\n      required: ['title', 'paragraphs', 'keywords'],\n    },\n  },\n};\n\nreturn [{\n  json: {\n    ...prep,\n    audioFileId,\n    audioDriveLink,\n    geminiPayload,\n    // Gemini API Key는 HTTP Request 노드의 Google Gemini(PaLM) Credential이 주입한다.\n    geminiUrl: `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent`,\n  },\n}];"
+      },
+      "id": "21e6c8db-1d5a-4706-9bce-da68f9ece2fe",
+      "name": "03 Gemini 요청 구성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8592,
+        5104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gemini 응답에서 title/paragraphs/keywords를 추출하고, n8n에서 표준 Markdown을 1회만 생성한다.\n// 중요: JSON 파싱이 실패하면 억지로 MD를 만들지 않고 오류 처리한다.\n// 원본 음성은 이미 Drive에 저장되어 있으므로 공통 오류 리포터로 확인 후 재처리한다.\nconst res = $input.first().json;\nconst meta = $items('03 Gemini 요청 구성')[0].json;\nconst config = meta._config || {};\n\nconst parts = res.candidates?.[0]?.content?.parts || [];\nlet raw = parts.map((p) => p.text || '').join('\\n').trim();\n\nif (!raw) {\n  throw new Error('Gemini 응답에서 내용을 찾지 못했습니다. 원본 음성은 Drive에 저장되어 있으므로 재처리할 수 있습니다.');\n}\n\nconst stripCodeFence = (text) => String(text)\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```$/i, '')\n  .trim();\n\nconst normalizeKeywords = (value) => {\n  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean).slice(0, 7);\n  if (typeof value === 'string') return value.split(/[,\\n]/).map((v) => v.replace(/^[-*]\\s*/, '').trim()).filter(Boolean).slice(0, 7);\n  return [];\n};\n\nconst cleanText = (text) => String(text || '')\n  .replace(/##\\s*제목/gi, '')\n  .replace(/##\\s*내용/gi, '')\n  .replace(/##\\s*키워드(?: \\(선택\\))?/gi, '')\n  .replace(/##\\s*출처/gi, '')\n  .replace(/원본 음성 파일명\\s*[:：].*/gi, '')\n  .replace(/원본 음성 링크\\s*[:：].*/gi, '')\n  .replace(/생성일시\\s*[:：].*/gi, '')\n  .replace(/```json/gi, '')\n  .replace(/```/g, '')\n  .trim();\n\nlet parsed = null;\ntry {\n  parsed = JSON.parse(stripCodeFence(raw));\n} catch (e) {\n  throw new Error(`Gemini 응답 JSON 파싱 실패. 불완전한 MD를 생성하지 않고 중단합니다. 원본 음성 링크: ${meta.audioDriveLink || ''}\\n\\n원본 응답 앞부분:\\n${raw.slice(0, 1200)}`);\n}\n\nconst normalizeParagraphs = (value) => {\n  if (Array.isArray(value)) {\n    return value.map((p) => cleanText(p)).filter(Boolean);\n  }\n\n  // 구버전 응답 호환: content 문자열이 온 경우 문단으로 변환한다.\n  if (typeof value === 'string') {\n    const cleaned = cleanText(value);\n    return cleaned\n      .split(/\\n{2,}/)\n      .map((p) => p.trim())\n      .filter(Boolean);\n  }\n\n  return [];\n};\n\nlet paragraphs = normalizeParagraphs(parsed?.paragraphs);\nif (paragraphs.length === 0 && parsed?.content) {\n  paragraphs = normalizeParagraphs(parsed.content);\n}\n\nif (paragraphs.length === 0) {\n  throw new Error(`Gemini 응답에 본문 paragraphs가 없습니다. 원본 음성 링크: ${meta.audioDriveLink || ''}`);\n}\n\nconst genericTitlePatterns = [\n  /^아이디어\\s*카드노트$/i,\n  /^아이디어\\s*노트$/i,\n  /^음성\\s*메모$/i,\n  /^음성\\s*메모\\s*정리$/i,\n  /^생각\\s*정리$/i,\n  /^내용\\s*요약$/i,\n  /^메모\\s*정리$/i,\n  /^제목\\s*없음$/i,\n];\n\nconst sanitizeTitle = (s) => String(s || '')\n  .replace(/[\\\\/:*?\"<>|#\\[\\]\\n\\r\\t]/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst isGenericTitle = (title) => {\n  const t = sanitizeTitle(title);\n  return !t || genericTitlePatterns.some((re) => re.test(t));\n};\n\nconst deriveTitleFromParagraphs = (paragraphList) => {\n  const full = paragraphList.join(' ').replace(/\\s+/g, ' ').trim();\n  if (!full) return '';\n\n  // 실제 발화 흐름에서 제목다운 문장을 우선 선택한다.\n  const roughSentences = full\n    .split(/(?<=[.!?])\\s+|[。！？]\\s*|\\n+/)\n    .map((s) => sanitizeTitle(s))\n    .filter(Boolean);\n\n  const preferred = roughSentences.find((s) =>\n    s.length >= 8 && s.length <= 80 && /(해야|필요|중요|싫|좋|문제|핵심|방법|생각|글|작가|AI|잡아|놓치)/.test(s)\n  ) || roughSentences.find((s) => s.length >= 8 && s.length <= 80) || full;\n\n  return sanitizeTitle(preferred).slice(0, 25).trim();\n};\n\nlet noteTitle = sanitizeTitle(parsed?.title);\nif (isGenericTitle(noteTitle)) {\n  const sourceTitle = sanitizeTitle(meta.sourceTitle);\n  noteTitle = !isGenericTitle(sourceTitle) ? sourceTitle.slice(0, 25) : deriveTitleFromParagraphs(paragraphs);\n}\n\nif (!noteTitle) {\n  throw new Error(`제목을 생성하지 못했습니다. 원본 음성 링크: ${meta.audioDriveLink || ''}`);\n}\n\nconst content = paragraphs.join('\\n\\n');\nlet keywords = normalizeKeywords(parsed?.keywords);\nif (keywords.length === 0) keywords = ['음성 글쓰기', '아이디어 정리'];\n\nconst keywordMd = keywords.map((k) => `- ${k}`).join('\\n');\nconst workflowName = config.workflowName || \"JANG'S 아이디어 캐처\";\n\nconst md = `## 제목\n\n${noteTitle}\n\n## 내용\n\n${content}\n\n## 키워드 (선택)\n\n${keywordMd}\n\n## 출처\n\n- 워크플로우: ${workflowName}\n- 입력방식: Cloud Memo 음성 메모\n- AI 모델: ${config.geminiModel || 'gemini-2.5-flash'}\n- 원본 음성 파일명: ${meta.originalAudioFileName}\n- 원본 음성 링크: ${meta.audioDriveLink}\n- 생성일시: ${meta.receivedAt}\n`;\n\nconst safeTitle = sanitizeTitle(noteTitle).slice(0, 40) || '아이디어 노트';\nconst mdFileName = `${config.mdPrefix || 'idea_card'}_${meta.stamp}_${safeTitle}.md`;\n\nreturn [{\n  json: {\n    ...meta,\n    noteTitle,\n    paragraphs,\n    keywords,\n    md,\n    mdFileName,\n  },\n}];"
+      },
+      "id": "56cb7368-a082-42bb-b49e-7415d4a979f9",
+      "name": "05 Gemini 응답 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9120,
+        5104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Markdown 문자열을 Google Drive 업로드용 binary 파일로 변환\nconst item = $input.first().json;\nconst mdBuffer = Buffer.from(item.md, 'utf8');\n\nreturn [{\n  json: item,\n  binary: {\n    mdFile: {\n      data: mdBuffer.toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: item.mdFileName,\n      fileExtension: 'md',\n    },\n  },\n}];"
+      },
+      "id": "bdc24427-e946-4557-8bdc-4e5eb8ed1314",
+      "name": "06 MD 파일 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9376,
+        5104
+      ]
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "mdFile",
+        "name": "={{$json.mdFileName}}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$json._config.mdFolderId}}"
+        },
+        "options": {}
+      },
+      "id": "b148d66c-9d0d-4783-b854-e5127e2c9280",
+      "name": "07 MD Drive 저장",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        9632,
+        5104
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "z2ncjw6Keo5mGEqx",
+          "name": "Google Drive account(xplora.jang@gmail.com)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// MD 저장 결과 + 이전 메타데이터 결합, 메일/응답 데이터 생성\n// 이메일 리포팅 디자인: JANG'S AI Automation Email Frame Template v3.3 + Design.md v3.3 적용, 본문 구성 v1.93 반영, 전체 본문 메일 표시 수정\n// 주의: Drive/Gemini/MD 생성 등 데이터 처리 로직은 변경하지 않고, 보고 메일의 제목/본문 구성만 표준화한다.\nconst drive = $input.first().json;\nconst parsed = $items('06 MD 파일 생성')[0].json;\nconst config = parsed._config || {};\n\nconst mdFileId = drive.id || drive.fileId || '';\nconst mdDriveLink = drive.webViewLink || (mdFileId ? `https://drive.google.com/file/d/${mdFileId}/view?usp=drivesdk` : '');\n\nconst workflowName = config.workflowName || \"JANG'S 아이디어 캐처\";\n\nconst escapeHtml = (value) => String(value ?? '')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .replace(/'/g, '&#39;');\n\nconst escapeAttr = escapeHtml;\n\nconst safeUrl = (value) => {\n  const v = String(value || '').trim();\n  if (/^https?:\\/\\//i.test(v) || /^mailto:/i.test(v)) return v;\n  return '#';\n};\n\nconst plainText = (value) => String(value ?? '')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst formatBytes = (bytes) => {\n  const n = Number(bytes || 0);\n  if (!Number.isFinite(n) || n <= 0) return '';\n  if (n < 1024) return `${n} B`;\n  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;\n  return `${(n / 1024 / 1024).toFixed(1)} MB`;\n};\n\nconst sectionHeader = (label, title) => `\n<div style=\"border-top:2px solid #0f766e;padding-top:12px;margin:30px 0 14px;text-align:left;\">\n  <p style=\"margin:0 0 6px;font-size:12px;line-height:1.4;color:#0f766e;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;\">\n    ${escapeHtml(label)}\n  </p>\n  <h2 style=\"font-size:21px;line-height:1.4;margin:0;color:#111827;font-weight:800;letter-spacing:-0.02em;text-align:left;\">\n    ${escapeHtml(title)}\n  </h2>\n</div>`;\n\nconst roleLabel = (label) => `\n<p style=\"margin:0 0 8px;text-align:left;\">\n  <span style=\"display:inline-block;padding:5px 10px;font-size:12px;line-height:1.35;color:#ffffff;background:#0f766e;border:1px solid #0f766e;border-radius:4px;font-weight:800;letter-spacing:-0.01em;\">\n    ${escapeHtml(label)}\n  </span>\n</p>`;\n\nconst paragraph = (text, extraStyle = '') => `\n<p style=\"margin:0 0 13px;font-size:15px;line-height:1.78;color:#334155;text-align:left;${extraStyle}\">\n  ${escapeHtml(text)}\n</p>`;\n\nconst linkLine = (label, url, linkText) => `\n${roleLabel(label)}\n<p style=\"margin:0 0 16px;text-align:left;\">\n  <a href=\"${escapeAttr(safeUrl(url))}\" target=\"_blank\" style=\"display:inline-block;color:#2563eb;text-decoration:underline;font-weight:700;word-break:break-word;overflow-wrap:anywhere;\">\n    ${escapeHtml(linkText)}\n  </a>\n</p>`;\n\nconst keywordsHtml = Array.isArray(parsed.keywords) && parsed.keywords.length\n  ? `<p style=\"margin:4px 0 0;text-align:left;\">${parsed.keywords.map((k) => `\n      <span style=\"display:inline-block;margin:0 6px 6px 0;padding:4px 10px;font-size:12px;line-height:1.4;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:999px;\">\n        ${escapeHtml(k)}\n      </span>`).join('')}</p>`\n  : '';\n\nconst previewParagraphs = Array.isArray(parsed.paragraphs)\n  ? parsed.paragraphs.map((p) => plainText(p)).filter(Boolean)\n  : [];\n\n// 생성된 본문 전체를 이메일에 표시한다.\n// 이미 Gemini가 생성한 결과를 재사용하는 것이므로, 메일 본문에 전체 표시해도 추가 LLM 비용은 발생하지 않는다.\nconst previewHtml = previewParagraphs.map((p) => paragraph(p)).join('');\nconst previewMoreHtml = '';\n\nconst audioSizeText = formatBytes(parsed.originalAudioSize);\nconst metaLine = [\n  `워크플로우: ${workflowName}`,\n  `AI 모델: ${config.geminiModel || 'gemini-2.5-flash'}`,\n  parsed.receivedAt ? `생성일시: ${parsed.receivedAt}` : '',\n  audioSizeText ? `원본 음성 크기: ${audioSizeText}` : '',\n].filter(Boolean).join(' · ');\n\nconst contentHtml = `\n${sectionHeader('RESULT', '처리결과')}\n${roleLabel('처리 완료')}\n${paragraph('음성 메모를 아이디어 카드노트로 정리했습니다.')}\n${roleLabel('노트 제목')}\n<h3 style=\"font-size:18px;line-height:1.45;margin:0 0 10px;color:#111827;font-weight:800;letter-spacing:-0.01em;text-align:left;\">\n  ${escapeHtml(parsed.noteTitle)}\n</h3>\n${roleLabel('생성 파일명')}\n${paragraph(parsed.mdFileName || '')}\n<p style=\"margin:0 0 12px;font-size:13px;color:#6b7280;line-height:1.6;text-align:left;\">\n  ${escapeHtml(metaLine)}\n</p>\n\n${sectionHeader('IDEA', '캐치 아이디어 본문')}\n${previewHtml || paragraph('본문 문단을 찾지 못했습니다. MD 지식노트 파일에서 확인하세요.')}\n${previewMoreHtml}\n\n${sectionHeader('FILES', '원본 및 노트 파일')}\n${linkLine('원본 음성', parsed.audioDriveLink, 'Google Drive 원본 음성 열기')}\n${linkLine('노트 파일', mdDriveLink, 'MD 지식노트 열기')}\n`;\n\nconst emailFrame = \"<!doctype html>\\n<html lang=\\\"ko\\\">\\n<head>\\n  <meta charset=\\\"utf-8\\\">\\n  <meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1\\\">\\n  <title>{{EMAIL_TITLE}}</title>\\n  <!--\\n    JANG'S AI Automation Email Frame Template v3.3\\n\\n    역할:\\n    - 이 HTML은 공통 프레임만 담당한다.\\n    - 헤더 / 상태바 / 본문 삽입 영역 / 푸터를 제공한다.\\n    - 본문 내부 디자인은 02_Design_v3_3.md 기준으로 AI가 생성한다.\\n\\n    v3.3 핵심:\\n    - 공통 헤더와 같은 본문 제목 반복 금지.\\n    - 섹션 표제 상단 라인과 회색 구분선 중복 금지.\\n    - 핵심 포인트 / 요약 / 원문은 태그보다 한 단계 높은 본문 역할 라벨로 표시.\\n    - 본문 링크 기본 색상은 푸른색 #2563eb.\\n  -->\\n  <style>\\n    @media only screen and (max-width:640px){\\n      body{\\n        margin:0 !important;\\n        padding:0 !important;\\n        background:#ffffff !important;\\n        -webkit-text-size-adjust:100% !important;\\n        -ms-text-size-adjust:100% !important;\\n      }\\n\\n      .outer-wrap{\\n        padding:0 !important;\\n        background:#ffffff !important;\\n      }\\n\\n      .frame-shell{\\n        width:100% !important;\\n        max-width:100% !important;\\n      }\\n\\n      .header-banner{\\n        border-radius:0 0 18px 0 !important;\\n      }\\n\\n      .header-pad{\\n        padding:18px 12px 20px 12px !important;\\n      }\\n\\n      .eyebrow{\\n        font-size:11px !important;\\n        padding:6px 10px !important;\\n      }\\n\\n      .hero-title{\\n        font-size:22px !important;\\n        line-height:1.34 !important;\\n        margin-top:14px !important;\\n      }\\n\\n      .hero-subtitle{\\n        font-size:14px !important;\\n        line-height:1.55 !important;\\n        margin-top:9px !important;\\n      }\\n\\n      .status-bar{\\n        padding:11px 10px !important;\\n        font-size:13px !important;\\n        line-height:1.5 !important;\\n      }\\n\\n      .content-wrap{\\n        padding:20px 10px 24px 10px !important;\\n        font-size:16px !important;\\n        line-height:1.72 !important;\\n      }\\n\\n      .content-wrap h1{\\n        font-size:24px !important;\\n        line-height:1.34 !important;\\n      }\\n\\n      .content-wrap h2{\\n        font-size:20px !important;\\n        line-height:1.4 !important;\\n      }\\n\\n      .content-wrap h3{\\n        font-size:18px !important;\\n        line-height:1.45 !important;\\n      }\\n\\n      .content-wrap p,\\n      .content-wrap li,\\n      .content-wrap td,\\n      .content-wrap th{\\n        font-size:16px !important;\\n        line-height:1.72 !important;\\n      }\\n\\n      .content-wrap ul,\\n      .content-wrap ol{\\n        padding-left:20px !important;\\n        margin-left:0 !important;\\n      }\\n\\n      .content-wrap hr{\\n        margin:24px 0 !important;\\n      }\\n\\n      .content-wrap a{\\n        color:#2563eb !important;\\n        word-break:break-word !important;\\n        overflow-wrap:anywhere !important;\\n      }\\n\\n      .content-wrap table{\\n        width:100% !important;\\n        max-width:100% !important;\\n        border-radius:0 !important;\\n      }\\n\\n      .content-wrap th,\\n      .content-wrap td{\\n        padding:7px 6px !important;\\n      }\\n\\n      .footer-wrap{\\n        padding:0 10px 22px 10px !important;\\n      }\\n\\n      .footer-title{\\n        font-size:15px !important;\\n      }\\n\\n      .footer-copy,\\n      .footer-meta{\\n        font-size:12px !important;\\n        line-height:1.65 !important;\\n      }\\n    }\\n  </style>\\n</head>\\n\\n<body style=\\\"margin:0;padding:0;background:#ffffff;font-family:Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#111827;line-height:1.65;text-align:left;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;\\\">\\n  <div style=\\\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;\\\">\\n    {{PREHEADER}}\\n  </div>\\n\\n  <table role=\\\"presentation\\\" width=\\\"100%\\\" cellpadding=\\\"0\\\" cellspacing=\\\"0\\\" border=\\\"0\\\" style=\\\"width:100%;border-collapse:collapse;background:#ffffff;text-align:left;margin:0;padding:0;\\\">\\n    <tr>\\n      <td class=\\\"outer-wrap\\\" align=\\\"left\\\" style=\\\"padding:0 0 18px 0;text-align:left;background:#ffffff;\\\">\\n\\n        <table role=\\\"presentation\\\" class=\\\"frame-shell\\\" width=\\\"100%\\\" cellpadding=\\\"0\\\" cellspacing=\\\"0\\\" border=\\\"0\\\" style=\\\"width:100%;max-width:900px;border-collapse:collapse;text-align:left;background:#ffffff;margin:0;\\\">\\n\\n          <!-- Header -->\\n          <tr>\\n            <td class=\\\"header-banner\\\" style=\\\"background:#0f172a;background-image:linear-gradient(120deg,#0f172a 0%,#0f766e 58%,#f97316 100%);border-radius:0 0 28px 0;overflow:hidden;text-align:left;\\\">\\n              <div class=\\\"header-pad\\\" style=\\\"padding:30px 28px 30px 28px;text-align:left;\\\">\\n                <div class=\\\"eyebrow\\\" style=\\\"display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.28);background:rgba(255,255,255,0.12);color:#ffffff;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;\\\">\\n                  {{HEADER_EYEBROW}}\\n                </div>\\n                <div class=\\\"hero-title\\\" style=\\\"margin-top:16px;font-size:28px;font-weight:800;letter-spacing:-0.035em;line-height:1.25;color:#ffffff;\\\">\\n                  {{HEADER_TITLE}}\\n                </div>\\n                <div class=\\\"hero-subtitle\\\" style=\\\"margin-top:10px;font-size:15px;line-height:1.6;color:#f8fafc;opacity:0.95;\\\">\\n                  {{HEADER_SUBTITLE}}\\n                </div>\\n              </div>\\n            </td>\\n          </tr>\\n\\n          <!-- Status -->\\n          <tr>\\n            <td style=\\\"padding:14px 0 0 0;text-align:left;background:#ffffff;\\\">\\n              <div class=\\\"status-bar\\\" style=\\\"padding:12px 18px;background:{{STATUS_BG}};color:{{STATUS_COLOR}};font-size:13px;font-weight:700;line-height:1.55;border-left:4px solid {{STATUS_ACCENT}};text-align:left;\\\">\\n                {{STATUS_LABEL}} · {{STATUS_MESSAGE}}\\n              </div>\\n            </td>\\n          </tr>\\n\\n          <!-- Content -->\\n          <tr>\\n            <td class=\\\"content-wrap\\\" style=\\\"padding:26px 18px 32px 18px;text-align:left;font-size:15px;color:#334155;line-height:1.78;background:#ffffff;\\\">\\n              {{CONTENT_HTML}}\\n            </td>\\n          </tr>\\n\\n          <!-- Footer -->\\n          <tr>\\n            <td class=\\\"footer-wrap\\\" style=\\\"padding:0 18px 24px 18px;text-align:left;background:#ffffff;\\\">\\n              <table role=\\\"presentation\\\" width=\\\"100%\\\" cellpadding=\\\"0\\\" cellspacing=\\\"0\\\" border=\\\"0\\\" style=\\\"width:100%;border-collapse:collapse;background:#ffffff;\\\">\\n                <tr>\\n                  <td style=\\\"height:4px;background:#0f172a;background-image:linear-gradient(90deg,#0f172a 0%,#0f766e 52%,#f97316 100%);font-size:0;line-height:4px;\\\">&nbsp;</td>\\n                </tr>\\n                <tr>\\n                  <td style=\\\"padding:18px 0 0 0;text-align:left;background:#ffffff;\\\">\\n                    <div class=\\\"footer-title\\\" style=\\\"font-size:16px;font-weight:800;color:#111827;letter-spacing:-0.01em;\\\">\\n                      JANG'S AI Automation\\n                    </div>\\n                    <div class=\\\"footer-copy\\\" style=\\\"margin-top:8px;font-size:13px;color:#475569;line-height:1.7;\\\">\\n                      {{FOOTER_TAGLINE}}\\n                    </div>\\n                    <div class=\\\"footer-meta\\\" style=\\\"margin-top:10px;font-size:12px;color:#64748b;line-height:1.7;\\\">\\n                      운영사: {{FOOTER_COMPANY_NAME}}<br>\\n                      웹사이트: <a href=\\\"{{FOOTER_COMPANY_URL}}\\\" target=\\\"_blank\\\" style=\\\"color:#2563eb;text-decoration:none;\\\">{{FOOTER_COMPANY_URL_LABEL}}</a><br>\\n                      문의: <a href=\\\"mailto:{{FOOTER_CONTACT_EMAIL}}\\\" style=\\\"color:#2563eb;text-decoration:none;\\\">{{FOOTER_CONTACT}}</a><br>\\n                      주소: {{FOOTER_COMPANY_ADDRESS}}\\n                    </div>\\n                    <div style=\\\"margin-top:12px;font-size:12px;color:#94a3b8;line-height:1.7;\\\">\\n                      Copyright © {{YEAR}} {{FOOTER_COMPANY_NAME}}. All rights reserved.<br>\\n                      본 메일은 JANG'S AI Automation 시스템에 의해 자동 발송되었습니다.\\n                    </div>\\n                  </td>\\n                </tr>\\n              </table>\\n            </td>\\n          </tr>\\n\\n        </table>\\n      </td>\\n    </tr>\\n  </table>\\n</body>\\n</html>\\n\";\n\nconst fillTemplate = (frame, values) => {\n  let html = frame;\n  for (const [key, value] of Object.entries(values)) {\n    html = html.split(`{{${key}}}`).join(String(value ?? ''));\n  }\n  return html;\n};\n\nconst emailSubject = `[${workflowName}] ${parsed.noteTitle}`;\n\nconst emailBody = fillTemplate(emailFrame, {\n  EMAIL_TITLE: escapeHtml(emailSubject),\n  PREHEADER: escapeHtml(`${workflowName} ${parsed.noteTitle}`),\n  HEADER_EYEBROW: 'IDEA REPORT',\n  HEADER_TITLE: escapeHtml(workflowName),\n  HEADER_SUBTITLE: '떠오른 생각을 흘려보내지 않고, 바로 잡아 보관하는 아이디어 캐처입니다.',\n  STATUS_BG: '#ecfdf5',\n  STATUS_COLOR: '#065f46',\n  STATUS_ACCENT: '#0f766e',\n  STATUS_LABEL: 'SUCCESS',\n  STATUS_MESSAGE: escapeHtml(`카드노트 생성 완료 · ${parsed.receivedAt || ''}`),\n  CONTENT_HTML: contentHtml,\n  FOOTER_TAGLINE: '생각의 원본을 보존하고, 다시 읽을 수 있는 문서형 지식노트로 정리합니다.',\n  FOOTER_COMPANY_NAME: \"JANG'S AI Automation\",\n  FOOTER_COMPANY_URL: 'https://rentaltalk.kr',\n  FOOTER_COMPANY_URL_LABEL: 'rentaltalk.kr',\n  FOOTER_CONTACT_EMAIL: escapeAttr(config.reportEmailTo || ''),\n  FOOTER_CONTACT: escapeHtml(config.reportEmailTo || ''),\n  FOOTER_COMPANY_ADDRESS: 'Internal Automation Report',\n  YEAR: new Date().getFullYear(),\n});\n\nconst cloudMemoOutput = `아이디어 카드노트가 생성되었습니다.\\n\\n원본 음성 파일:\\n${parsed.audioDriveLink}\\n\\nMD 지식노트 파일:\\n${mdDriveLink}\\n\\n${parsed.md}`;\n\nreturn [{\n  json: {\n    success: true,\n    status: 'success',\n    title: parsed.noteTitle,\n    output: cloudMemoOutput,\n    emailTo: config.reportEmailTo,\n    emailSubject,\n    emailBody,\n    audioDriveLink: parsed.audioDriveLink,\n    mdDriveLink,\n    noteTitle: parsed.noteTitle,\n    mdFileName: parsed.mdFileName,\n  },\n}];"
+      },
+      "id": "ccafac55-2e76-4867-8b79-b2a486fbe8fb",
+      "name": "08 최종 보고 데이터 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9888,
+        5104
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.emailTo}}",
+        "subject": "={{$json.emailSubject}}",
+        "message": "={{$json.emailBody}}",
+        "options": {}
+      },
+      "id": "ec6e1817-4216-488c-9084-0713bb6c3472",
+      "name": "09 Gmail 보고",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        10160,
+        5104
+      ],
+      "webhookId": "25d0d177-75c9-4afd-9821-a82097010155",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "wu6L94CVCQmeCelp",
+          "name": "Gmail account(xplora.jang@gmail.com)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify({ success: true, status: 'success', title: 'JANG\\u0027S 아이디어 캐처 원본 저장 완료', output: '음성 메모 원본이 Google Drive에 저장되었습니다.\\n\\n이후 JANG\\u0027S 아이디어 캐처 보고서 생성은 n8n에서 계속 처리됩니다.\\n처리가 완료되면 이메일로 원본 음성 링크와 MD 지식노트 링크를 보내드립니다.\\n\\n원본 음성 파일:\\n' + ($json.webViewLink || ($json.id ? 'https://drive.google.com/file/d/' + $json.id + '/view?usp=drivesdk' : '')) })}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ba3d29ad-0bd2-42b2-b2d8-2301d37c0404",
+      "name": "03 Cloud Memo 원본 저장 완료 응답",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        8592,
+        5328
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# JANG'S 아이디어 캐처 설정 안내\n\n## 역할\nCloud Memo에서 전송한 음성 메모를 받아 원본 음성은 Drive에 먼저 보관하고, Cloud Memo에는 “원본 저장 완료” 응답을 빠르게 반환한다. 이후 n8n이 계속 실행되어 Gemini 2.5 Flash로 음성 글을 정리하고, MD 파일을 Drive에 저장한 뒤 Gmail로 결과를 보고한다.\n\n## 00 환경설정\n- `geminiModel`: `gemini-2.5-flash`\n- `originalAudioFolderId`: 원본 음성 저장 폴더 ID\n- `mdFolderId`: 완성 MD 저장 폴더 ID\n- `reportEmailTo`: 결과 보고 메일 수신자\n- `audioPrefix`, `mdPrefix`: 저장 파일명 접두어\n- `prompt`: 음성 글쓰기를 요약하지 않고 보조 작가처럼 정리하도록 하는 프롬프트\n\n## Drive 폴더\n- 원본 음성: `음성-카드노트`\n  - `1HuxWaQ9OTU0mhKC-H6S1t1l5AkIRYW-S`\n- 완성 MD: `JANG'S 아이디어 캐처`\n  - `1gJPs1XcN8YGcjbILP9ftwqbMJBCWSK62`\n\n## Credential 확인\n- `02 원본 음성 Drive 저장`: Google Drive Credential\n- `04 Gemini 2.5 Flash`: Google Gemini(PaLM) Api Credential\n- `07 MD Drive 저장`: Google Drive Credential\n- `09 Gmail 보고`: Gmail Credential\n\n## 중요 바이너리 필드명\n- `02 원본 음성 Drive 저장`의 Input Data Field Name: `sourceAudio`\n- `07 MD Drive 저장`의 Input Data Field Name: `mdFile`\n- 이 값이 `data`로 되어 있으면 “The item has no binary field 'data'” 오류가 발생한다.\n\n## 즉시 응답 구조\n- Cloud Memo는 원본 음성이 Drive에 저장된 직후 응답을 받는다.\n- Gemini 처리, MD 저장, Gmail 보고는 Cloud Memo 응답 이후에도 n8n에서 계속 진행된다.\n- 후속 오류는 `n8n 공통 오류 리포터 v1.0`으로 보고한다.\n\n## 긴 음성 글쓰기 정책\n- 10분, 20분짜리 음성 글도 과도하게 요약하지 않는다.\n- Gemini 출력은 `title`, `paragraphs`, `keywords` JSON으로 받는다.\n- `paragraphs` 배열을 문단 단위 본문으로 합쳐 MD를 만든다.\n- `maxOutputTokens`는 15000으로 열어둔다. 실제 사용량은 생성된 출력 길이에 따라 달라진다.\n- JSON 파싱 실패 시 이상한 MD를 만들지 않고 오류 처리한다.\n\n## 테스트 순서\n1. Cloud Memo에서 1~5분 음성 녹음\n2. Cloud Memo가 원본 저장 완료 응답을 받는지 확인\n3. 원본 음성 Drive 저장 확인\n4. MD Drive 저장 확인\n5. 성공 보고 메일 줄바꿈/링크 확인\n6. MD 제목이 실제 발화에서 나온 워딩 기반인지 확인\n7. MD 본문이 과도하게 요약되지 않고 문단 흐름을 보존하는지 확인\n",
+        "height": 820,
+        "width": 520,
+        "color": 4
+      },
+      "id": "3bda0429-c6c6-47e9-ae3f-df6d327ccf51",
+      "name": "Sticky Note - 설정 안내서",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        6928,
+        4576
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 버전 기록\n\n## v1.93 전체 본문 표시 수정\n- 이메일의 `캐치 아이디어 본문` 섹션에서 3개 문단 제한을 제거했다.\n- Gemini가 생성한 전체 본문 문단을 메일에 그대로 표시한다.\n- Drive/Gemini/MD/Gmail 처리 로직은 변경하지 않았다.\n\n## v1.93 오류 수정\n- `03 Cloud Memo 원본 저장 완료 응답` 노드의 n8n Expression 문자열에서 `JANG'S` 작은따옴표 충돌 가능성을 제거했다.\n- 워크플로우 기능과 이메일 디자인은 변경하지 않았다.\n\n## v1.93\n- 이메일 헤더 설명문을 아이디어 보관 목적의 간결한 마케팅 문구로 변경했다.\n- `처리 결과`와 `카드노트 정보` 섹션을 `처리결과` 섹션으로 병합했다.\n- 이메일 본문에서 키워드 표시를 제거했다.\n- `본문 미리보기` 섹션명을 `캐치 아이디어 본문`으로 변경했다.\n- `원본 및 결과 파일` 섹션명을 `원본 및 노트 파일`로 변경하고, `캐치 아이디어 본문` 다음 순서로 이동했다.\n- Drive 저장, Gemini 호출, MD 생성, Gmail 발송 로직은 변경하지 않았다.\n\n\n## v1.91\n- 워크플로우 공식 명칭을 `JANG'S 아이디어 캐처`로 변경했다.\n- 이메일 제목, 헤더, 상태바, 푸터에 공식 명칭을 적용했다.\n- `01_APPLY_THIS_Email_Frame_Template_v3_3.html` 공통 프레임을 적용했다.\n- `02_Design_v3_3.md` 기준으로 본문을 문서형 리포트 구조로 재구성했다.\n- 원본 음성 링크와 MD 지식노트 링크는 URL 노출 없이 텍스트 링크로 표시하도록 변경했다.\n- 기존 Drive 저장, Gemini 호출, MD 생성, Gmail 발송 흐름은 변경하지 않았다.\n\n## v1.8\n- 음성 메모를 단순 요약하지 않고 “음성 글쓰기 정리” 방식으로 변경했다.\n- Gemini 출력 구조를 `content` 문자열에서 `paragraphs` 배열로 변경했다.\n- 제목은 평범한 요약 제목이 아니라 실제 발화 속 인상적인 워딩을 기반으로 만들도록 프롬프트를 강화했다.\n- `maxOutputTokens`를 15000으로 확장했다.\n- `responseMimeType: application/json`과 `responseSchema`를 추가해 JSON 응답 안정성을 높였다.\n- JSON 파싱 실패 시 깨진 응답으로 MD를 만들지 않고 오류 처리하도록 변경했다.\n- Gemini HTTP Request timeout을 300초로 확장했다.\n\n## v1.7\n- Cloud Memo 응답 위치를 원본 음성 Drive 저장 직후로 이동했다.\n- Cloud Memo는 원본 저장 완료까지만 기다리고, 이후 Gemini/MD/Gmail 처리는 n8n이 계속 진행한다.\n\n## v1.6\n- Google Drive 저장 위치가 루트로 잡히던 문제를 수정했다.\n- 원본 음성은 `originalAudioFolderId`, MD는 `mdFolderId`를 사용한다.\n\n## v1.5\n- Google Drive Upload 노드의 바이너리 필드명을 `sourceAudio`, `mdFile`로 명확히 지정했다.\n- 성공 메일 본문을 HTML 형식으로 변경해 줄바꿈과 링크 가독성을 개선했다.\n- Gemini 출력은 JSON으로만 받도록 최소 프롬프트를 변경했다.\n- MD는 n8n 코드에서 표준 형식으로 1회만 생성하도록 수정했다.\n- MD 출처에 워크플로우명, 입력방식, AI 모델, 원본 음성 링크, 생성일시를 포함했다.\n- 별도 Error Trigger 기반 오류 리포터 워크플로우와 연동할 수 있도록 안내를 추가했다.\n\n## v1.4\n- Google Drive Upload 노드의 binary field 설정 오류를 수정했다.\n\n## v1.3\n- n8n 캔버스 안에 설정 안내서와 버전 기록 Sticky Note를 추가했다.\n\n## v1.2\n- Gemini API Key를 `00 환경설정` 코드에서 제거했다.\n- `04 Gemini 2.5 Flash-Lite` 노드가 n8n의 `Google Gemini(PaLM) Api` Credential을 사용하도록 변경했다.\n\n## v1.1\n- 원본 음성을 Google Drive `음성-카드노트` 폴더에 저장하도록 추가했다.\n- Gmail 보고 메일에 원본 음성 파일 링크와 MD 파일 링크를 포함했다.\n\n## v1.0\n- Cloud Memo Webhook에서 음성 파일을 수신한다.\n- Gemini 2.5 Flash-Lite로 아이디어 카드노트 Markdown을 생성한다.\n- 생성된 MD 파일을 Google Drive에 저장한다.\n",
+        "height": 820,
+        "width": 520,
+        "color": 5
+      },
+      "id": "8ecba7be-fe72-4d47-b576-339d2677d869",
+      "name": "Sticky Note - 버전 기록",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        6928,
+        5344
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.geminiUrl}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json.geminiPayload)}}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "3c0014b9-f5de-483a-821d-3fc7f2fa28ba",
+      "name": "04 Gemini 2.5 Flash",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8848,
+        5104
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "qOondp9rXtwDCdMK",
+          "name": "Google Gemini(PaLM) Api account(장승희-유료)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "01 Cloud Memo Webhook": {
+      "main": [
+        [
+          {
+            "node": "00 환경설정",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "00 환경설정": {
+      "main": [
+        [
+          {
+            "node": "01 입력 정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 입력 정리": {
+      "main": [
+        [
+          {
+            "node": "02 원본 음성 Drive 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 원본 음성 Drive 저장": {
+      "main": [
+        [
+          {
+            "node": "03 Cloud Memo 원본 저장 완료 응답",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "03 Gemini 요청 구성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 Gemini 요청 구성": {
+      "main": [
+        [
+          {
+            "node": "04 Gemini 2.5 Flash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 Gemini 응답 파싱": {
+      "main": [
+        [
+          {
+            "node": "06 MD 파일 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06 MD 파일 생성": {
+      "main": [
+        [
+          {
+            "node": "07 MD Drive 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07 MD Drive 저장": {
+      "main": [
+        [
+          {
+            "node": "08 최종 보고 데이터 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08 최종 보고 데이터 생성": {
+      "main": [
+        [
+          {
+            "node": "09 Gmail 보고",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 Gemini 2.5 Flash": {
+      "main": [
+        [
+          {
+            "node": "05 Gemini 응답 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HbJWj4HCLJZzwy0v",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "8e0841f0-7504-4791-8302-303511e18594",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "176c253fca0dc99f15ece30a2a0426eba62acc40622f68e2bde523c746b13e68"
+  },
+  "id": "L22J6JB1qnG7wRNE",
+  "tags": []
+}

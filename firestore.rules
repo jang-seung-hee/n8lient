@@ -1,0 +1,143 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 로그인 및 사용자 데이터 조회 헬퍼 함수
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function getMyUser() {
+      return getUserData(request.auth.uid);
+    }
+    
+    function isCompanyAdmin() {
+      let myUser = getMyUser();
+      return myUser != null && 'role' in myUser && myUser.role == 'company_admin';
+    }
+
+    // 1. 사용자 정보 (users) 규칙
+    match /users/{uid} {
+      // 본인은 조회 가능하며, 회사 관리자도 소속 사용자 조회가 가능
+      allow get: if isAuthenticated() && (
+        request.auth.uid == uid ||
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+      );
+      
+      allow list: if isAuthenticated() && isCompanyAdmin();
+      
+      // 최초 가입 시 생성이 가능
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+        
+      // 사용자가 본인의 중요 정보(role, approvalStatus, clientId)를 임의로 오동작/해킹 수정하지 못하도록 조건 제약
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == uid && (
+          // [가입 신청 허용 조건] 기존 clientId가 없고, 신규 clientId가 배정되며, 상태가 pending인 최초의 경우만 허용
+          (resource.data.clientId == null && request.resource.data.clientId != null && request.resource.data.approvalStatus == 'pending' && request.resource.data.role == 'user') ||
+          // [일반 정보 수정 조건] 중요 필드(role, approvalStatus, clientId)가 변경되지 않은 경우만 허용
+          (request.resource.data.role == resource.data.role && 
+           request.resource.data.approvalStatus == resource.data.approvalStatus && 
+           request.resource.data.clientId == resource.data.clientId)
+        )) ||
+        // 회사 관리자가 소속 사용자의 상태를 승인/거절 처리할 수 있음
+        (isCompanyAdmin() && 
+         getMyUser().clientId == resource.data.clientId &&
+         getMyUser().clientId == request.resource.data.clientId)
+      );
+      
+      allow delete: if false;
+    }
+
+    // 1.5. 회사 기본 정보 (clients) 규칙
+    match /clients/{clientId} {
+      allow get: if isAuthenticated() && (
+        getMyUser().role == 'operator' ||
+        getMyUser().clientId == clientId
+      );
+      allow list: if isAuthenticated() && getMyUser().role == 'operator';
+      allow write: if isAuthenticated() && getMyUser().role == 'operator';
+    }
+
+    // 2. 회사코드 룩업 (companyCodeLookups) 규칙
+    match /companyCodeLookups/{normalizedCode} {
+      allow get: if isAuthenticated();
+      allow write, list: if false;
+    }
+
+    // 3. 회사 가입 승인 요청 (companyJoinRequests) 규칙
+    match /companyJoinRequests/{requestId} {
+      // 사용자는 본인 uid로 가입 승인 요청을 생성할 수 있음
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      
+      // 본인이거나, 본인 회사의 관리자인 경우 get 가능
+      allow get: if isAuthenticated() && (
+        resource == null || 
+        resource.data.uid == request.auth.uid || 
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+      );
+      
+      // 본인의 가입 요청 리스트 조회 또는 해당 회사의 관리자가 승인 대기 리스트를 쿼리할 수 있도록 허용 (list)
+      allow list: if isAuthenticated();
+      
+      // 사용자는 본인의 요청 문서를 업데이트(재신청 등) 가능하며, 회사 관리자도 승인/거절 상태(status) 업데이트 가능
+      allow update: if isAuthenticated() && (
+        (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid) ||
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+      );
+        
+      allow delete: if false;
+    }
+
+    // 4. 자동화 템플릿 (workflowTemplates) 규칙
+    match /workflowTemplates/{workflowKey} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getMyUser().role == 'operator';
+    }
+
+    // 5. 회사별 계약 자동화 (clientContracts) 규칙
+    match /clientContracts/{contractId} {
+      allow read: if isAuthenticated() && (
+        getMyUser().role == 'operator' || 
+        getMyUser().clientId == resource.data.clientId
+      );
+      allow write: if isAuthenticated() && getMyUser().role == 'operator';
+    }
+
+    // 6. 실제 등록 자동화 설정 (clientAutomations) 규칙
+    match /clientAutomations/{automationId} {
+      allow read: if isAuthenticated() && getMyUser().clientId == resource.data.clientId;
+      allow write: if isAuthenticated() && (
+        getMyUser().role == 'operator' ||
+        (isCompanyAdmin() && getMyUser().clientId == request.resource.data.clientId)
+      );
+    }
+
+    // 7. 자동화 실행 이력 (submissions) 규칙
+    match /submissions/{submissionId} {
+      // submissions create 시 uid, clientId, status=="queued" 보안 제약 검증
+      allow create: if isAuthenticated() && 
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.clientId == getMyUser().clientId &&
+        request.resource.data.status == 'queued';
+        
+      allow get: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+      );
+      
+      // 대량 조회(list) 시 사용자는 본인의 uid 쿼리만, 관리자는 본인 회사 clientId 쿼리만 가능하도록 강제화
+      allow list: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+      );
+      
+      allow update, delete: if false;
+    }
+
+  }
+}
