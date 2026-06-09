@@ -118,3 +118,14 @@
 - [x] Firestore 컬렉션 및 동치 규칙 `N8Lient_DB_연동규약서.md` 생성
 - [x] execute/callback API 명세 및 환경변수 매핑 가이드 `N8Lient_Webhook_Callback_연동규약서.md` 생성
 - [x] `docs/dev-checklist.md` 및 `docs/context-notes.md` 작업 기록 갱신
+
+## 2026-06-09: N8Lient Gateway 환경설정 구조 단순화 및 Webhook Path 자동 조합 리팩터링
+- [x] Gateway `getWebhookConfig` 리팩터링 및 안전 문자 검증 구현 (`server.ts` 수정)
+- [x] 프로젝트 루트에 `env.yaml` 생성 및 서버 단위 설정만 남기기
+- [x] `.env.local` 정리 (프론트 공개 환경변수만 남기기)
+- [x] `env.yaml.example` 및 `.env.local.example` 템플릿 파일 생성
+- [x] `.gitignore` 확인 및 보완 (템플릿 예외 항목 및 serviceAccount*.json 추가)
+- [x] 로컬 컴파일 검증 (`n8lient-gateway` 및 프론트엔드 빌드 실행)
+- [x] Cloud Run 재배포 (루트 env.yaml 기준) 및 이전 `n8lient-gateway/env.yaml` 제거
+- [x] 재배포 후 환경변수 제거 확인 (`gcloud run services describe` 확인)
+- [x] 개발 가이드 문서 업데이트 및 정리

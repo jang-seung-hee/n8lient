@@ -64,3 +64,9 @@ env.yaml
 *adminsdk*.json
 *adminsdk*.env
 *-firebase-adminsdk-*
+serviceAccount*.json
+
+# 예외 허용 템플릿
+!.env.example
+!.env.local.example
+!env.yaml.example

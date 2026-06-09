@@ -47,14 +47,35 @@ const upload = (0, multer_1.default)({
  * n8n Webhook URL 조립 헬퍼 함수
  */
 function getWebhookConfig(serverKey, webhookSecretId) {
+    // 1. n8nServerKey 및 webhookSecretId 값 유효성 및 형식 검증
+    if (!serverKey || !webhookSecretId) {
+        console.warn(`[getWebhookConfig] 필수 인자가 빈 문자열입니다. serverKey="${serverKey}", webhookSecretId="${webhookSecretId}"`);
+        return null;
+    }
+    // 안전 문자 검증 정규식 (영문 소문자, 숫자, 하이픈, 언더스코어 허용)
+    const webhookSecretIdRegex = /^[a-z0-9_-]+$/;
+    if (!webhookSecretIdRegex.test(webhookSecretId)) {
+        console.warn(`[getWebhookConfig] 유효하지 않은 webhookSecretId 형식입니다: "${webhookSecretId}". 영문 소문자, 숫자, 하이픈(-), 언더스코어(_)만 허용됩니다.`);
+        return null;
+    }
+    // n8nServerKey는 영문, 숫자, 하이픈, 언더스코어 허용
+    const serverKeyRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!serverKeyRegex.test(serverKey)) {
+        console.warn(`[getWebhookConfig] 유효하지 않은 n8nServerKey 형식입니다: "${serverKey}". 영문, 숫자, 하이픈(-), 언더스코어(_)만 허용됩니다.`);
+        return null;
+    }
     const serverEnvKey = serverKey.toUpperCase().replace(/-/g, "_");
     const webhookEnvKey = webhookSecretId.toUpperCase().replace(/-/g, "_");
     const baseUrl = process.env[`N8N_SERVER_${serverEnvKey}_BASE_URL`];
-    const pathPart = process.env[`N8N_WEBHOOK_PATH_${webhookEnvKey}`];
-    if (!baseUrl || !pathPart) {
-        console.warn(`[getWebhookConfig] 환경변수 미설정: serverKey=${serverKey}, webhookSecretId=${webhookSecretId}`);
+    if (!baseUrl) {
+        console.warn(`[getWebhookConfig] n8n 서버 베이스 URL 환경변수가 설정되지 않았습니다: N8N_SERVER_${serverEnvKey}_BASE_URL`);
         return null;
     }
+    // Webhook Path 결정
+    // 1순위: N8N_WEBHOOK_PATH_OVERRIDE_{SANITIZED_WEBHOOK_SECRET_ID}
+    // 2순위: /webhook/{webhookSecretId} (기본 자동 조합)
+    const overridePath = process.env[`N8N_WEBHOOK_PATH_OVERRIDE_${webhookEnvKey}`];
+    const pathPart = overridePath || `/webhook/${webhookSecretId}`;
     const normalizedPath = pathPart.startsWith("/") ? pathPart : `/${pathPart}`;
     const url = `${baseUrl.replace(/\/$/, "")}${normalizedPath}`;
     return { url };

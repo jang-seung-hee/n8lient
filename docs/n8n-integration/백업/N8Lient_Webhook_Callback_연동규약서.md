@@ -1,113 +1,235 @@
 # N8Lient Webhook & Callback 연동 규약서
 
-이 문서는 엔팔라이언트(N8Lient) 서버리스 API 게이트웨이와 외부 n8n Webhook 및 콜백 처리를 위한 상세 API 연동 규약서입니다.
+이 문서는 엔팔라이언트(N8Lient) 서버리스 API 게이트웨이와 외부 n8n Webhook 및 콜백 처리를 위한 상세 API 연동 규약서이다.
+
+> 업데이트 기준: n8n 직접 파일 업로드 + 1회성 uploadToken 검증 구조 반영
 
 ---
 
 ## 1. API 역할 요약
 
-엔팔라이언트의 자동화 실행 게이트웨이는 n8n의 실행 소요 시간이 길어져 발생하는 **HTTP Connection Timeout** 문제를 원천 차단하기 위해 **비동기 요청-콜백 구조**로 설계되었습니다.
+엔팔라이언트의 자동화 실행 게이트웨이는 n8n 실행 시간이 길어져 발생하는 HTTP Connection Timeout 문제를 피하기 위해 비동기 요청-콜백 구조로 설계된다. 파일 포함 실행은 서버리스 업로드 용량 제한을 피하기 위해 n8n 직접 업로드 경로를 사용한다.
 
-*   **`POST /api/automation/execute`**
-    *   **역할**: 클라이언트 전용 실행 요청 접수처. 사용자 인증 확인 및 권한 검증 후 n8n Webhook으로 비동기 실행을 의뢰합니다.
-    *   **동작**: n8n 호출이 성공하면 즉시 브라우저에 `success: true`와 함께 `submissionId`를 응답하고 커넥션을 종료합니다. (상태: `processing`)
-*   **`POST /api/automation/callback`**
-    *   **역할**: n8n이 실행을 완료(성공 또는 실패)한 후, 최종 결과 데이터를 엔팔라이언트에 업데이트하는 외부 전용 엔드포인트입니다.
-    *   **동작**: 전달받은 `submissionId`를 기반으로 Firestore 데이터를 안전하게 업데이트합니다. (상태: `success` 또는 `failed`)
+| API | 호출 주체 | 역할 |
+| :--- | :--- | :--- |
+| `POST /api/automation/execute` | 브라우저 | 텍스트 전용 실행 요청 접수. 권한 검증 후 n8n을 서버 간 호출한다. |
+| `POST /api/automation/prepare-upload` | 브라우저 | 파일 포함 실행 준비. 설정 병합, submission 생성, uploadToken 발급, n8nUploadUrl 반환. |
+| `POST /api/automation/verify-upload-token` | n8n | 브라우저 직접 업로드 요청의 uploadToken 검증. canonical payload 반환. |
+| `POST /api/automation/upload-failed` | 브라우저 | n8n 직접 업로드 실패 시 queued/prepared 고착 방지를 위해 실패 상태로 갱신. |
+| `POST /api/automation/callback` | n8n | n8n 실행 완료 후 success/failed 결과 반영. |
 
 ---
 
 ## 2. 상세 실행 및 처리 흐름
 
+### 2.1 텍스트 전용 실행 흐름
+
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as 사용자 (브라우저)
-    participant GW as 엔팔라이언트 API (Gateway)
-    participant FS as Firestore DB
-    participant n8n as n8n 실행 엔진
+    actor User as 사용자
+    participant FE as 브라우저
+    participant GW as N8Lient API
+    participant FS as Firestore
+    participant N8N as n8n
 
-    User->>GW: POST /api/automation/execute (ID Token + input)
-    Note over GW: Firebase ID Token 검증 및 uid 식별
-    GW->>FS: users/{uid} 조회 (approved 검증)
-    GW->>FS: clientAutomations/{automationId} (회사 공용 기본 설정) 조회
-    GW->>FS: userAutomationSettings/{uid}_{automationId} (사용자 개인 설정) 조회
-    Note over GW: 개인 설정과 회사 공용 설정을 병합 (개인 설정 우선)
-    GW->>FS: submissions/{submissionId} 생성 (status: queued)
-    GW->>n8n: POST Webhook 호출 (Bearer/X-N8N-TOKEN, settings & input)
-    n8n-->>GW: HTTP 200 OK (즉시 수신 응답)
-    GW->>FS: submissions/{submissionId} 상태 갱신 (status: processing)
-    GW-->>User: HTTP 200 OK (실행 요청 접수 응답)
-    
-    Note over n8n: 실 로직 비동기 실행 (15초 이상 소요 가능)
-    
-    n8n->>GW: POST /api/automation/callback (Authorization Bearer + 결과 payload)
-    GW->>FS: submissions/{submissionId} 최종 결과 갱신 (status: success/failed)
-    GW-->>n8n: HTTP 200 OK (콜백 완료 응답)
+    User->>FE: 텍스트 실행 요청
+    FE->>GW: POST /api/automation/execute (ID Token + input)
+    GW->>FS: 사용자/계약/설정 검증
+    GW->>FS: 회사 설정 + 개인 설정 병합
+    GW->>FS: submissions 생성(status: queued)
+    GW->>N8N: POST Webhook (X-N8N-TOKEN + payload)
+    N8N-->>GW: HTTP 200 OK(onReceived)
+    GW->>FS: submissions status=processing
+    GW-->>FE: 실행 접수 응답
+    N8N->>GW: POST /api/automation/callback
+    GW->>FS: submissions 최종 갱신
 ```
+
+### 2.2 파일 포함 실행 흐름
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 사용자
+    participant FE as 브라우저
+    participant GW as N8Lient API
+    participant FS as Firestore
+    participant N8N as n8n
+
+    User->>FE: 파일/이미지/녹음 실행 요청
+    FE->>GW: POST /api/automation/prepare-upload (ID Token + metadata)
+    GW->>FS: 사용자/계약/설정 검증
+    GW->>FS: company/user settings 병합
+    GW->>FS: submissions 생성(status: queued)
+    GW->>FS: uploadSessions 생성(status: prepared, tokenHash 저장)
+    GW-->>FE: submissionId, uploadToken, n8nUploadUrl 반환
+    FE->>N8N: POST n8nUploadUrl (multipart: file_0 + uploadToken)
+    N8N->>GW: POST /api/automation/verify-upload-token
+    GW->>FS: uploadSessions verified, submissions processing
+    GW-->>N8N: canonical payload 반환
+    N8N->>N8N: Google Drive 저장 및 업무 처리
+    N8N-->>FE: HTTP 200 OK(onReceived)
+    N8N->>GW: POST /api/automation/callback
+    GW->>FS: submissions 최종 갱신
+```
+
+### 2.3 파일 업로드 실패 흐름
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as 브라우저
+    participant GW as N8Lient API
+    participant FS as Firestore
+    participant N8N as n8n
+
+    FE->>GW: POST /api/automation/prepare-upload
+    GW->>FS: submission queued, uploadSession prepared
+    FE-xN8N: 직접 업로드 실패(CORS/네트워크/용량)
+    FE->>GW: POST /api/automation/upload-failed
+    GW->>FS: uploadSession failed, submission failed
+```
+
+브라우저 탭 강제 종료나 디바이스 전원 종료처럼 `upload-failed` 호출 자체가 불가능한 경우는 차후 Cron/배치가 만료된 `uploadSessions`를 정리해야 한다.
 
 ---
 
 ## 3. API Payload 명세
 
-### 3.1 [엔팔라이언트 → n8n] Webhook 실행 요청 Payload
-`execute API`가 n8n Webhook 노드로 호출 시 전달하는 Payload 구조입니다. 
+### 3.1 execute API 요청(text-only)
 
-> [!NOTE]
-> Payload 내의 `settings` 객체는 단순한 회사 공용 설정이 아닙니다. **사용자 개인 설정(`userAutomationSettings`)과 회사 공용 설정(`clientAutomations`)이 우선순위에 맞춰 병합 완료된 최종 실행 설정값**입니다.
-> *   **병합 우선순위**: `사용자 개인 설정 > 회사 공용 설정 (Fallback)`
-> *   **자격증명 전송 금지**: `settings`에는 오직 리소스의 식별 ID(예: `googleDriveFolderId`, `originalFileFolderId`, `googleSheetId`, `reportEmailTo`)만 전달하며, Google Access/Refresh Token, n8n Credential ID, Gemini API Key 등 자격증명 성격의 중요 값은 절대 포함시키지 않습니다.
-
-#### 아이디어 캐처 (idea-catcher) Webhook Payload 예시:
 ```json
 {
-  "submissionId": "sub_20260608123456_abcdef",
-  "clientId": "client_rentaltoktok_001",
-  "uid": "firebase_uid_001",
-  "workflowKey": "idea-catcher",
   "automationId": "auto_idea_001",
-  "settings": {
-    "mdFolderId": "user_or_company_md_folder_id",
-    "originalFileFolderId": "user_or_company_original_file_folder_id",
-    "reportEmailTo": "user_or_company_email@example.com",
-    "geminiModel": "gemini-2.5-flash"
-  },
   "input": {
     "title": "오늘 떠오른 아이디어",
-    "text": "아이디어 본문",
-    "fileUrl": null,
-    "fileName": null,
-    "mimeType": null
-  },
-  "requestedAt": "2026-06-08T12:25:56.000Z",
-  "callbackUrl": "https://your-app-domain.example.com/api/automation/callback"
-}
-```
-
-### 3.2 [n8n → 엔팔라이언트] Callback 성공 Payload
-n8n이 작업을 정상 완료한 경우, `callbackUrl`로 보낼 POST Body 예시입니다.
-
-```json
-{
-  "submissionId": "sub_20260608123456_abcdef",
-  "status": "success",
-  "result": {
-    "summary": "총 3건의 영수증이 구글 시트에 정상 등록되었으며 회계 담당자 이메일로 전송되었습니다.",
-    "resultUrl": "https://docs.google.com/spreadsheets/d/your_sheet_id"
+    "text": "아이디어 본문"
   }
 }
 ```
 
-### 3.3 [n8n → 엔팔라이언트] Callback 실패 Payload
-n8n 내부에서 예외나 에러가 발생한 경우, `callbackUrl`로 보낼 POST Body 예시입니다.
+### 3.2 prepare-upload 요청(file 포함)
 
 ```json
 {
-  "submissionId": "sub_20260608123456_abcdef",
+  "automationId": "auto_idea_001",
+  "input": {
+    "title": "오늘 떠오른 아이디어",
+    "text": "선택 입력 메모",
+    "files": [
+      {
+        "fileName": "idea_audio.webm",
+        "mimeType": "audio/webm",
+        "sizeBytes": 8234412,
+        "inputType": "audio"
+      }
+    ]
+  }
+}
+```
+
+### 3.3 prepare-upload 응답
+
+```json
+{
+  "submissionId": "sub_20260608_abcdef",
+  "uploadToken": "one_time_random_token",
+  "n8nUploadUrl": "https://n8n.example.com/webhook/n8lient-idea-catcher",
+  "expiresAt": "2026-06-08T12:30:00.000Z",
+  "maxUploadBytes": 10485760
+}
+```
+
+브라우저에는 공통 `X-N8N-TOKEN`을 절대 반환하지 않는다.
+
+### 3.4 브라우저 → n8n 직접 업로드 multipart 구조
+
+```text
+FormData
+- submissionId: sub_20260608_abcdef
+- uploadToken: one_time_random_token
+- payload: JSON.stringify({ submissionId, uploadToken, input })
+- file_0: File 또는 Blob
+```
+
+n8n Webhook은 `file_0` binary를 수신할 수 있어야 한다.
+
+### 3.5 verify-upload-token 요청(n8n → N8Lient)
+
+```json
+{
+  "submissionId": "sub_20260608_abcdef",
+  "uploadToken": "one_time_random_token"
+}
+```
+
+### 3.6 verify-upload-token 성공 응답
+
+```json
+{
+  "valid": true,
+  "payload": {
+    "submissionId": "sub_20260608_abcdef",
+    "clientId": "client_rentaltoktok_001",
+    "uid": "firebase_uid_001",
+    "workflowKey": "idea-catcher",
+    "automationId": "auto_idea_001",
+    "settings": {
+      "mdFolderId": "user_or_company_md_folder_id",
+      "originalFileFolderId": "user_or_company_original_folder_id",
+      "reportEmailTo": "user@example.com",
+      "geminiModel": "gemini-2.5-flash"
+    },
+    "input": {
+      "title": "오늘 떠오른 아이디어",
+      "text": "선택 입력 메모",
+      "files": [
+        {
+          "fileName": "idea_audio.webm",
+          "mimeType": "audio/webm",
+          "sizeBytes": 8234412,
+          "inputType": "audio"
+        }
+      ]
+    },
+    "requestedAt": "2026-06-08T12:25:56.000Z",
+    "callbackUrl": "https://app.example.com/api/automation/callback"
+  }
+}
+```
+
+### 3.7 verify-upload-token 실패 응답
+
+```json
+{
+  "valid": false,
+  "error": "UPLOAD_TOKEN_EXPIRED"
+}
+```
+
+### 3.8 callback 성공 Payload
+
+```json
+{
+  "submissionId": "sub_20260608_abcdef",
+  "status": "success",
+  "result": {
+    "summary": "아이디어 카드노트가 생성되었습니다.",
+    "resultUrl": "https://drive.google.com/file/d/result_file_id/view"
+  }
+}
+```
+
+### 3.9 callback 실패 Payload
+
+```json
+{
+  "submissionId": "sub_20260608_abcdef",
   "status": "failed",
   "error": {
-    "code": "REQUIRED_SETTING_MISSING",
-    "message": "구글 드라이브 폴더 ID(googleDriveFolderId) 설정 정보가 유효하지 않아 전송에 실패했습니다."
+    "code": "RESOURCE_PERMISSION_DENIED",
+    "message": "Google Drive 폴더에 공용 계정 쓰기 권한이 없습니다."
   }
 }
 ```
@@ -116,65 +238,103 @@ n8n 내부에서 예외나 에러가 발생한 경우, `callbackUrl`로 보낼 P
 
 ## 4. 보안 및 인증 메커니즘
 
-### 4.1 n8n Webhook 호출 인증 (엔팔라이언트 → n8n)
-*   엔팔라이언트는 `workflowTemplates`에 정의된 `n8nServerKey`를 이용해 환경변수에서 인증 토큰을 로드합니다.
-*   n8n Webhook 호출 시, 헤더에 **`X-N8N-TOKEN`** 값으로 서버 고유 토큰을 담아 보냅니다.
-*   **주의**: 테스트 환경 등 토큰이 없는 경우는 헤더를 생략합니다.
+### 4.1 서버 간 n8n Webhook 호출 인증
 
-### 4.2 Callback 호출 인증 (n8n → 엔팔라이언트)
-*   n8n이 엔팔라이언트의 `/api/automation/callback`을 호출할 때는 반드시 **Bearer Secret** 헤더가 포함되어야 합니다.
-*   인증 헤더:
-    ```http
-    Authorization: Bearer {N8N_CALLBACK_SECRET_VALUE}
-    ```
-*   해당 토큰 값이 엔팔라이언트 서버 내 `.env.local`의 `N8N_CALLBACK_SECRET`과 일치해야 처리됩니다. 불일치 시 `401 Unauthorized`를 응답합니다.
+* `execute API`가 n8n Webhook을 호출할 때는 `X-N8N-TOKEN` 헤더를 사용한다.
+* 토큰 값은 엔팔라이언트 서버 환경변수에서만 읽는다.
+* 브라우저와 Firestore에는 저장하지 않는다.
+
+### 4.2 브라우저 직접 업로드 인증
+
+* 브라우저는 공통 `X-N8N-TOKEN`을 사용하지 않는다.
+* `prepare-upload`가 발급한 `submissionId + uploadToken`만 n8n에 보낸다.
+* n8n은 `/api/automation/verify-upload-token`으로 tokenHash, 만료, 1회 사용 여부를 검증한다.
+* 검증 성공 시에만 canonical payload를 사용해 후속 처리를 진행한다.
+
+### 4.3 callback 인증
+
+n8n이 `/api/automation/callback`을 호출할 때는 Bearer Secret을 사용한다.
+
+```http
+Authorization: Bearer {N8N_CALLBACK_SECRET_VALUE}
+```
+
+해당 값은 엔팔라이언트 서버 환경변수 `N8N_CALLBACK_SECRET`과 일치해야 한다.
+
+### 4.4 upload-failed 인증
+
+`upload-failed` API는 브라우저가 호출하므로 Firebase ID Token을 검증한다. 해당 submission/uploadSession의 `uid`가 현재 사용자와 일치해야 실패 처리할 수 있다.
 
 ---
 
 ## 5. Webhook 경로 및 환경변수 매핑 규칙
 
-엔팔라이언트 API 게이트웨이는 아래 규칙에 의거해 n8n Webhook의 실제 물리 주소와 토큰을 조합합니다.
+### 5.1 n8n 서버 매핑
 
-### 5.1 n8n 서버 매핑 규칙 (Base URL & Token)
-`workflowTemplates.n8nServerKey` 값을 대문자 및 언더스코어(`_`)로 치환하여 환경변수를 매핑합니다.
-*   `n8nServerKey`가 `"main"` 인 경우:
-    *   **Base URL**: `N8N_SERVER_MAIN_BASE_URL`
-    *   **Token**: `N8N_SERVER_MAIN_TOKEN`
+`workflowTemplates.n8nServerKey` 값을 기준으로 서버 환경변수를 찾는다.
 
-### 5.2 Webhook Path 매핑 규칙
-`workflowTemplates.webhookSecretId` (또는 `workflowKey`) 값을 대문자 및 언더스코어(`_`)로 치환하여 Path 환경변수를 찾습니다.
-*   `webhookSecretId`가 `"idea-catcher"` 인 경우:
-    *   **Path 환경변수**: `N8N_WEBHOOK_PATH_IDEA_CATCHER`
-*   `webhookSecretId`가 `"expense-report"` 인 경우:
-    *   **Path 환경변수**: `N8N_WEBHOOK_PATH_EXPENSE_REPORT`
+* `main` → `N8N_SERVER_MAIN_BASE_URL`
+* `main` → `N8N_SERVER_MAIN_TOKEN`
 
-### 5.3 n8n 테스트 모드와 운영 모드 차이
-n8n 워크플로우를 활성화하기 전, 디자인 환경에서 수동 테스트할 때와 실제 배포되어 상시 운영될 때의 Webhook Path가 다릅니다.
-*   **테스트(개발용) URL**: `/webhook-test/...` 패턴 (n8n 에디터가 열려 있고 대기 중일 때만 동작함)
-*   **운영(배포용) URL**: `/webhook/...` 패턴 (n8n 상에서 Active 상태인 워크플로우가 상시 수신함)
+### 5.2 Webhook Path 매핑
 
-> [!IMPORTANT]
-> 실 배포 시에는 `.env.local` 내의 `N8N_WEBHOOK_PATH_*` 값을 반드시 `/webhook/...` 로 지정해야 상시 자동화가 가동됩니다.
+`workflowTemplates.webhookSecretId` 또는 `workflowKey`를 기준으로 path 환경변수를 찾는다.
+
+* `idea-catcher` → `N8N_WEBHOOK_PATH_IDEA_CATCHER`
+* `expense-report` → `N8N_WEBHOOK_PATH_EXPENSE_REPORT`
+
+### 5.3 테스트/운영 Webhook 차이
+
+* 테스트: `/webhook-test/...`
+* 운영: `/webhook/...`
+
+운영 배포 시에는 `N8N_WEBHOOK_PATH_*`를 반드시 `/webhook/...` 값으로 설정한다.
+
+### 5.4 n8n 직접 업로드 URL
+
+파일 포함 실행의 `n8nUploadUrl`은 `prepare-upload` API가 반환한다. 브라우저는 이 URL에 직접 multipart 요청을 보낼 수 있지만, 공통 토큰은 받지 않는다.
 
 ---
 
-## 6. n8n 워크플로우 수정 시 체크리스트
+## 6. CORS 및 Webhook 설정
 
-n8n 워크플로우 개발자는 수정 시 다음 체크리스트를 준수하여 구현이 깨지지 않도록 해야 합니다.
+브라우저가 n8n Webhook으로 직접 업로드하려면 n8n Webhook의 Allowed Origins(CORS)에 엔팔라이언트 프론트 도메인을 허용해야 한다.
 
-*   [ ] **Webhook 노드 입력 속성**: JSON 형식을 허용하고, POST Method로 세팅되어 있는지 확인합니다.
-*   [ ] **X-N8N-TOKEN 검증**: Webhook 노드의 Authentication 방식을 명시하거나, 들어오는 헤더의 `X-N8N-TOKEN`을 비교 검증하는 가드를 구성합니다.
-*   [ ] **payload 추출**: 입력받은 데이터에서 `submissionId` 및 `callbackUrl` 속성을 유실하지 않도록 보존합니다.
-*   [ ] **최종 settings 신뢰**: n8n 내부에서 회사 공용 설정과 개인 설정을 직접 병합하는 비즈니스 로직을 중복 구현하지 않고, 엔팔라이언트 `execute API`가 전달한 **`payload.settings`를 최종 실행 설정값으로 100% 신뢰**합니다.
-*   [ ] **하드코딩 금지**: 이메일 수신자, Google Drive 폴더 ID 등은 워크플로우 노드 내에 하드코딩하지 않습니다.
-*   [ ] **공용 Google 계정 Credential 가이드라인 준수**:
-    *   Google Drive, Google Sheets, Gmail 관련 노드 수정 시 **Google Credential의 동적 매핑(교체)을 절대로 시도하지 마십시오.** n8n 내부에 등록해 둔 **공용 Google 계정 Credential**만 고정 연결합니다.
-    *   사용자의 개인 폴더/시트를 사용하려면, 대상 Google Drive 리소스가 n8n 공용 Google 계정에 **쓰기(편집자) 권한으로 공유**되어 있어야 함을 체크합니다.
-    *   `reportEmailTo`는 단순히 알림을 받을 수신자 이메일 주소이며, 실제 발신(보내는 사람)은 n8n 공용 Gmail 계정을 통해 처리됩니다.
-    *   Gemini API Key는 `settings`로 받지 않고 n8n Credential 또는 서버 환경변수로 관리합니다.
-*   [ ] **개인화 필드 매핑**: 개인 설정이 가미되는 자동화에서는 `settings.reportEmailTo`, `settings.mdFolderId`, `settings.originalFileFolderId` 등 병합된 속성 Key를 바인딩하여 업무 처리에 반영합니다.
-*   [ ] **에러 콜백 처리**: 리소스 권한 누락으로 Google Drive 접근에 실패하거나, 설정된 최종값 필드가 유효하지 않으면 작업을 즉시 중단하고 `callback failed` 또는 `config_error` 상태를 담아 `callbackUrl`로 콜백을 반환합니다.
-*   [ ] **비동기 타임아웃 우회**: HTTP Request에 동기 응답을 하는 대신, 즉시 200 OK를 리턴하도록 n8n Webhook 노드 설정을 해두고 백그라운드로 처리를 이어갑니다.
-*   [ ] **완료 처리 콜백**: 자동화 처리가 정상 종료되면 `callbackUrl`로 **성공 payload**와 `Authorization: Bearer {N8N_CALLBACK_SECRET}` 헤더를 탑재해 전송합니다.
-*   [ ] **실패 처리 콜백**: 오류 분기(Error Trigger 또는 If 노드 실패 분기)를 작성하여, 에러 발생 시 지정된 `error.code`와 메시지를 담아 **실패 payload**로 콜백을 호출합니다.
-*   [ ] **로컬 개발 시의 callback 제한 사항**: n8n 실행 엔진이 외부 클라우드에 존재하는데 엔팔라이언트를 로컬(`localhost`)로 실행 중인 경우, 외부 n8n에서 `localhost/api/...` 콜백 주소로 접근할 수 없습니다. 이 경우 `ngrok` 등을 이용해 프록시 주소를 터널링한 후, `.env.local`의 `NEXT_PUBLIC_BASE_URL`에 프록시 도메인을 설정하여 통신해야 합니다.
+권장값 예시:
+
+```text
+https://n8lient.netlify.app,http://localhost:3000
+```
+
+운영에서는 `*` 허용을 금지한다.
+
+Webhook 노드는 아래 조건을 만족해야 한다.
+
+* HTTP Method: `POST`
+* Respond: `Immediately` 또는 onReceived 성격의 즉시 응답
+* multipart/form-data 수신 가능
+* binary `file_0` 수신 가능
+* Response Data는 처리 완료 결과가 아니라 접수 응답임을 전제로 한다.
+
+---
+
+## 7. n8n 워크플로우 수정 시 체크리스트
+
+* [ ] Webhook 노드가 POST로 설정되어 있는가.
+* [ ] Webhook 노드가 multipart/form-data와 binary `file_0`를 받을 수 있는가.
+* [ ] Webhook Allowed Origins(CORS)에 운영 도메인과 로컬 테스트 도메인이 설정되어 있는가.
+* [ ] 운영에서 CORS `*` 허용을 피했는가.
+* [ ] `00 환경설정` 노드가 서버 간 호출의 `X-N8N-TOKEN` 검증을 유지하는가.
+* [ ] `00 환경설정` 노드가 브라우저 직접 업로드의 `submissionId + uploadToken`을 추출하는가.
+* [ ] `00 환경설정` 노드가 `/api/automation/verify-upload-token`을 호출하고 valid true일 때 canonical payload를 사용하는가.
+* [ ] n8n이 Firestore를 직접 조회하거나 개인/회사 설정을 직접 병합하지 않는가.
+* [ ] settings는 엔팔라이언트가 병합한 최종 값만 사용하는가.
+* [ ] Google Drive/Gmail/Sheets는 공용 Google 계정 Credential을 고정 사용하는가.
+* [ ] Google Access Token, Refresh Token, n8n Credential ID, Gemini API Key를 settings로 받지 않는가.
+* [ ] 파일 원본/base64/Blob을 Firestore/Firebase Storage에 저장하지 않는가.
+* [ ] 원본 파일은 n8n이 Google Drive에 저장하는가.
+* [ ] Google Drive 권한 누락 시 failed 또는 config_error callback을 반환하는가.
+* [ ] 정상 완료 시 callbackUrl로 success payload를 전송하는가.
+* [ ] 실패 시 callbackUrl로 failed payload를 전송하거나 공통 오류 리포터가 실패 callback을 보장하는가.
+* [ ] Webhook 즉시 응답을 처리 완료로 오해하지 않도록 Sticky Note에 명시했는가.
+* [ ] 로컬 개발에서 외부 n8n이 callbackUrl에 접근할 수 있도록 `NEXT_PUBLIC_BASE_URL` 또는 터널링 주소를 설정했는가.
