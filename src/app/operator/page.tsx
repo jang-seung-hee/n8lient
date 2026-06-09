@@ -1,15 +1,71 @@
-// 이 파일은 시스템 총괄 운영자의 대시보드 홈 화면입니다. (알파 버전 Mock)
+// 이 파일은 시스템 총괄 운영자의 대시보드 홈 화면입니다. (실 Firestore 통계 반영)
 
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { db } from "@/lib/firebase";
+import {
+  getClientsList,
+  getWorkflowTemplates,
+  getClientContracts,
+} from "@/features/operator/operatorService";
+import { collection, getDocs } from "firebase/firestore";
 
 export default function OperatorHome() {
+  const [clientsCount, setClientsCount] = useState<number | null>(null);
+  const [templatesCount, setTemplatesCount] = useState<number | null>(null);
+  const [contractsCount, setContractsCount] = useState<number | null>(null);
+  const [webhooksCount, setWebhooksCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        setLoading(true);
+        // 병렬로 데이터 호출하여 로딩 지연 최소화
+        const [clients, templates, contracts, automationsSnap] = await Promise.all([
+          getClientsList(db),
+          getWorkflowTemplates(db),
+          getClientContracts(db),
+          getDocs(collection(db, "clientAutomations")),
+        ]);
+
+        setClientsCount(clients.length);
+        setTemplatesCount(templates.length);
+        setContractsCount(contracts.length);
+        setWebhooksCount(automationsSnap.size);
+      } catch (error) {
+        console.error("대시보드 통계 조회 실패:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadStats();
+  }, []);
+
   const stats = [
-    { title: "등록된 고객사 (clients)", value: "1개", link: "/operator/clients" },
-    { title: "자동화 템플릿 (templates)", value: "2개", link: "/operator/workflow-templates" },
-    { title: "체결된 계약 자동화", value: "1건", link: "/operator/contracts" },
-    { title: "연결된 Webhook 수", value: "2개", link: "/operator/webhooks" },
+    { 
+      title: "등록된 고객사 (clients)", 
+      value: loading ? "로드 중..." : `${clientsCount ?? 0}개`, 
+      link: "/operator/clients" 
+    },
+    { 
+      title: "자동화 템플릿 (templates)", 
+      value: loading ? "로드 중..." : `${templatesCount ?? 0}개`, 
+      link: "/operator/workflow-templates" 
+    },
+    { 
+      title: "체결된 계약 자동화", 
+      value: loading ? "로드 중..." : `${contractsCount ?? 0}건`, 
+      link: "/operator/contracts" 
+    },
+    { 
+      title: "연결된 Webhook 수", 
+      value: loading ? "로드 중..." : `${webhooksCount ?? 0}개`, 
+      link: "/operator/webhooks" 
+    },
   ];
 
   return (
