@@ -117,134 +117,47 @@ export default function UserExecute() {
       setError(null);
 
       const idToken = await user.getIdToken();
+      const gatewayBaseUrl = process.env.NEXT_PUBLIC_GATEWAY_BASE_URL || "";
+      const gatewayUrl = `${gatewayBaseUrl.replace(/\/$/, "")}/api/automation/execute`;
 
+      const formData = new FormData();
+      const payload = {
+        automationId: currentAuto.automationId,
+        input: {
+          title,
+          text: inputText || undefined,
+          inputType: inputType || "file"
+        }
+      };
+      
+      formData.append("payload", JSON.stringify(payload));
+      
       if (selectedFile) {
-        // 1. prepare-upload API 호출로 uploadToken 및 n8n 직접 업로드 대상 경로 획득
-        const prepRes = await fetch("/api/automation/prepare-upload", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            automationId: currentAuto.automationId,
-            input: {
-              title,
-              text: inputText || undefined,
-              files: [
-                {
-                  fileName: selectedFile.name,
-                  mimeType: selectedFile.type || "application/octet-stream",
-                  sizeBytes: selectedFile.size,
-                  inputType: inputType || "file"
-                }
-              ]
-            }
-          })
-        });
-
-        const prepData = await prepRes.json();
-        if (!prepRes.ok || !prepData.success) {
-          throw new Error(prepData.error || "업로드 준비(prepare-upload)에 실패했습니다.");
+        const maxFileSizeMB = currentTemplate?.inputSchema?.maxFileSizeMB || 10;
+        if (selectedFile.size > maxFileSizeMB * 1024 * 1024) {
+          throw new Error(`파일 크기가 제한 용량(${maxFileSizeMB}MB)을 초과했습니다.`);
         }
-
-        const { submissionId, uploadToken, n8nUploadUrl, maxUploadBytes } = prepData;
-
-        // 클라이언트단 용량 재검증
-        if (selectedFile.size > maxUploadBytes) {
-          throw new Error(`파일 크기가 제한 용량(${(maxUploadBytes / (1024 * 1024)).toFixed(0)}MB)을 초과했습니다.`);
-        }
-
-        // 2. n8n Webhook URL로 브라우저가 직접 파일 multipart/form-data 업로드 수행
-        const formData = new FormData();
-        formData.append("submissionId", submissionId);
-        formData.append("uploadToken", uploadToken);
         formData.append("file_0", selectedFile);
+      }
 
-        const payload = {
-          submissionId,
-          uploadToken,
-          input: {
-            title,
-            text: inputText || undefined,
-            files: [
-              {
-                fileName: selectedFile.name,
-                mimeType: selectedFile.type || "application/octet-stream",
-                sizeBytes: selectedFile.size,
-                inputType: inputType || "file"
-              }
-            ]
-          }
-        };
-        formData.append("payload", JSON.stringify(payload));
+      const res = await fetch(gatewayUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: formData,
+      });
 
-        let n8nRes;
-        try {
-          n8nRes = await fetch(n8nUploadUrl, {
-            method: "POST",
-            body: formData,
-            // 중요: 브라우저에 공통 n8n 토큰(X-N8N-TOKEN)을 노출하지 않기 위해 헤더에 인증 정보를 싣지 않습니다.
-          });
-
-          if (!n8nRes.ok) {
-            const errorText = await n8nRes.text().catch(() => "");
-            throw new Error(`n8n 서버 전송 실패 (${n8nRes.status}): ${errorText || "네트워크 오류"}`);
-          }
-        } catch (n8nErr: any) {
-          console.error("[N8Lient] n8n 직접 파일 전송 실패 상세 오류 로그:", {
-            name: n8nErr.name,
-            message: n8nErr.message,
-            stack: n8nErr.stack,
-            errorObj: n8nErr
-          });
-          // n8n 전송 실패 시 백엔드에 알려 submissions 상태를 failed로 갱신 (정체 방지)
-          await fetch("/api/automation/upload-failed", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({ submissionId }),
-          }).catch((err) => console.error("upload-failed API 호출 실패:", err));
-
-          throw n8nErr;
-        }
-
+      const data = await res.json();
+      if (res.ok && data.success) {
         setSuccess(true);
         setTitle("");
         setInputText("");
         setSelectedFile(null);
         setInputType(null);
-        alert(`업로드가 접수되었습니다. 이제 화면을 닫아도 됩니다.\n요청 ID: ${submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
+        alert(`실행 요청이 성공적으로 전달되었습니다.\n요청 ID: ${data.submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
       } else {
-        // 파일이 없는 경우 기존 application/json 전송 (execute API)
-        const res = await fetch("/api/automation/execute", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            automationId: currentAuto.automationId,
-            input: {
-              title,
-              text: inputText || undefined,
-            },
-          }),
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setSuccess(true);
-          setTitle("");
-          setInputText("");
-          setSelectedFile(null);
-          setInputType(null);
-          alert(`N8N 워크플로우 실행 요청이 성공적으로 전송되었습니다.\n요청 ID: ${data.submissionId}\n\n결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
-        } else {
-          setError(data.error || "실행 요청 처리 중 오류가 발생했습니다.");
-        }
+        setError(data.error || "실행 요청 처리 중 오류가 발생했습니다.");
       }
     } catch (err: any) {
       console.error("[N8Lient] N8N 실행 요청 처리 실패 상세 오류 로그:", err);

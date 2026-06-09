@@ -30,9 +30,9 @@ service cloud.firestore {
         getMyUser().role == 'operator'
       );
       
-      // 운영자는 이메일로 사용자 조회(ownerAdminUid 매핑)를 위해 list 허용
+      // 운영자는 이메일로 사용자 조회(ownerAdminUid 매핑)를 위해 list 허용, 회사 관리자는 자기 회사 소속만 list 허용
       allow list: if isAuthenticated() && (
-        isCompanyAdmin() ||
+        (isCompanyAdmin() && resource.data.clientId == getMyUser().clientId) ||
         getMyUser().role == 'operator'
       );
       
@@ -116,7 +116,11 @@ service cloud.firestore {
 
     // 6. 실제 등록 자동화 설정 (clientAutomations) 규칙
     match /clientAutomations/{automationId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        getMyUser().role == 'operator' ||
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId) ||
+        (getMyUser().clientId == resource.data.clientId && resource.data.enabled == true && resource.data.configStatus == 'configured')
+      );
       allow write: if isAuthenticated() && (
         getMyUser().role == 'operator' ||
         (isCompanyAdmin() && getMyUser().clientId == request.resource.data.clientId)
@@ -133,15 +137,20 @@ service cloud.firestore {
 
     // 7. 자동화 실행 이력 (submissions) 규칙
     match /submissions/{submissionId} {
-      // submissions create 시 uid, clientId, status=="queued" 보안 제약 검증
-      allow create: if isAuthenticated() && 
-        request.resource.data.uid == request.auth.uid &&
-        request.resource.data.clientId == getMyUser().clientId &&
-        request.resource.data.status == 'queued';
-        
-      allow read: if isAuthenticated();
+      allow create: if false; // 클라이언트단 직접 생성 금지 (Gateway에서 백엔드 어드민 SDK로만 생성 가능)
+      
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId) ||
+        getMyUser().role == 'operator'
+      );
       
       allow update, delete: if false;
+    }
+
+    // 8. 일회성 업로드 세션 (uploadSessions) 규칙 - 클라이언트 접근 원천 차단
+    match /uploadSessions/{sessionId} {
+      allow read, write: if false;
     }
 
   }
