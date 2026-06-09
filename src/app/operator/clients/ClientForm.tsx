@@ -76,8 +76,35 @@ export function ClientForm({
     }
     setCheckingId(true);
     try {
-      let baseId = romanizeKorean(companyName.trim().toLowerCase());
-      baseId = baseId.replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+      let baseText = "";
+      
+      // 1. 게이트웨이 번역 API 호출 시도
+      try {
+        const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_BASE_URL || "http://localhost:8080";
+        const res = await fetch(`${gatewayUrl.replace(/\/$/, "")}/api/translate?q=${encodeURIComponent(companyName.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.translatedText) {
+            baseText = data.translatedText.toLowerCase();
+          }
+        }
+      } catch (translateErr) {
+        console.warn("번역 API 호출 실패, 로마자 발음 표기법으로 대체합니다:", translateErr);
+      }
+
+      // 2. 번역 결과가 없거나 실패한 경우 로컬 로마자 발음 표기법 적용 (Fallback)
+      if (!baseText) {
+        baseText = romanizeKorean(companyName.trim().toLowerCase());
+      }
+
+      // slugify 처리 (소문자, 숫자, 언더스코어만 남기고 공백/하이픈 등은 언더스코어로 변환)
+      let baseId = baseText
+        .replace(/\s+/g, "_")
+        .replace(/-+/g, "_")
+        .replace(/[^a-z0-9_]/g, "")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
+
       if (!baseId) {
         baseId = "client";
       }

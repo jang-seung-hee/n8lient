@@ -375,6 +375,34 @@ app.post("/api/automation/callback", async (req, res) => {
   }
 });
 
+// 4. GET /api/translate (무료 구글 번역기 프록시 API)
+app.get("/api/translate", async (req, res) => {
+  const text = req.query.q;
+  if (!text || typeof text !== "string") {
+    return res.status(400).json({ success: false, error: "번역할 텍스트('q')가 누락되었습니다." });
+  }
+
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+    const response = await axios.get(url, {
+      timeout: 5000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+      }
+    });
+
+    if (response.data && response.data[0] && response.data[0][0] && response.data[0][0][0]) {
+      const translatedText = response.data[0][0][0];
+      return res.status(200).json({ success: true, translatedText });
+    } else {
+      throw new Error("구글 번역기 응답 포맷이 올바르지 않습니다.");
+    }
+  } catch (err: any) {
+    console.error("[translate] 번역 중 오류:", err.message);
+    return res.status(500).json({ success: false, error: err.message || "번역에 실패했습니다." });
+  }
+});
+
 // 서버 가동
 app.listen(port, () => {
   console.log(`[n8lient-gateway] 서버가 포트 ${port}에서 정상 기동 중입니다.`);
