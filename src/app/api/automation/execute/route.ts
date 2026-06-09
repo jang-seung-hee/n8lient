@@ -1,41 +1,14 @@
-// 이 파일은 사용자의 자동화 실행 요청을 처리하는 서버리스 API 게이트웨이입니다.
-// 브라우저에서 n8n Webhook을 직접 호출하는 것을 완전히 차단하며,
-// 서버 측에서 Firebase ID Token 검증 → Firestore 유효성 확인 → n8n Webhook 전송 순으로 처리합니다.
-//
-// 환경변수 구조 (서버 전용, NEXT_PUBLIC_ 접두사 사용 금지):
-//   FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY
-//
-//   n8n 서버 공통 (serverKey 기반):
-//     N8N_SERVER_{SERVER_KEY}_BASE_URL  예: N8N_SERVER_MAIN_BASE_URL
-//     N8N_SERVER_{SERVER_KEY}_TOKEN     예: N8N_SERVER_MAIN_TOKEN
-//
-//   n8n 자동화별 Path (webhookSecretId 기반):
-//     N8N_WEBHOOK_PATH_{WEBHOOK_SECRET_ID}  예: N8N_WEBHOOK_PATH_EXPENSE_REPORT
-//
-//   최종 호출 URL = baseUrl + path
+// 서버리스 API 게이트웨이: Firebase ID Token 검증 → Firestore 확인 → n8n Webhook 전송
+// 환경변수: N8N_SERVER_{KEY}_BASE_URL, N8N_SERVER_{KEY}_TOKEN, N8N_WEBHOOK_PATH_{ID}
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebaseAdmin";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// n8n Webhook URL/Token 조회 헬퍼 (새 구조)
-//
-// 조합 방식:
-//   serverKey   → N8N_SERVER_{SERVER_KEY}_BASE_URL, N8N_SERVER_{SERVER_KEY}_TOKEN
-//   webhookSecretId → N8N_WEBHOOK_PATH_{WEBHOOK_SECRET_ID}
-//   최종 URL = baseUrl + path
-//
-// 예시:
-//   n8nServerKey=main, webhookSecretId=expense-report
-//   → N8N_SERVER_MAIN_BASE_URL + N8N_WEBHOOK_PATH_EXPENSE_REPORT
-//   → https://n8n.rentaltalk.kr + /webhook/expense-report
-// ─────────────────────────────────────────────────────────────────────────────
+// n8n Webhook URL/Token 조회 헬퍼 (Base URL + Path 조합)
 function getWebhookConfig(
   serverKey: string,
   webhookSecretId: string
 ): { url: string; token: string | null } | null {
-  // 환경변수 suffix 변환: 소문자·하이픈 → 대문자·언더스코어
-  // 예: "main" → "MAIN", "expense-report" → "EXPENSE_REPORT"
   const serverEnvKey = serverKey.toUpperCase().replace(/-/g, "_");
   const webhookEnvKey = webhookSecretId.toUpperCase().replace(/-/g, "_");
 
@@ -44,20 +17,15 @@ function getWebhookConfig(
   const path = process.env[`N8N_WEBHOOK_PATH_${webhookEnvKey}`];
 
   if (!baseUrl) {
-    console.warn(
-      `[execute] n8n 서버 Base URL 환경변수 미설정: N8N_SERVER_${serverEnvKey}_BASE_URL`
-    );
+    console.warn(`[execute] Base URL 미설정: N8N_SERVER_${serverEnvKey}_BASE_URL`);
     return null;
   }
 
   if (!path) {
-    console.warn(
-      `[execute] n8n Webhook Path 환경변수 미설정: N8N_WEBHOOK_PATH_${webhookEnvKey}`
-    );
+    console.warn(`[execute] Webhook Path 미설정: N8N_WEBHOOK_PATH_${webhookEnvKey}`);
     return null;
   }
 
-  // Path 앞에 슬래시가 없으면 보정
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const url = `${baseUrl.replace(/\/$/, "")}${normalizedPath}`;
 
@@ -96,8 +64,26 @@ export async function POST(req: NextRequest) {
     const uid = decodedToken.uid;
     const db = getAdminFirestore();
 
-    // ── 2. 요청 body 파싱 ─────────────────────────────────────────────────
-    const body = await req.json();
+    // ── 2. 요청 body 및 파일 파싱 ─────────────────────────────────────────
+    const contentType = req.headers.get("content-type") || "";
+    let body;
+    let file: File | null = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const payloadStr = formData.get("payload") as string;
+      if (!payloadStr) {
+        return NextResponse.json(
+          { success: false, error: "payload 필드가 누락되었습니다." },
+          { status: 400 }
+        );
+      }
+      body = JSON.parse(payloadStr);
+      file = formData.get("file_0") as File;
+    } else {
+      body = await req.json();
+    }
+
     const { automationId, input } = body;
 
     if (!automationId || !input || !input.title) {
@@ -105,6 +91,18 @@ export async function POST(req: NextRequest) {
         { success: false, error: "automationId 또는 입력 데이터(input.title)가 누락되었습니다." },
         { status: 400 }
       );
+    }
+
+    // 파일 업로드 용량 제한 검증 (기본 4MB)
+    if (file) {
+      const maxUploadMB = process.env.MAX_UPLOAD_MB ? parseInt(process.env.MAX_UPLOAD_MB, 10) : 4;
+      const fileSizeMB = file.size / (1024 * 1024);
+      if (fileSizeMB > maxUploadMB) {
+        return NextResponse.json(
+          { success: false, error: `파일 크기가 제한 용량(${maxUploadMB}MB)을 초과했습니다.` },
+          { status: 413 }
+        );
+      }
     }
 
     // ── 3. users/{uid} 조회 및 approved 상태 확인 ─────────────────────────
@@ -118,10 +116,7 @@ export async function POST(req: NextRequest) {
 
     const userDoc = userSnap.data()!;
     if (userDoc.approvalStatus !== "approved") {
-      return NextResponse.json(
-        { success: false, error: "승인된 사용자만 자동화를 실행할 수 있습니다." },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: "승인된 사용자만 자동화를 실행할 수 있습니다." }, { status: 403 });
     }
 
     const clientId: string = userDoc.clientId;
@@ -129,35 +124,18 @@ export async function POST(req: NextRequest) {
     // ── 4. clientAutomations/{automationId} 유효성 검증 ──────────────────
     const autoSnap = await db.collection("clientAutomations").doc(automationId).get();
     if (!autoSnap.exists) {
-      return NextResponse.json(
-        { success: false, error: "요청한 자동화 설정을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "요청한 자동화 설정을 찾을 수 없습니다." }, { status: 404 });
     }
 
     const autoDoc = autoSnap.data()!;
-
-    // clientId 불일치 차단 (타인 자동화 실행 방지)
     if (autoDoc.clientId !== clientId) {
-      return NextResponse.json(
-        { success: false, error: "접근 권한이 없는 자동화입니다." },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: "접근 권한이 없는 자동화입니다." }, { status: 403 });
     }
-
-    // 활성화 및 설정 완료 여부 확인
     if (!autoDoc.enabled) {
-      return NextResponse.json(
-        { success: false, error: "비활성화된 자동화입니다." },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "비활성화된 자동화입니다." }, { status: 400 });
     }
-
     if (autoDoc.configStatus !== "configured") {
-      return NextResponse.json(
-        { success: false, error: "설정이 완료되지 않은 자동화입니다. 관리자에게 문의해 주십시오." },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "설정이 완료되지 않은 자동화입니다." }, { status: 400 });
     }
 
     const workflowKey: string = autoDoc.workflowKey;
@@ -170,62 +148,30 @@ export async function POST(req: NextRequest) {
 
     let hasUserSetting = false;
     const mergedKeys: string[] = [];
-    const fallbackKeys: string[] = [];
 
     if (userSettingSnap.exists) {
       const userSettingDoc = userSettingSnap.data()!;
+      const isValid = (!userSettingDoc.uid || userSettingDoc.uid === uid) &&
+                      (!userSettingDoc.clientId || userSettingDoc.clientId === clientId) &&
+                      (!userSettingDoc.automationId || userSettingDoc.automationId === automationId) &&
+                      (!userSettingDoc.workflowKey || userSettingDoc.workflowKey === workflowKey);
 
-      // 정합성 검증: uid, clientId, automationId, workflowKey 확인
-      const isUidMatch = !userSettingDoc.uid || userSettingDoc.uid === uid;
-      const isClientIdMatch = !userSettingDoc.clientId || userSettingDoc.clientId === clientId;
-      const isAutomationIdMatch = !userSettingDoc.automationId || userSettingDoc.automationId === automationId;
-      const isWorkflowKeyMatch = !userSettingDoc.workflowKey || userSettingDoc.workflowKey === workflowKey;
-
-      if (isUidMatch && isClientIdMatch && isAutomationIdMatch && isWorkflowKeyMatch) {
+      if (isValid) {
         hasUserSetting = true;
-        const userSettings: Record<string, any> = userSettingDoc.settings || {};
-
-        // 병합 규칙 적용
-        for (const [key, val] of Object.entries(userSettings)) {
-          // 빈 문자열, null, undefined, 공백 문자열 무시
-          const isInvalid =
-            val === null ||
-            val === undefined ||
-            (typeof val === "string" && val.trim() === "");
-
+        for (const [key, val] of Object.entries(userSettingDoc.settings || {})) {
+          const isInvalid = val === null || val === undefined || (typeof val === "string" && val.trim() === "");
           if (!isInvalid) {
             finalSettings[key] = val;
             mergedKeys.push(key);
           }
         }
       } else {
-        console.warn(
-          `[execute] 개인 설정 정합성 검증 실패: userSettingId=${userSettingId}. 개인 설정을 무시하고 회사 설정을 사용합니다.`,
-          {
-            expected: { uid, clientId, automationId, workflowKey },
-            actual: {
-              uid: userSettingDoc.uid,
-              clientId: userSettingDoc.clientId,
-              automationId: userSettingDoc.automationId,
-              workflowKey: userSettingDoc.workflowKey,
-            }
-          }
-        );
+        console.warn(`[execute] 개인 설정 검증 실패: ${userSettingId}. 회사 설정을 사용합니다.`);
       }
     }
 
-    // fallback 키 계산 (최종 병합된 키 중 개인 설정으로 덮어써지지 않은 키들)
-    for (const key of Object.keys(finalSettings)) {
-      if (!mergedKeys.includes(key)) {
-        fallbackKeys.push(key);
-      }
-    }
-
-    const settingsMergeSummary = {
-      hasUserSetting,
-      mergedKeys,
-      fallbackKeys,
-    };
+    const fallbackKeys = Object.keys(finalSettings).filter((k) => !mergedKeys.includes(k));
+    const settingsMergeSummary = { hasUserSetting, mergedKeys, fallbackKeys };
 
     // ── 5. workflowTemplates/{workflowKey} 조회 (Webhook 참조값 확인) ────
     const templateSnap = await db.collection("workflowTemplates").doc(workflowKey).get();
@@ -261,8 +207,10 @@ export async function POST(req: NextRequest) {
         title: input.title,
         text: input.text || null,
         fileUrl: input.fileUrl || null,
-        fileName: input.fileName || null,
-        mimeType: input.mimeType || null,
+        fileName: file ? file.name : (input.fileName || null),
+        mimeType: file ? (file.type || "application/octet-stream") : (input.mimeType || null),
+        sizeBytes: file ? file.size : (input.sizeBytes || null),
+        inputType: file ? (input.files?.[0]?.inputType || "file") : null,
       },
       result: {
         resultUrl: null,
@@ -293,8 +241,21 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 9. n8n Webhook 전송 ───────────────────────────────────────────────
-    // settings에는 Secret, Token, Webhook URL을 포함하지 않음
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://localhost:3000";
+
+    // n8n 전달용 input 구성 (하위 호환 필드 보정)
+    const n8nInput = {
+      ...submissionData.input,
+      files: file ? [
+        {
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          inputType: input.files?.[0]?.inputType || "file"
+        }
+      ] : undefined
+    };
+
     const n8nPayload = {
       submissionId,
       clientId,
@@ -302,7 +263,7 @@ export async function POST(req: NextRequest) {
       workflowKey,
       automationId,
       settings: finalSettings,
-      input: submissionData.input,
+      input: n8nInput,
       requestedAt: now.toISOString(),
       callbackUrl: `${baseUrl}/api/automation/callback`,
     };
@@ -311,20 +272,28 @@ export async function POST(req: NextRequest) {
     let n8nError: { code: string; message: string } | null = null;
 
     try {
-      // n8n 호출 헤더 구성
-      // X-N8N-TOKEN 헤더 사용 — n8n Webhook 노드에서 검증 시 해당 헤더를 확인해야 함
-      // Token이 없으면 헤더를 포함하지 않음 (테스트 환경 Authentication: None 대응)
-      const requestHeaders: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
+      const requestHeaders: Record<string, string> = {};
       if (webhookConfig.token) {
         requestHeaders["X-N8N-TOKEN"] = webhookConfig.token;
+      }
+
+      let requestBody: any;
+      if (file) {
+        // 파일이 있는 경우 multipart/form-data 전송
+        const n8nFormData = new FormData();
+        n8nFormData.append("payload", JSON.stringify(n8nPayload));
+        n8nFormData.append("file_0", file);
+        requestBody = n8nFormData;
+      } else {
+        // 파일이 없는 경우 application/json 전송
+        requestHeaders["Content-Type"] = "application/json";
+        requestBody = JSON.stringify(n8nPayload);
       }
 
       const n8nRes = await fetch(webhookConfig.url, {
         method: "POST",
         headers: requestHeaders,
-        body: JSON.stringify(n8nPayload),
+        body: requestBody,
         signal: AbortSignal.timeout(15000), // 15초 타임아웃
       });
 

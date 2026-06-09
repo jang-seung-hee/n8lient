@@ -12,6 +12,7 @@ import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from 
 import { siteConfig } from "@/config/siteConfig";
 import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsModal";
 import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
+import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
 
 export default function UserExecute() {
   const { user, userDoc } = useAuthUser();
@@ -21,8 +22,9 @@ export default function UserExecute() {
   const [userSettings, setUserSettings] = useState<UserAutomationSettings | null>(null);
 
   const [title, setTitle] = useState("");
-  const [text, setText] = useState("");
-  const [mockFileName, setMockFileName] = useState("");
+  const [inputText, setInputText] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [inputType, setInputType] = useState<"text" | "file" | "image" | "audio" | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -115,43 +117,131 @@ export default function UserExecute() {
       setError(null);
 
       const idToken = await user.getIdToken();
-      const fileUrl = mockFileName
-        ? `https://storage.n8lient.app/mock-uploads/${mockFileName}`
-        : undefined;
 
-      const res = await fetch("/api/automation/execute", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          automationId: currentAuto.automationId,
+      if (selectedFile) {
+        // 1. prepare-upload API 호출로 uploadToken 및 n8n 직접 업로드 대상 경로 획득
+        const prepRes = await fetch("/api/automation/prepare-upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            automationId: currentAuto.automationId,
+            input: {
+              title,
+              text: inputText || undefined,
+              files: [
+                {
+                  fileName: selectedFile.name,
+                  mimeType: selectedFile.type || "application/octet-stream",
+                  sizeBytes: selectedFile.size,
+                  inputType: inputType || "file"
+                }
+              ]
+            }
+          })
+        });
+
+        const prepData = await prepRes.json();
+        if (!prepRes.ok || !prepData.success) {
+          throw new Error(prepData.error || "업로드 준비(prepare-upload)에 실패했습니다.");
+        }
+
+        const { submissionId, uploadToken, n8nUploadUrl, maxUploadBytes } = prepData;
+
+        // 클라이언트단 용량 재검증
+        if (selectedFile.size > maxUploadBytes) {
+          throw new Error(`파일 크기가 제한 용량(${(maxUploadBytes / (1024 * 1024)).toFixed(0)}MB)을 초과했습니다.`);
+        }
+
+        // 2. n8n Webhook URL로 브라우저가 직접 파일 multipart/form-data 업로드 수행
+        const formData = new FormData();
+        formData.append("submissionId", submissionId);
+        formData.append("uploadToken", uploadToken);
+        formData.append("file_0", selectedFile);
+
+        const payload = {
+          submissionId,
+          uploadToken,
           input: {
             title,
-            text: text || undefined,
-            fileName: mockFileName || undefined,
-            fileUrl,
-            mimeType: mockFileName ? "application/octet-stream" : undefined,
-          },
-        }),
-      });
+            text: inputText || undefined,
+            files: [
+              {
+                fileName: selectedFile.name,
+                mimeType: selectedFile.type || "application/octet-stream",
+                sizeBytes: selectedFile.size,
+                inputType: inputType || "file"
+              }
+            ]
+          }
+        };
+        formData.append("payload", JSON.stringify(payload));
 
-      const data = await res.json();
+        let n8nRes;
+        try {
+          n8nRes = await fetch(n8nUploadUrl, {
+            method: "POST",
+            body: formData,
+            // 중요: 브라우저에 공통 n8n 토큰(X-N8N-TOKEN)을 노출하지 않기 위해 헤더에 인증 정보를 싣지 않습니다.
+          });
 
-      if (res.ok && data.success) {
+          if (!n8nRes.ok) {
+            const errorText = await n8nRes.text().catch(() => "");
+            throw new Error(`n8n 서버 전송 실패 (${n8nRes.status}): ${errorText || "네트워크 오류"}`);
+          }
+        } catch (n8nErr: any) {
+          // n8n 전송 실패 시 백엔드에 알려 submissions 상태를 failed로 갱신 (정체 방지)
+          await fetch("/api/automation/upload-failed", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ submissionId }),
+          }).catch((err) => console.error("upload-failed API 호출 실패:", err));
+
+          throw n8nErr;
+        }
+
         setSuccess(true);
         setTitle("");
-        setText("");
-        setMockFileName("");
-        alert(
-          `N8N 워크플로우 실행 요청이 성공적으로 전송되었습니다.\n요청 ID: ${data.submissionId}\n\n결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`
-        );
+        setInputText("");
+        setSelectedFile(null);
+        setInputType(null);
+        alert(`업로드가 접수되었습니다. 이제 화면을 닫아도 됩니다.\n요청 ID: ${submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
       } else {
-        setError(data.error || "실행 요청 처리 중 오류가 발생했습니다.");
+        // 파일이 없는 경우 기존 application/json 전송 (execute API)
+        const res = await fetch("/api/automation/execute", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            automationId: currentAuto.automationId,
+            input: {
+              title,
+              text: inputText || undefined,
+            },
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setSuccess(true);
+          setTitle("");
+          setInputText("");
+          setSelectedFile(null);
+          setInputType(null);
+          alert(`N8N 워크플로우 실행 요청이 성공적으로 전송되었습니다.\n요청 ID: ${data.submissionId}\n\n결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
+        } else {
+          setError(data.error || "실행 요청 처리 중 오류가 발생했습니다.");
+        }
       }
     } catch (err: any) {
-      setError(`네트워크 오류: ${err.message}`);
+      setError(`오류 발생: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -276,31 +366,16 @@ export default function UserExecute() {
             />
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>입력 내용 (선택)</label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="워크플로우 처리에 필요한 추가 설명이나 텍스트 정보를 기입해 주십시오."
-              style={{ minHeight: "80px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "8px 10px", fontSize: "14px", color: "#111111", outline: "none", resize: "vertical", boxSizing: "border-box" }}
-            />
-          </div>
-
-          {currentTemplate?.inputSchema?.acceptedInputTypes.includes("file") && (
+          {currentTemplate?.inputSchema && (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>첨부 파일 이름 (선택 - MVP Beta 모방)</label>
-              <input
-                type="text"
-                value={mockFileName}
-                onChange={(e) => setMockFileName(e.target.value)}
-                placeholder="예: receipt_202605.pdf"
-                style={{ height: "38px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "8px 10px", fontSize: "14px", color: "#111111", outline: "none", boxSizing: "border-box" }}
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>실행 입력 값</label>
+              <WorkflowInputPanel
+                acceptedInputTypes={currentTemplate.inputSchema.acceptedInputTypes}
+                allowedFileTypes={currentTemplate.inputSchema.allowedFileTypes}
+                maxFileSizeMB={currentTemplate.inputSchema.maxFileSizeMB}
+                onChange={({ text, file, inputType }) => { setInputText(text || ""); setSelectedFile(file); setInputType(inputType); }}
+                submitting={submitting}
               />
-              {currentTemplate?.inputSchema?.allowedFileTypes && (
-                <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0 }}>
-                  허용 확장자 스펙: {currentTemplate.inputSchema.allowedFileTypes.join(", ")} (최대 {currentTemplate.inputSchema.maxFileSizeMB}MB)
-                </p>
-              )}
             </div>
           )}
 
@@ -309,24 +384,13 @@ export default function UserExecute() {
             disabled={submitting}
             style={{ height: "38px", backgroundColor: submitting ? "#4b5563" : "#111111", color: "#ffffff", borderRadius: "6px", fontSize: "13px", fontWeight: 600, border: "none", cursor: submitting ? "not-allowed" : "pointer", marginTop: "8px", display: "flex", alignItems: "center", justifyContent: "center", transition: "background-color 0.15s ease" }}
           >
-            {submitting ? "실행 요청 처리 중..." : "🚀 N8N 워크플로우 실행 요청 제출"}
+            {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "🚀 N8N 워크플로우 실행 요청 제출"}
           </button>
         </form>
       )}
 
       {showModal && currentAuto && currentTemplate && user && userDoc?.clientId && (
-        <UserPersonalSettingsModal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            if (selectedAutoId) loadUserSettings(selectedAutoId);
-          }}
-          db={db}
-          uid={user.uid}
-          clientId={userDoc.clientId}
-          currentAuto={currentAuto}
-          currentTemplate={currentTemplate}
-        />
+        <UserPersonalSettingsModal isOpen={showModal} onClose={() => { setShowModal(false); if (selectedAutoId) loadUserSettings(selectedAutoId); }} db={db} uid={user.uid} clientId={userDoc.clientId} currentAuto={currentAuto} currentTemplate={currentTemplate} />
       )}
     </div>
   );
