@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { ClientDoc } from "@/types/n8lient";
 import { db } from "@/lib/firebase";
 import { findUserByEmail } from "@/features/operator/operatorService";
+import { doc, getDoc } from "firebase/firestore";
 
 interface ClientFormProps {
   initialData: ClientDoc | null;
@@ -37,6 +38,115 @@ export function ClientForm({
   const [ownerAdminUid, setOwnerAdminUid] = useState("");
   const [adminDisplayName, setAdminDisplayName] = useState("");
   const [adminLookupStatus, setAdminLookupStatus] = useState<"idle" | "loading" | "found" | "notfound" | "error">("idle");
+
+  // 한글 로마자 발음 표기 변환 헬퍼 (초성, 중성, 종성 조합)
+  const romanizeKorean = (text: string): string => {
+    const chosung = ['g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss', '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'];
+    const jungsung = ['a', 'ae', 'ya', 'yae', 'eo', 'e', 'ye', 'ye', 'o', 'wa', 'wae', 'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'];
+    const jongsung = ['', 'g', 'kk', 'gs', 'n', 'nj', 'nh', 'd', 'l', 'lg', 'lm', 'lb', 'ls', 'lt', 'lp', 'lh', 'm', 'b', 'bs', 's', 'ss', 'ng', 'j', 'ch', 'k', 't', 'p', 'h'];
+
+    let result = "";
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if (code >= 0xac00 && code <= 0xd7a3) {
+        const hangulIndex = code - 0xac00;
+        const cho = Math.floor(hangulIndex / 28 / 21);
+        const jung = Math.floor((hangulIndex / 28) % 21);
+        const jong = hangulIndex % 28;
+        result += chosung[cho] + jungsung[jung] + (jongsung[jong] || "");
+      } else {
+        const char = text.charAt(i).toLowerCase();
+        if (/[a-z0-9]/.test(char)) {
+          result += char;
+        } else if (/\s/.test(char)) {
+          result += "-";
+        }
+      }
+    }
+    return result.replace(/-+/g, "-").replace(/^-|-$/g, "");
+  };
+
+  const [checkingId, setCheckingId] = useState(false);
+  const [checkingCode, setCheckingCode] = useState(false);
+
+  const handleRecommendId = async () => {
+    if (!companyName.trim()) {
+      alert("먼저 고객사명을 입력해 주세요.");
+      return;
+    }
+    setCheckingId(true);
+    try {
+      let baseId = romanizeKorean(companyName.trim().toLowerCase());
+      baseId = baseId.replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+      if (!baseId) {
+        baseId = "client";
+      }
+
+      let checkId = baseId;
+      let counter = 1;
+      let isUnique = false;
+
+      while (!isUnique) {
+        const docRef = doc(db, "clients", checkId);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) {
+          isUnique = true;
+        } else {
+          counter++;
+          checkId = `${baseId}_${counter}`;
+        }
+      }
+
+      setClientId(checkId);
+    } catch (err: any) {
+      console.error(err);
+      alert("ID 추천 중 오류 발생: " + err.message);
+    } finally {
+      setCheckingId(false);
+    }
+  };
+
+  const handleGenerateCode = async () => {
+    setCheckingCode(true);
+    try {
+      let prefix = "";
+      if (clientId) {
+        prefix = clientId.slice(0, 4).toUpperCase();
+      } else if (companyName.trim()) {
+        prefix = romanizeKorean(companyName.trim()).slice(0, 4).toUpperCase();
+      } else {
+        prefix = "CLI";
+      }
+      
+      prefix = prefix.replace(/[^A-Z0-9]/g, "");
+      if (!prefix) prefix = "CLI";
+
+      let isUnique = false;
+      let finalCode = "";
+
+      while (!isUnique) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let randomPart = "";
+        for (let i = 0; i < 4; i++) {
+          randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        finalCode = `${prefix}-${randomPart}`;
+
+        const docRef = doc(db, "companyCodeLookups", finalCode);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) {
+          isUnique = true;
+        }
+      }
+
+      setCompanyCode(finalCode);
+    } catch (err: any) {
+      console.error(err);
+      alert("회사코드 생성 중 오류 발생: " + err.message);
+    } finally {
+      setCheckingCode(false);
+    }
+  };
 
   useEffect(() => {
     if (initialData) {
@@ -177,77 +287,127 @@ export function ClientForm({
       </h3>
       <form onSubmit={handleSubmitInternal} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         
+        {/* 고객사명 (가장 위로 이동) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>고객사명 *</label>
+          <input
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="예: 렌탈톡톡"
+            required
+            style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
+          />
+        </div>
+
         {/* 핵심 키 잠금 필드 및 일반 정보 */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          {/* 고객사 식별 ID */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>고객사 식별 ID * (수정 불가)</label>
-            <input
-              type="text"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder="예: client_rentaltoktok_001"
-              required
-              disabled={isEditMode}
-              style={{
-                height: "36px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                padding: "0 8px",
-                fontSize: "13px",
-                outline: "none",
-                color: isEditMode ? "#9ca3af" : "#111111",
-                backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
-              }}
-            />
+            <div style={{ display: "flex", gap: "6px" }}>
+              <input
+                type="text"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="예: client_rentaltoktok"
+                required
+                disabled={isEditMode}
+                style={{
+                  flex: 1,
+                  height: "36px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  padding: "0 8px",
+                  fontSize: "13px",
+                  outline: "none",
+                  color: isEditMode ? "#9ca3af" : "#111111",
+                  backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
+                }}
+              />
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleRecommendId}
+                  disabled={checkingId}
+                  style={{
+                    height: "36px",
+                    backgroundColor: "#f3f4f6",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    padding: "0 10px",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {checkingId ? "추천중..." : "💡 추천"}
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* 가입 회사코드 */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>가입 회사코드 * (수정 불가)</label>
-            <input
-              type="text"
-              value={companyCode}
-              onChange={(e) => setCompanyCode(e.target.value)}
-              placeholder="예: RTT2026"
-              required
-              disabled={isEditMode}
-              style={{
-                height: "36px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                padding: "0 8px",
-                fontSize: "13px",
-                outline: "none",
-                color: isEditMode ? "#9ca3af" : "#111111",
-                backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
-              }}
-            />
+            <div style={{ display: "flex", gap: "6px" }}>
+              <input
+                type="text"
+                value={companyCode}
+                onChange={(e) => setCompanyCode(e.target.value)}
+                placeholder="예: RTT-A2B3"
+                required
+                disabled={isEditMode}
+                style={{
+                  flex: 1,
+                  height: "36px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  padding: "0 8px",
+                  fontSize: "13px",
+                  outline: "none",
+                  color: isEditMode ? "#9ca3af" : "#111111",
+                  backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
+                }}
+              />
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleGenerateCode}
+                  disabled={checkingCode}
+                  style={{
+                    height: "36px",
+                    backgroundColor: "#f3f4f6",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    padding: "0 10px",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {checkingCode ? "생성중..." : "🎲 랜덤"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "12px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>고객사명 *</label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="예: 렌탈톡톡"
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>가동 상태 *</label>
-            <select
-              value={status}
-              onChange={(e: any) => setStatus(e.target.value)}
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-            >
-              <option value="active">정상 가동 (active)</option>
-              <option value="pending_setup">설정 대기 (pending_setup)</option>
-              <option value="suspended">가동 정지 (suspended)</option>
-              <option value="terminated">계약 종료 (terminated)</option>
-            </select>
-          </div>
+        {/* 가동 상태 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>가동 상태 *</label>
+          <select
+            value={status}
+            onChange={(e: any) => setStatus(e.target.value)}
+            style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
+          >
+            <option value="active">정상 가동 (active)</option>
+            <option value="pending_setup">설정 대기 (pending_setup)</option>
+            <option value="suspended">가동 정지 (suspended)</option>
+            <option value="terminated">계약 종료 (terminated)</option>
+          </select>
         </div>
 
         <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
