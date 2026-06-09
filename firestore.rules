@@ -116,7 +116,7 @@ service cloud.firestore {
 
     // 6. 실제 등록 자동화 설정 (clientAutomations) 규칙
     match /clientAutomations/{automationId} {
-      allow read: if isAuthenticated() && getMyUser().clientId == resource.data.clientId;
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && (
         getMyUser().role == 'operator' ||
         (isCompanyAdmin() && getMyUser().clientId == request.resource.data.clientId)
@@ -125,7 +125,7 @@ service cloud.firestore {
 
     // 6.5 사용자 개인 자동화 설정값 (userAutomationSettings) 규칙
     match /userAutomationSettings/{settingId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource == null || resource.data.uid == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
@@ -139,16 +139,7 @@ service cloud.firestore {
         request.resource.data.clientId == getMyUser().clientId &&
         request.resource.data.status == 'queued';
         
-      allow get: if isAuthenticated() && (
-        resource.data.uid == request.auth.uid ||
-        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
-      );
-      
-      // 대량 조회(list) 시 사용자는 본인의 uid 쿼리만, 관리자는 본인 회사 clientId 쿼리만 가능하도록 강제화
-      allow list: if isAuthenticated() && (
-        resource.data.uid == request.auth.uid ||
-        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
-      );
+      allow read: if isAuthenticated();
       
       allow update, delete: if false;
     }

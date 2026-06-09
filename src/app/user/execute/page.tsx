@@ -192,6 +192,12 @@ export default function UserExecute() {
             throw new Error(`n8n 서버 전송 실패 (${n8nRes.status}): ${errorText || "네트워크 오류"}`);
           }
         } catch (n8nErr: any) {
+          console.error("[N8Lient] n8n 직접 파일 전송 실패 상세 오류 로그:", {
+            name: n8nErr.name,
+            message: n8nErr.message,
+            stack: n8nErr.stack,
+            errorObj: n8nErr
+          });
           // n8n 전송 실패 시 백엔드에 알려 submissions 상태를 failed로 갱신 (정체 방지)
           await fetch("/api/automation/upload-failed", {
             method: "POST",
@@ -241,6 +247,7 @@ export default function UserExecute() {
         }
       }
     } catch (err: any) {
+      console.error("[N8Lient] N8N 실행 요청 처리 실패 상세 오류 로그:", err);
       setError(`오류 발생: ${err.message}`);
     } finally {
       setSubmitting(false);
