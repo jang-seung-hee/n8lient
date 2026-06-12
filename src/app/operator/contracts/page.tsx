@@ -111,6 +111,7 @@ export default function OperatorContracts() {
     workflowKey: string;
     enabled: boolean;
     contractStatus: "active" | "paused" | "ended";
+    contractRetentionLimit: any;
   }) => {
     if (!user) {
       alert("인증 정보가 확인되지 않습니다.");
@@ -125,6 +126,7 @@ export default function OperatorContracts() {
       workflowKey: formData.workflowKey,
       enabled: formData.enabled,
       contractStatus: formData.contractStatus,
+      contractRetentionLimit: formData.contractRetentionLimit,
       startedAt: new Date().toISOString(),
       endedAt: null,
       createdBy: user.uid,

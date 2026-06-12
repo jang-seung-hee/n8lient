@@ -29,6 +29,8 @@ export default function UserPersonalSettingsModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [userPreferredLevel, setUserPreferredLevel] = useState<string>("");
+
   // 개인 설정 데이터 로드
   const loadUserSettings = async () => {
     if (!uid || !currentAuto.automationId) return;
@@ -36,10 +38,20 @@ export default function UserPersonalSettingsModal({
       setLoading(true);
       const settingsData = await getUserAutomationSettings(db, uid, currentAuto.automationId);
       setExistingUserSetting(settingsData);
-      if (settingsData && settingsData.settings) {
-        setPersonalSettings(settingsData.settings);
+      if (settingsData) {
+        if (settingsData.settings) {
+          setPersonalSettings(settingsData.settings);
+        } else {
+          setPersonalSettings({});
+        }
+        if (settingsData.userRetentionPreference?.preferredLevel) {
+          setUserPreferredLevel(settingsData.userRetentionPreference.preferredLevel);
+        } else {
+          setUserPreferredLevel("");
+        }
       } else {
         setPersonalSettings({});
+        setUserPreferredLevel("");
       }
     } catch (err) {
       console.error("[UserPersonalSettingsModal] 개인 설정 로드 실패:", err);
@@ -73,6 +85,9 @@ export default function UserPersonalSettingsModal({
         automationId: currentAuto.automationId,
         workflowKey: currentAuto.workflowKey,
         settings: personalSettings,
+        userRetentionPreference: userPreferredLevel
+          ? { preferredLevel: userPreferredLevel as any }
+          : undefined,
         createdAt: existingUserSetting?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -296,6 +311,88 @@ export default function UserPersonalSettingsModal({
                 );
               })
           )}
+
+          {/* [v2.7] 개인 보관 정책 선호도 선택 UI (회사 및 오퍼레이터가 사용자 변경을 허용한 경우에만 노출) */}
+          {(() => {
+            const opPolicy = currentTemplate.operatorRetentionPolicy || {
+              allowedLevels: ["notify_only", "processed_result", "full_archive"],
+              defaultLevel: "full_archive",
+              allowCompanyOverride: true,
+              allowUserOverride: true,
+            };
+            // 회사별 계약 한도 획득 (currentAuto의 contractRetentionLimit 우선, 없으면 operatorRetentionPolicy에서 추출)
+            const contractRetentionLimit = currentAuto.contractRetentionLimit || {
+              maxLevel: opPolicy.defaultLevel || "full_archive",
+              allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"]
+            };
+
+            const coPolicy = currentAuto.companyRetentionPolicy || {
+              recommendedLevel: contractRetentionLimit.maxLevel || opPolicy.defaultLevel || "full_archive",
+              allowedUserLevels: contractRetentionLimit.allowedLevels || ["notify_only", "processed_result", "full_archive"],
+              allowUserOverride: opPolicy.allowUserOverride,
+            };
+
+            const capabilities = currentTemplate.retentionCapabilities || {
+              supportedLevels: ["notify_only", "processed_result", "full_archive"],
+              defaultLevel: "full_archive",
+            };
+
+            // 사용자 선택 가능 범위 교집합 계산
+            // workflowTemplates.retentionCapabilities.supportedLevels ∩ contractRetentionLimit.allowedLevels
+            const selectableLevels = capabilities.supportedLevels.filter(lvl => 
+              contractRetentionLimit.allowedLevels.includes(lvl)
+            );
+
+            // 두 군데 모두에서 오버라이드를 켜준 경우에만 셀렉터 활성화
+            const isUserOverrideAllowed = opPolicy.allowUserOverride && coPolicy.allowUserOverride;
+
+            if (!isUserOverrideAllowed || selectableLevels.length === 0) {
+              return null;
+            }
+
+            const companyRecommendedText = coPolicy.recommendedLevel || (coPolicy as any).defaultLevel || "full_archive";
+            let recommendedLabel: string = companyRecommendedText;
+            if (companyRecommendedText === "notify_only") recommendedLabel = "알림/로그형 (notify_only)";
+            else if (companyRecommendedText === "processed_result") recommendedLabel = "가공지식 저장형 (processed_result)";
+            else if (companyRecommendedText === "full_archive") recommendedLabel = "원본 포함 지식보관형 (full_archive)";
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "12px", borderTop: "1px solid #f3f4f6", paddingTop: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#374151" }}>
+                    내 보관 단계
+                  </label>
+                  <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 600 }}>개인 설정 우선</span>
+                </div>
+                <select
+                  value={userPreferredLevel}
+                  onChange={(e) => setUserPreferredLevel(e.target.value)}
+                  style={{
+                    height: "36px",
+                    borderRadius: "6px",
+                    border: "1px solid #d1d5db",
+                    padding: "0 8px",
+                    fontSize: "13px",
+                    backgroundColor: "#ffffff",
+                    color: "#111111",
+                    outline: "none",
+                  }}
+                >
+                  <option value="">{`회사 권장 단계 사용 (${recommendedLabel})`}</option>
+                  {selectableLevels.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {lvl === "notify_only" && "1단계: 알림/로그형 (notify_only)"}
+                      {lvl === "processed_result" && "2단계: 가공지식 저장형 (processed_result)"}
+                      {lvl === "full_archive" && "3단계: 원본 포함 지식보관형 (full_archive)"}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                  회사 계약 한도 내에서 개인 보관 단계를 선택할 수 있습니다. 선택하지 않으면 회사 권장 보관 단계가 적용됩니다.
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* 푸터 */}

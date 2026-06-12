@@ -205,9 +205,10 @@ export async function saveClientAutomation(
     settings: Record<string, string | number | boolean>;
     adminUid: string;
     template: WorkflowTemplate;
+    retentionPolicy?: any; // [v2.5]
   }): Promise<{ success: boolean; message?: string }> {
   try {
-    const { clientId, workflowKey, automationName, enabled, settings, adminUid, template } = params;
+    const { clientId, workflowKey, automationName, enabled, settings, adminUid, template, retentionPolicy } = params;
 
     // 1. 런타임 필수 설정 키 검증 (configSchema.key 기준)
     for (const field of template.configSchema) {
@@ -246,6 +247,7 @@ export async function saveClientAutomation(
       configStatus: "configured", // 설정 완료 상태
       configSchemaVersion: template.configSchemaVersion || 1,
       settings,
+      retentionPolicy: retentionPolicy || null,
       createdBy: adminUid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -258,3 +260,4 @@ export async function saveClientAutomation(
     return { success: false, message: error.message || "설정 저장 도중 오류가 발생했습니다." };
   }
 }
+

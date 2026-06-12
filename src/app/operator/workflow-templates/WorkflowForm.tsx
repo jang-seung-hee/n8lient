@@ -34,6 +34,30 @@ export function WorkflowForm({
   const [allowedFileTypesStr, setAllowedFileTypesStr] = useState("pdf, jpg, png, xlsx");
   const [maxFileSizeMB, setMaxFileSizeMB] = useState(50);
   const [schemaFields, setSchemaFields] = useState<ConfigSchemaField[]>([]);
+  
+  // [v2.6] retentionCapabilities 상태 정의
+  const [maxLevel, setMaxLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
+  const [supportedLevels, setSupportedLevels] = useState<("notify_only" | "processed_result" | "full_archive")[]>([
+    "notify_only",
+    "processed_result",
+    "full_archive",
+  ]);
+  const [capsDefaultLevel, setCapsDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
+  const [supportsProcessorResult, setSupportsProcessorResult] = useState(true);
+  const [supportsOriginalFileRefs, setSupportsOriginalFileRefs] = useState(true);
+  const [supportsResultRefs, setSupportsResultRefs] = useState(true);
+  const [supportsEmailNotification, setSupportsEmailNotification] = useState(false);
+  const [supportsResultPolicyRouter, setSupportsResultPolicyRouter] = useState(true);
+
+  // [v2.6] operatorRetentionPolicy 상태 정의
+  const [opAllowedLevels, setOpAllowedLevels] = useState<("notify_only" | "processed_result" | "full_archive")[]>([
+    "notify_only",
+    "processed_result",
+    "full_archive",
+  ]);
+  const [opDefaultLevel, setOpDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
+  const [allowCompanyOverride, setAllowCompanyOverride] = useState(true);
+  const [allowUserOverride, setAllowUserOverride] = useState(true);
 
   // 수정/배포 일관성 보호용 원본 정보 보존
   const [originalSchemaKeys, setOriginalSchemaKeys] = useState<Set<string>>(new Set());
@@ -54,6 +78,38 @@ export function WorkflowForm({
       setAllowedFileTypesStr(initialData.inputSchema.allowedFileTypes?.join(", ") || "");
       setMaxFileSizeMB(initialData.inputSchema.maxFileSizeMB || 50);
       setSchemaFields(initialData.configSchema || []);
+
+      // capabilities 매핑
+      const caps = initialData.retentionCapabilities || {
+        maxLevel: "full_archive",
+        supportedLevels: ["notify_only", "processed_result", "full_archive"],
+        defaultLevel: "full_archive",
+        supportsProcessorResult: true,
+        supportsOriginalFileRefs: true,
+        supportsResultRefs: true,
+        supportsEmailNotification: false,
+        supportsResultPolicyRouter: true,
+      };
+      setMaxLevel(caps.maxLevel || "full_archive");
+      setSupportedLevels(caps.supportedLevels);
+      setCapsDefaultLevel(caps.defaultLevel);
+      setSupportsProcessorResult(caps.supportsProcessorResult);
+      setSupportsOriginalFileRefs(caps.supportsOriginalFileRefs);
+      setSupportsResultRefs(caps.supportsResultRefs);
+      setSupportsEmailNotification(caps.supportsEmailNotification);
+      setSupportsResultPolicyRouter(caps.supportsResultPolicyRouter);
+
+      // operator policy 매핑
+      const op = initialData.operatorRetentionPolicy || {
+        allowedLevels: ["notify_only", "processed_result", "full_archive"],
+        defaultLevel: "full_archive",
+        allowCompanyOverride: true,
+        allowUserOverride: true,
+      };
+      setOpAllowedLevels(op.allowedLevels);
+      setOpDefaultLevel(op.defaultLevel);
+      setAllowCompanyOverride(op.allowCompanyOverride);
+      setAllowUserOverride(op.allowUserOverride);
 
       if (isEditMode) {
         setOriginalSchemaKeys(new Set(initialData.configSchema.map((f) => f.key)));
@@ -76,6 +132,21 @@ export function WorkflowForm({
       setAllowedFileTypesStr("pdf, jpg, png, xlsx");
       setMaxFileSizeMB(50);
       setSchemaFields([]);
+      
+      setMaxLevel("full_archive");
+      setSupportedLevels(["notify_only", "processed_result", "full_archive"]);
+      setCapsDefaultLevel("full_archive");
+      setSupportsProcessorResult(true);
+      setSupportsOriginalFileRefs(true);
+      setSupportsResultRefs(true);
+      setSupportsEmailNotification(false);
+      setSupportsResultPolicyRouter(true);
+
+      setOpAllowedLevels(["notify_only", "processed_result", "full_archive"]);
+      setOpDefaultLevel("full_archive");
+      setAllowCompanyOverride(true);
+      setAllowUserOverride(true);
+
       setOriginalSchemaKeys(new Set());
       setOriginalStatus(null);
     }
@@ -176,6 +247,41 @@ export function WorkflowForm({
       .map((x) => x.trim().toLowerCase())
       .filter(Boolean);
 
+    // [v2.6] 검증 규칙: operatorRetentionPolicy.allowedLevels는 retentionCapabilities.supportedLevels 안에 있어야 한다.
+    for (const lvl of opAllowedLevels) {
+      if (!supportedLevels.includes(lvl)) {
+        alert(`검증 오류: 오퍼레이터 허용 레벨(${lvl})은 워크플로우 지원 레벨(${supportedLevels.join(", ")})에 포함되어야 합니다.`);
+        return;
+      }
+    }
+    // [v2.6] 검증 규칙: operatorRetentionPolicy.defaultLevel은 allowedLevels 안에 있어야 한다.
+    if (!opAllowedLevels.includes(opDefaultLevel)) {
+      alert(`검증 오류: 오퍼레이터 기본 레벨(${opDefaultLevel})은 허용 레벨 목록(${opAllowedLevels.join(", ")})에 포함되어야 합니다.`);
+      return;
+    }
+    // [v2.6] 검증 규칙: retentionCapabilities.defaultLevel은 supportedLevels 안에 있어야 한다.
+    if (!supportedLevels.includes(capsDefaultLevel)) {
+      alert(`검증 오류: 기본 지원 레벨(${capsDefaultLevel})은 지원 레벨 목록(${supportedLevels.join(", ")})에 포함되어야 합니다.`);
+      return;
+    }
+
+    // [v2.7] 레벨 순서에 따른 maxLevel 범위 내 검증
+    const RETENTION_LEVEL_ORDER = {
+      notify_only: 1,
+      processed_result: 2,
+      full_archive: 3,
+    };
+    const maxVal = RETENTION_LEVEL_ORDER[maxLevel];
+    for (const lvl of opAllowedLevels) {
+      if (RETENTION_LEVEL_ORDER[lvl] > maxVal) {
+        alert(`검증 오류: 오퍼레이터 허용 레벨(${lvl})이 워크플로우 최대 보관 지원 단계(${maxLevel})를 초과할 수 없습니다.`);
+        return;
+      }
+    }
+
+    // 보관 정책 생성 (getDefaultRetentionPolicy)
+    const { getDefaultRetentionPolicy } = require("@/types/n8lient");
+
     const template: WorkflowTemplate = {
       workflowKey,
       name,
@@ -192,6 +298,23 @@ export function WorkflowForm({
         maxFileSizeMB,
       },
       configSchema: schemaFields,
+      retentionPolicy: getDefaultRetentionPolicy(opDefaultLevel), // 하위 호환
+      retentionCapabilities: {
+        maxLevel,
+        supportedLevels,
+        defaultLevel: capsDefaultLevel,
+        supportsProcessorResult,
+        supportsOriginalFileRefs,
+        supportsResultRefs,
+        supportsEmailNotification,
+        supportsResultPolicyRouter,
+      },
+      operatorRetentionPolicy: {
+        allowedLevels: opAllowedLevels,
+        defaultLevel: opDefaultLevel,
+        allowCompanyOverride,
+        allowUserOverride,
+      },
       createdAt: initialData?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -284,6 +407,141 @@ export function WorkflowForm({
             </select>
           </div>
         </div>
+
+        {/* [v2.6] retentionCapabilities (워크플로우 보관 지원 범위) */}
+        <div style={{ backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: 0 }}>⚙️ 워크플로우 보관 지원 범위 (Capabilities)</h4>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>워크플로우 최대 보관 지원 단계 (maxLevel) *</label>
+              <select
+                value={maxLevel}
+                onChange={(e: any) => setMaxLevel(e.target.value)}
+                style={{ height: "32px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 6px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff" }}
+              >
+                <option value="notify_only">1단계: 알림/로그형 (notify_only)</option>
+                <option value="processed_result">2단계: 가공지식 저장형 (processed_result)</option>
+                <option value="full_archive">3단계: 원본 포함 지식보관형 (full_archive)</option>
+              </select>
+              <span style={{ fontSize: "10.5px", color: "#6b7280" }}>
+                💡 이 워크플로우가 기술적으로 지원 가능한 최대 보관 수준입니다. 고객사 계약 또는 회사 설정은 이 범위를 초과할 수 없습니다.
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>기본 지원 레벨</label>
+              <select
+                value={capsDefaultLevel}
+                onChange={(e: any) => setCapsDefaultLevel(e.target.value)}
+                style={{ height: "32px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 6px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff" }}
+              >
+                {supportedLevels.map((lvl) => (
+                  <option key={lvl} value={lvl}>{lvl}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>기술적 지원 레벨 (다중 선택)</span>
+            <div style={{ display: "flex", gap: "12px", fontSize: "12px" }}>
+              {["notify_only", "processed_result", "full_archive"].map((lvl) => (
+                <label key={lvl} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={supportedLevels.includes(lvl as any)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSupportedLevels([...supportedLevels, lvl as any]);
+                      } else {
+                        setSupportedLevels(supportedLevels.filter((l) => l !== lvl));
+                      }
+                    }}
+                  />
+                  {lvl === "notify_only" && "알림/로그형"}
+                  {lvl === "processed_result" && "가공지식 저장형"}
+                  {lvl === "full_archive" && "원본 포함 지식보관형"}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px", marginTop: "4px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+              <input type="checkbox" checked={supportsProcessorResult} onChange={(e) => setSupportsProcessorResult(e.target.checked)} />
+              processorResult 생성 지원
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+              <input type="checkbox" checked={supportsOriginalFileRefs} onChange={(e) => setSupportsOriginalFileRefs(e.target.checked)} />
+              originalFileRefs 지원
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+              <input type="checkbox" checked={supportsResultRefs} onChange={(e) => setSupportsResultRefs(e.target.checked)} />
+              resultRefs 지원
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+              <input type="checkbox" checked={supportsResultPolicyRouter} onChange={(e) => setSupportsResultPolicyRouter(e.target.checked)} />
+              Result Policy Router 지원
+            </label>
+          </div>
+        </div>
+
+        {/* [v2.6] operatorRetentionPolicy (오퍼레이터 허용 보관 정책) */}
+        <div style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#166534", margin: 0 }}>🛡️ 오퍼레이터 허용 보관 정책 (Operator Policy)</h4>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#14532d" }}>고객사에 허용할 레벨 (다중 선택)</span>
+            <div style={{ display: "flex", gap: "12px", fontSize: "12px" }}>
+              {supportedLevels.map((lvl) => (
+                <label key={lvl} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#14532d" }}>
+                  <input
+                    type="checkbox"
+                    checked={opAllowedLevels.includes(lvl)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setOpAllowedLevels([...opAllowedLevels, lvl]);
+                      } else {
+                        setOpAllowedLevels(opAllowedLevels.filter((l) => l !== lvl));
+                      }
+                    }}
+                  />
+                  {lvl === "notify_only" && "알림/로그형"}
+                  {lvl === "processed_result" && "가공지식 저장형"}
+                  {lvl === "full_archive" && "원본 포함 지식보관형"}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#14532d" }}>오퍼레이터 기본 지정 레벨</label>
+              <select
+                value={opDefaultLevel}
+                onChange={(e: any) => setOpDefaultLevel(e.target.value)}
+                style={{ height: "32px", border: "1px solid #bbf7d0", borderRadius: "6px", padding: "0 6px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff" }}
+              >
+                {opAllowedLevels.map((lvl) => (
+                  <option key={lvl} value={lvl}>{lvl}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#14532d", marginTop: "4px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+              <input type="checkbox" checked={allowCompanyOverride} onChange={(e) => setAllowCompanyOverride(e.target.checked)} />
+              회사 관리자의 정책 수정 허용
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+              <input type="checkbox" checked={allowUserOverride} onChange={(e) => setAllowUserOverride(e.target.checked)} />
+              일반 사용자의 개인 보관 선호 수정 허용
+            </label>
+          </div>
+        </div>
+
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>

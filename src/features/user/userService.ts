@@ -153,3 +153,52 @@ export async function saveUserAutomationSettings(
   }
 }
 
+/**
+ * 특정 submission의 첨부파일 혹은 결과파일을 안전하게 다운로드합니다.
+ */
+export async function downloadSubmissionFile(
+  auth: any,
+  submissionId: string,
+  refType: "original" | "result",
+  index: number,
+  fileName: string
+): Promise<void> {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    const idToken = await currentUser.getIdToken();
+    const gatewayBaseUrl = process.env.NEXT_PUBLIC_GATEWAY_BASE_URL || "http://localhost:8080";
+    const downloadUrl = `${gatewayBaseUrl.replace(/\/$/, "")}/api/automation/download?submissionId=${submissionId}&refType=${refType}&index=${index}`;
+
+    const res = await fetch(downloadUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `다운로드 요청 실패 (HTTP ${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    
+    // 정리
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error: any) {
+    console.error("[userService] 파일 다운로드 실패:", error);
+    throw error;
+  }
+}
+

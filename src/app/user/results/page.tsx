@@ -8,6 +8,7 @@ import { useAuthUser } from "@/features/auth/useAuthUser";
 import { subscribeMySubmissions } from "@/features/user/userService";
 import type { Submission } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
+import SubmissionDetailModal from "@/components/custom/SubmissionDetailModal";
 
 export default function UserResults() {
   const { user } = useAuthUser();
@@ -15,6 +16,10 @@ export default function UserResults() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  
+  // 모달 제어용 상태
+  const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -40,6 +45,11 @@ export default function UserResults() {
     return () => unsubscribe();
   }, [user]);
 
+  // 상세 모달이 열려 있을 때 submissions 배열에서 실시간 상태를 동적 조회하여 동기화
+  const activeSubmission = selectedSub 
+    ? (submissions.find((s) => s.submissionId === selectedSub.submissionId) || selectedSub)
+    : null;
+
   // 필터 적용
   const filteredSubmissions = filterStatus === "all"
     ? submissions
@@ -62,6 +72,11 @@ export default function UserResults() {
       default:
         return { bg: "#f9fafb", text: "#6b7280", label: "대기중" };
     }
+  };
+
+  const handleRowClick = (sub: Submission) => {
+    setSelectedSub(sub);
+    setIsModalOpen(true);
   };
 
   if (loading && submissions.length === 0) {
@@ -125,6 +140,7 @@ export default function UserResults() {
             return (
               <div
                 key={sub.submissionId}
+                onClick={() => handleRowClick(sub)}
                 style={{
                   padding: "10px 12px",
                   borderBottom: idx < filteredSubmissions.length - 1 ? "1px solid #f3f4f6" : "none",
@@ -132,7 +148,11 @@ export default function UserResults() {
                   alignItems: "flex-start",
                   flexDirection: "column",
                   gap: "6px",
+                  cursor: "pointer",
+                  transition: "background-color 0.15s ease",
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f9fafb"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
               >
                 <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
@@ -183,26 +203,26 @@ export default function UserResults() {
                     워크플로우 Key: {sub.workflowKey} · ID: {sub.submissionId}
                   </span>
                   
-                  {sub.status === "success" && sub.result.resultUrl ? (
-                    <a
-                      href={sub.result.resultUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 600 }}
-                    >
-                      결과 링크 ↗
-                    </a>
-                  ) : (sub.status === "failed" || sub.status === "config_error") && sub.error.message ? (
-                    <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 500 }}>
-                      ⚠️ {sub.error.message}
-                    </span>
-                  ) : null}
+                  <span style={{ color: "#3b82f6", fontWeight: 600 }}>
+                    상세 보기 &rarr;
+                  </span>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {isModalOpen && activeSubmission && (
+        <SubmissionDetailModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedSub(null);
+          }}
+          submission={activeSubmission}
+        />
+      )}
     </div>
   );
 }

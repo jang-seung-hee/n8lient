@@ -217,8 +217,16 @@ export interface WorkflowTemplate {
   };
   /** settings의 key 이름과 반드시 일치해야 하는 설정 스키마 */
   configSchema: ConfigSchemaField[];
+  retentionPolicy?: RetentionPolicy; // [v2.5] 보관 정책 추가 (하위 호환)
+  retentionCapabilities?: RetentionCapabilities; // [v2.6] 지원 범위
+  operatorRetentionPolicy?: OperatorRetentionPolicy; // [v2.6] 오퍼레이터 제한 정책
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ContractRetentionLimit {
+  maxLevel: RetentionLevel;
+  allowedLevels: RetentionLevel[];
 }
 
 /**
@@ -230,6 +238,7 @@ export interface ClientContract {
   workflowKey: WorkflowKey;
   enabled: boolean;
   contractStatus: ContractStatus;
+  contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도
   startedAt: string;
   endedAt?: string | null;
   createdBy: Uid;
@@ -255,10 +264,158 @@ export interface ClientAutomation {
    * n8n도 이 key를 기준으로 값을 읽음
    */
   settings: Record<string, string | number | boolean>;
+  retentionPolicy?: RetentionPolicy; // [v2.5] 보관 정책 하위 호환
+  companyRetentionPolicy?: CompanyRetentionPolicy; // [v2.6] 회사 보관 정책
+  contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도 복사본
   createdBy: Uid;
   createdAt: string;
   updatedAt: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 결과/보관 레벨 계층 구조 타입 정의 (v2.6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RetentionLevel = "notify_only" | "processed_result" | "full_archive";
+
+export interface RetentionCapabilities {
+  maxLevel: RetentionLevel; // [v2.7] 워크플로우 기술적 최대 지원 단계
+  supportedLevels: RetentionLevel[];
+  defaultLevel: RetentionLevel;
+  supportsProcessorResult: boolean;
+  supportsOriginalFileRefs: boolean;
+  supportsResultRefs: boolean;
+  supportsEmailNotification: boolean;
+  supportsResultPolicyRouter: boolean;
+}
+
+export interface OperatorRetentionPolicy {
+  allowedLevels: RetentionLevel[]; // [v2.7] 회사 계약상 허용 보관 단계
+  defaultLevel: RetentionLevel;    // [v2.7] 계약 기본 레벨
+  allowCompanyOverride: boolean;
+  allowUserOverride: boolean;
+}
+
+export interface CompanyRetentionPolicy {
+  recommendedLevel: RetentionLevel; // [v2.7] 회사 권장 보관 단계
+  allowedUserLevels: RetentionLevel[];
+  allowUserOverride: boolean;
+}
+
+export interface UserRetentionPreference {
+  preferredLevel?: RetentionLevel;
+}
+
+export interface EffectiveRetentionPolicy {
+  level: RetentionLevel;
+  emailEnabled: boolean;
+  emailAttachResult: boolean;
+  emailAttachOriginal: boolean;
+  storeProcessorResult: boolean;
+  storeOriginalFiles: boolean;
+  storageProvider: "none" | "firebase_storage";
+  optionalExportProvider: "none" | "google_drive";
+  resolvedFrom: {
+    workflowDefault?: RetentionLevel;
+    operatorDefault?: RetentionLevel;
+    companyDefault?: RetentionLevel;
+    userPreference?: RetentionLevel;
+    reason: string;
+  };
+}
+
+// [v2.5] 하위 호환성 유지용 타입 선언
+export type RetentionPolicy = EffectiveRetentionPolicy;
+
+export const DEFAULT_RETENTION_CAPABILITIES: RetentionCapabilities = {
+  maxLevel: "full_archive",
+  supportedLevels: ["notify_only", "processed_result", "full_archive"],
+  defaultLevel: "full_archive",
+  supportsProcessorResult: true,
+  supportsOriginalFileRefs: true,
+  supportsResultRefs: true,
+  supportsEmailNotification: false,
+  supportsResultPolicyRouter: true,
+};
+
+export const DEFAULT_OPERATOR_RETENTION_POLICY: OperatorRetentionPolicy = {
+  allowedLevels: ["notify_only", "processed_result", "full_archive"],
+  defaultLevel: "full_archive",
+  allowCompanyOverride: true,
+  allowUserOverride: true,
+};
+
+export const DEFAULT_COMPANY_RETENTION_POLICY: CompanyRetentionPolicy = {
+  recommendedLevel: "full_archive",
+  allowedUserLevels: ["notify_only", "processed_result", "full_archive"],
+  allowUserOverride: true,
+};
+
+export const DEFAULT_RETENTION_POLICY: EffectiveRetentionPolicy = {
+  level: "full_archive",
+  emailEnabled: false,
+  emailAttachResult: false,
+  emailAttachOriginal: false,
+  storeProcessorResult: true,
+  storeOriginalFiles: true,
+  storageProvider: "firebase_storage",
+  optionalExportProvider: "none",
+  resolvedFrom: {
+    reason: "default_fallback",
+  },
+};
+
+export function buildEffectiveRetentionPolicy(
+  level: RetentionLevel,
+  resolvedFrom: EffectiveRetentionPolicy["resolvedFrom"]
+): EffectiveRetentionPolicy {
+  switch (level) {
+    case "notify_only":
+      return {
+        level: "notify_only",
+        emailEnabled: false,
+        emailAttachResult: false,
+        emailAttachOriginal: false,
+        storeProcessorResult: false,
+        storeOriginalFiles: false,
+        storageProvider: "none",
+        optionalExportProvider: "none",
+        resolvedFrom,
+      };
+    case "processed_result":
+      return {
+        level: "processed_result",
+        emailEnabled: false,
+        emailAttachResult: false,
+        emailAttachOriginal: false,
+        storeProcessorResult: true,
+        storeOriginalFiles: false,
+        storageProvider: "none",
+        optionalExportProvider: "none",
+        resolvedFrom,
+      };
+    case "full_archive":
+    default:
+      return {
+        level: "full_archive",
+        emailEnabled: false,
+        emailAttachResult: false,
+        emailAttachOriginal: false,
+        storeProcessorResult: true,
+        storeOriginalFiles: true,
+        storageProvider: "firebase_storage",
+        optionalExportProvider: "none",
+        resolvedFrom,
+      };
+  }
+}
+
+// [v2.5] 하위 호환용 헬퍼 함수 래퍼
+export function getDefaultRetentionPolicy(level: RetentionLevel): EffectiveRetentionPolicy {
+  return buildEffectiveRetentionPolicy(level, { reason: "legacy_helper_call" });
+}
+
+
 
 /**
  * userAutomationSettings 컬렉션 — 개별 사용자의 실무 맞춤형 사용자 개인 자동화 설정값 (문서 ID = {uid}_{automationId})
@@ -274,6 +431,7 @@ export interface UserAutomationSettings {
    * 빈 값은 회사 기본값(Fallback)을 사용하겠다는 의미임
    */
   settings: Record<string, string | number | boolean>;
+  userRetentionPreference?: UserRetentionPreference; // [v2.6] 개인 선호 설정
   createdAt: string;
   updatedAt: string;
 }
@@ -357,6 +515,7 @@ export interface Submission {
   processorResult?: ProcessorResult | null;
   resultRefs?: ResultRef[];
   settingsSnapshot?: Record<string, string | number | boolean>;
+  retentionPolicySnapshot?: RetentionPolicy; // [v2.5] 실행 시점 보관 정책 스냅샷
   
   createdAt: string;
   updatedAt: string;

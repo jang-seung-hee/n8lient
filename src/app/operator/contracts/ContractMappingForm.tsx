@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ClientDoc, WorkflowTemplate } from "@/types/n8lient";
+import type { ClientDoc, WorkflowTemplate, ContractRetentionLimit } from "@/types/n8lient";
 
 interface ContractMappingFormProps {
   clients: ClientDoc[];
@@ -13,6 +13,7 @@ interface ContractMappingFormProps {
     workflowKey: string;
     enabled: boolean;
     contractStatus: "active" | "paused" | "ended";
+    contractRetentionLimit: ContractRetentionLimit;
   }) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
@@ -29,6 +30,7 @@ export function ContractMappingForm({
   const [selectedWorkflowKey, setSelectedWorkflowKey] = useState("");
   const [formEnabled, setFormEnabled] = useState(true);
   const [formContractStatus, setFormContractStatus] = useState<"active" | "paused" | "ended">("active");
+  const [contractMaxLevel, setContractMaxLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
 
   // 초기 select 선택 값 매핑
   useEffect(() => {
@@ -36,9 +38,28 @@ export function ContractMappingForm({
       setSelectedClientId(clients[0].clientId);
     }
     if (templates.length > 0) {
-      setSelectedWorkflowKey(templates[0].workflowKey);
+      const firstTpl = templates[0];
+      setSelectedWorkflowKey(firstTpl.workflowKey);
+      setContractMaxLevel(firstTpl.retentionCapabilities?.maxLevel || "full_archive");
     }
   }, [clients, templates]);
+
+  // 워크플로우 템플릿 변경 시 기술적 한도 내로 자동 조정
+  useEffect(() => {
+    if (selectedWorkflowKey) {
+      const currentTemplate = templates.find((t) => t.workflowKey === selectedWorkflowKey);
+      const templateMax = currentTemplate?.retentionCapabilities?.maxLevel || "full_archive";
+      
+      const RETENTION_LEVEL_ORDER = {
+        notify_only: 1,
+        processed_result: 2,
+        full_archive: 3,
+      };
+      if (RETENTION_LEVEL_ORDER[contractMaxLevel] > RETENTION_LEVEL_ORDER[templateMax]) {
+        setContractMaxLevel(templateMax);
+      }
+    }
+  }, [selectedWorkflowKey, templates]);
 
   const handleSubmitInternal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,11 +73,36 @@ export function ContractMappingForm({
       return;
     }
 
+    const currentTemplate = templates.find((t) => t.workflowKey === selectedWorkflowKey);
+    const templateMax = currentTemplate?.retentionCapabilities?.maxLevel || "full_archive";
+    
+    const RETENTION_LEVEL_ORDER = {
+      notify_only: 1,
+      processed_result: 2,
+      full_archive: 3,
+    };
+
+    if (RETENTION_LEVEL_ORDER[contractMaxLevel] > RETENTION_LEVEL_ORDER[templateMax]) {
+      alert(`검증 오류: 선택한 계약 최대 레벨이 해당 워크플로우의 기술적 최대 보관 한도(${templateMax})를 초과할 수 없습니다.`);
+      return;
+    }
+
+    const allowedLevels = ["notify_only"];
+    if (contractMaxLevel === "processed_result") {
+      allowedLevels.push("processed_result");
+    } else if (contractMaxLevel === "full_archive") {
+      allowedLevels.push("processed_result", "full_archive");
+    }
+
     onSubmit({
       clientId: selectedClientId,
       workflowKey: selectedWorkflowKey,
       enabled: formEnabled,
       contractStatus: formContractStatus,
+      contractRetentionLimit: {
+        maxLevel: contractMaxLevel,
+        allowedLevels: allowedLevels as any[],
+      },
     });
   };
 
@@ -113,6 +159,44 @@ export function ContractMappingForm({
             )}
           </select>
         </div>
+
+        {/* 계약상 허용 보관 단계 지정 ([v2.7] 추가) */}
+        {(() => {
+          const currentTemplate = templates.find((t) => t.workflowKey === selectedWorkflowKey);
+          const templateMax = currentTemplate?.retentionCapabilities?.maxLevel || "full_archive";
+
+          const RETENTION_LEVEL_ORDER = {
+            notify_only: 1,
+            processed_result: 2,
+            full_archive: 3,
+          };
+
+          const maxOrder = RETENTION_LEVEL_ORDER[templateMax] || 3;
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>계약상 허용 보관 단계</label>
+              <select
+                value={contractMaxLevel}
+                onChange={(e: any) => setContractMaxLevel(e.target.value)}
+                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
+              >
+                <option value="notify_only" disabled={maxOrder < 1}>
+                  1단계: 알림/로그형 (notify_only)
+                </option>
+                <option value="processed_result" disabled={maxOrder < 2}>
+                  2단계: 가공지식 저장형 (processed_result)
+                </option>
+                <option value="full_archive" disabled={maxOrder < 3}>
+                  3단계: 원본 포함 지식보관형 (full_archive)
+                </option>
+              </select>
+              <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                이 회사가 계약상 사용할 수 있는 최대 보관 단계입니다. 워크플로우 최대 지원 단계를 초과할 수 없습니다.
+              </span>
+            </div>
+          );
+        })()}
 
         {/* 상태 및 약정 설정 */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>

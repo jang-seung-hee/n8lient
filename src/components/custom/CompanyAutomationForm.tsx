@@ -29,6 +29,16 @@ export default function CompanyAutomationForm({
   const [formName, setFormName] = useState("");
   const [formEnabled, setFormEnabled] = useState(true);
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
+  
+  // [v2.6] 회사 보관 정책 관련 상태 선언
+  const [companyDefaultLevel, setCompanyDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
+  const [coAllowedUserLevels, setCoAllowedUserLevels] = useState<("notify_only" | "processed_result" | "full_archive")[]>([
+    "notify_only",
+    "processed_result",
+    "full_archive",
+  ]);
+  const [coAllowUserOverride, setCoAllowUserOverride] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
 
   const isSecurityField = (key: string, type: string) => {
@@ -41,6 +51,29 @@ export default function CompanyAutomationForm({
   useEffect(() => {
     setFormName(automation?.automationName || template.shortName || template.name);
     setFormEnabled(automation ? automation.enabled : true);
+
+    // [v2.7] 회사 보관 정책 초기화
+    const opPolicy = template.operatorRetentionPolicy || {
+      allowedLevels: ["notify_only", "processed_result", "full_archive"],
+      defaultLevel: "full_archive",
+      allowCompanyOverride: true,
+      allowUserOverride: true,
+    };
+
+    const contractRetentionLimit = contract.contractRetentionLimit || automation?.contractRetentionLimit || {
+      maxLevel: opPolicy.defaultLevel || "full_archive",
+      allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"]
+    };
+
+    const coPolicy = automation?.companyRetentionPolicy || {
+      recommendedLevel: contractRetentionLimit.maxLevel || "full_archive",
+      allowedUserLevels: contractRetentionLimit.allowedLevels || ["notify_only", "processed_result", "full_archive"],
+      allowUserOverride: opPolicy.allowUserOverride,
+    };
+
+    setCompanyDefaultLevel(coPolicy.recommendedLevel || (coPolicy as any).defaultLevel || "full_archive");
+    setCoAllowedUserLevels(coPolicy.allowedUserLevels);
+    setCoAllowUserOverride(coPolicy.allowUserOverride);
 
     const initialSettings: Record<string, string | number | boolean> = {};
     template.configSchema.forEach((field) => {
@@ -57,7 +90,7 @@ export default function CompanyAutomationForm({
       }
     });
     setFormSettings(initialSettings);
-  }, [automation, template]);
+  }, [automation, template, contract]);
 
   const handleFieldChange = (key: string, value: string | number | boolean) => {
     setFormSettings((prev) => ({
@@ -70,6 +103,46 @@ export default function CompanyAutomationForm({
     e.preventDefault();
     try {
       setSubmitting(true);
+      
+      const opPolicy = template.operatorRetentionPolicy || {
+        allowedLevels: ["notify_only", "processed_result", "full_archive"],
+        defaultLevel: "full_archive",
+        allowCompanyOverride: true,
+        allowUserOverride: true,
+      };
+
+      // [v2.7] 회사별 계약 한도 획득
+      const contractRetentionLimit = contract.contractRetentionLimit || automation?.contractRetentionLimit || {
+        maxLevel: opPolicy.defaultLevel || "full_archive",
+        allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"]
+      };
+
+      // 검증 규칙: companyRetentionPolicy.recommendedLevel은 contractRetentionLimit.allowedLevels 안에 있어야 한다.
+      if (!contractRetentionLimit.allowedLevels.includes(companyDefaultLevel)) {
+        alert(`검증 오류: 회사의 권장 보관 레벨(${companyDefaultLevel})은 계약상 허용된 범위(${contractRetentionLimit.allowedLevels.join(", ")})에 포함되어야 합니다.`);
+        return;
+      }
+
+      // 검증 규칙: companyRetentionPolicy.allowedUserLevels도 contractRetentionLimit.allowedLevels 안에 있어야 한다.
+      for (const lvl of coAllowedUserLevels) {
+        if (!contractRetentionLimit.allowedLevels.includes(lvl)) {
+          alert(`검증 오류: 사용자 허용 레벨(${lvl})은 계약상 허용된 범위(${contractRetentionLimit.allowedLevels.join(", ")})에 포함되어야 합니다.`);
+          return;
+        }
+      }
+
+      // 검증 규칙: operatorRetentionPolicy.allowCompanyOverride가 false이면 회사관리자는 보관 레벨을 수정할 수 없다. (초기 설정된 template.operatorRetentionPolicy.defaultLevel 강제 고정)
+      let finalRecommendedLevel = companyDefaultLevel;
+      if (opPolicy.allowCompanyOverride === false) {
+        finalRecommendedLevel = opPolicy.defaultLevel || "full_archive";
+      }
+
+      // 검증 규칙: operatorRetentionPolicy.allowUserOverride가 false이면 개인사용자 변경 허용을 켤 수 없다.
+      let finalAllowUserOverride = coAllowUserOverride;
+      if (opPolicy.allowUserOverride === false) {
+        finalAllowUserOverride = false;
+      }
+
       const cleanedSettings: Record<string, string | number | boolean> = {};
       for (const [k, v] of Object.entries(formSettings)) {
         const fieldSchema = template.configSchema.find((f) => f.key === k);
@@ -79,6 +152,8 @@ export default function CompanyAutomationForm({
         cleanedSettings[k] = v;
       }
 
+      const { getDefaultRetentionPolicy } = require("@/types/n8lient");
+
       const res = await saveClientAutomation(db, {
         clientId,
         workflowKey: contract.workflowKey,
@@ -87,7 +162,16 @@ export default function CompanyAutomationForm({
         settings: cleanedSettings,
         adminUid: uid,
         template,
-      });
+        retentionPolicy: getDefaultRetentionPolicy(finalRecommendedLevel), // 하위 호환
+        retentionPolicySnapshot: getDefaultRetentionPolicy(finalRecommendedLevel), // 하위 호환
+        contractRetentionLimit, // [v2.7] 계약 한도 저장
+        companyRetentionPolicy: {
+          recommendedLevel: finalRecommendedLevel,
+          defaultLevel: finalRecommendedLevel, // 하위 호환 필드
+          allowedUserLevels: coAllowedUserLevels,
+          allowUserOverride: finalAllowUserOverride,
+        },
+      } as any);
 
       if (res.success) {
         alert("N8N 워크플로우 설정이 성공적으로 저장 및 활성화되었습니다.");
@@ -142,6 +226,77 @@ export default function CompanyAutomationForm({
             사내 사용자들에게 이 N8N 워크플로우 노출 및 활성화
           </label>
         </div>
+
+        {/* [v2.7] 회사 보관 정책 설정 UI (오퍼레이터가 계약한 허용 범위에서만 제어 가능) */}
+        {(() => {
+          const opPolicy = template.operatorRetentionPolicy || {
+            allowedLevels: ["notify_only", "processed_result", "full_archive"],
+            defaultLevel: "full_archive",
+            allowCompanyOverride: true,
+            allowUserOverride: true,
+          };
+
+          const contractRetentionLimit = contract.contractRetentionLimit || automation?.contractRetentionLimit || {
+            maxLevel: opPolicy.defaultLevel || "full_archive",
+            allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"]
+          };
+
+          return (
+            <div style={{ backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: 0 }}>🛡️ 회사 보관 정책 (Company Policy)</h4>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>회사 기본 보관 레벨</label>
+                <select
+                  value={companyDefaultLevel}
+                  onChange={(e: any) => setCompanyDefaultLevel(e.target.value)}
+                  disabled={!opPolicy.allowCompanyOverride}
+                  style={{
+                    height: "36px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    padding: "0 8px",
+                    fontSize: "13px",
+                    outline: "none",
+                    backgroundColor: opPolicy.allowCompanyOverride ? "#ffffff" : "#f3f4f6",
+                    color: opPolicy.allowCompanyOverride ? "#111111" : "#9ca3af",
+                  }}
+                >
+                  {contractRetentionLimit.allowedLevels.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {lvl === "notify_only" && "알림/로그형 (notify_only)"}
+                      {lvl === "processed_result" && "가공지식 저장형 (processed_result)"}
+                      {lvl === "full_archive" && "원본 포함 지식보관형 (full_archive)"}
+                    </option>
+                  ))}
+                </select>
+                {!opPolicy.allowCompanyOverride && (
+                  <span style={{ fontSize: "11px", color: "#ef4444" }}>
+                    ⚠️ 오퍼레이터 정책에 의해 회사 관리자의 보관 레벨 강제 재정의(Override)가 금지되어 있어 변경할 수 없습니다.
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: opPolicy.allowUserOverride ? "#374151" : "#9ca3af", cursor: opPolicy.allowUserOverride ? "pointer" : "not-allowed" }}>
+                  <input
+                    type="checkbox"
+                    checked={coAllowUserOverride}
+                    disabled={!opPolicy.allowUserOverride}
+                    onChange={(e) => setCoAllowUserOverride(e.target.checked)}
+                    style={{ cursor: opPolicy.allowUserOverride ? "pointer" : "not-allowed" }}
+                  />
+                  사내 일반 사용자의 개인 보관 선호 선택 허용
+                </label>
+                {!opPolicy.allowUserOverride && (
+                  <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                    ℹ️ 오퍼레이터 정책상 일반 사용자 변경이 금지되어 있어 활성화할 수 없습니다.
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
 

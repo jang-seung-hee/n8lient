@@ -176,6 +176,7 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
         const userSettingSnap = await db.collection("userAutomationSettings").doc(userSettingId).get();
         let hasUserSetting = false;
         const mergedKeys = [];
+        let userPreference = null;
         if (userSettingSnap.exists) {
             const userSettingDoc = userSettingSnap.data();
             const isValid = (!userSettingDoc.uid || userSettingDoc.uid === uid) &&
@@ -190,6 +191,9 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                         finalSettings[key] = val;
                         mergedKeys.push(key);
                     }
+                }
+                if (userSettingDoc.userRetentionPreference) {
+                    userPreference = userSettingDoc.userRetentionPreference;
                 }
             }
         }
@@ -207,6 +211,89 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
         if (!webhookConfig) {
             return res.status(500).json({ success: false, error: "n8n Webhook 연동 정보가 서버에 설정되지 않았습니다." });
         }
+        // [v2.7] 결과/보관 정책 계층 구조 합성 알고리즘 (v1.1 정책 재정의)
+        // 1. 레벨 가중치 오더 정의
+        const RETENTION_LEVEL_ORDER = {
+            notify_only: 1,
+            processed_result: 2,
+            full_archive: 3,
+        };
+        // 2. 워크플로우 및 계약 한도 획득
+        const capabilities = templateDoc.retentionCapabilities || {
+            maxLevel: "full_archive",
+            supportedLevels: ["notify_only", "processed_result", "full_archive"],
+            defaultLevel: "full_archive",
+        };
+        const opPolicy = templateDoc.operatorRetentionPolicy || {
+            allowedLevels: ["notify_only", "processed_result", "full_archive"],
+            defaultLevel: "full_archive",
+            allowCompanyOverride: true,
+            allowUserOverride: true,
+        };
+        // 회사별 계약 한도 획득 (clientAutomations/autoDoc의 contractRetentionLimit 우선, 없으면 operatorRetentionPolicy에서 추출)
+        const contractRetentionLimit = autoDoc.contractRetentionLimit || {
+            maxLevel: opPolicy.defaultLevel || "full_archive",
+            allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"]
+        };
+        const coPolicy = autoDoc.companyRetentionPolicy || {
+            recommendedLevel: autoDoc.companyRetentionPolicy?.defaultLevel || contractRetentionLimit.maxLevel || "full_archive",
+            defaultLevel: autoDoc.companyRetentionPolicy?.defaultLevel || contractRetentionLimit.maxLevel || "full_archive",
+            allowedUserLevels: contractRetentionLimit.allowedLevels || ["notify_only", "processed_result", "full_archive"],
+            allowUserOverride: opPolicy.allowUserOverride,
+        };
+        // 3. 허용 가능한 교집합(선택가능 범위) 계산
+        const supportedLevels = capabilities.supportedLevels || [];
+        const contractAllowedLevels = contractRetentionLimit.allowedLevels || [];
+        const selectableLevels = supportedLevels.filter((lvl) => contractAllowedLevels.includes(lvl));
+        // 4. 개인 선호값 및 회사 권장값 획득
+        const userPreferredLevel = userPreference?.preferredLevel || null;
+        const companyRecommendedLevel = coPolicy.recommendedLevel || coPolicy.defaultLevel || capabilities.defaultLevel || "full_archive";
+        // 5. 요청 레벨 결정 (개인 설정 우선, 없으면 회사 권장)
+        let requestedLevel = userPreferredLevel || companyRecommendedLevel;
+        let finalLevel = requestedLevel;
+        let reason = userPreferredLevel
+            ? "user_preference_applied_within_contract_limit"
+            : "company_recommended_level_applied";
+        // 6. clampToMaxAllowedLevel 구현 및 적용
+        if (!selectableLevels.includes(finalLevel)) {
+            // 요청 레벨이 허용 범위에 없는 경우 조정
+            const reqVal = RETENTION_LEVEL_ORDER[finalLevel] || 3;
+            // 1) 허용 범위 중 요청한 레벨보다 작거나 같으면서 가장 큰 레벨 탐색
+            const lowerOrEqualLevels = selectableLevels
+                .filter((lvl) => (RETENTION_LEVEL_ORDER[lvl] || 1) <= reqVal)
+                .sort((a, b) => (RETENTION_LEVEL_ORDER[b] || 0) - (RETENTION_LEVEL_ORDER[a] || 0));
+            if (lowerOrEqualLevels.length > 0) {
+                finalLevel = lowerOrEqualLevels[0];
+                reason = userPreferredLevel
+                    ? "user_preference_clamped_to_max_allowed"
+                    : "company_recommended_clamped_to_max_allowed";
+            }
+            else {
+                // 2) 더 낮은 허용 레벨이 전혀 없는 경우, 허용 레벨 중 최솟값 적용
+                const sortedSelectable = [...selectableLevels].sort((a, b) => (RETENTION_LEVEL_ORDER[a] || 0) - (RETENTION_LEVEL_ORDER[b] || 0));
+                finalLevel = sortedSelectable[0] || capabilities.defaultLevel || "full_archive";
+                reason = "requested_level_out_of_bounds_fallback_to_minimum_allowed";
+            }
+        }
+        const storeProc = finalLevel !== "notify_only";
+        const storeOrig = finalLevel === "full_archive";
+        const retentionPolicy = {
+            level: finalLevel,
+            emailEnabled: false,
+            emailAttachResult: false,
+            emailAttachOriginal: false,
+            storeProcessorResult: storeProc,
+            storeOriginalFiles: storeOrig,
+            storageProvider: storeOrig ? "firebase_storage" : "none",
+            optionalExportProvider: "none",
+            resolvedFrom: {
+                workflowDefault: capabilities.defaultLevel || null,
+                operatorDefault: opPolicy.defaultLevel || null,
+                companyDefault: companyRecommendedLevel || null,
+                userPreference: userPreferredLevel || null,
+                reason,
+            }
+        };
         // 5. submissions 문서 queued 상태로 생성 (사전 등록)
         const now = new Date();
         const dateStr = now.toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
@@ -219,73 +306,75 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             sizeBytes: file.size,
             inputType: input.inputType || "file"
         } : null;
-        // [v2] Firebase Storage 원본 파일 업로드
-        // - 파일이 있는 실행에서 Storage 업로드 실패 시 n8n을 호출하지 않고 즉시 failed 처리한다.
-        // - 파일이 없는 텍스트 실행은 이 블록을 건너뛰고 정상 진행한다.
+        // [v2] Firebase Storage 원본 파일 업로드 (retentionPolicy.storeOriginalFiles 가 true일 때만 저장)
         let originalFileRefs = [];
         if (file) {
-            try {
-                console.log(`[execute] Firebase Storage 원본 파일 업로드 시작. submissionId=${submissionId}`);
-                const fileRef = await (0, storage_1.uploadFileToStorage)({
-                    localPath: file.path,
-                    originalFileName: file.originalname,
-                    mimeType: file.mimetype,
-                    submissionId,
-                    clientId,
-                    uid,
-                    workflowKey,
-                    inputType: input.inputType || "file",
-                });
-                originalFileRefs = [fileRef];
-                console.log(`[execute] Storage 업로드 완료. storagePath=${fileRef.storagePath}`);
-            }
-            catch (uploadErr) {
-                // [v2] 파일 실행에서 Storage 업로드 실패 → n8n 미호출, submission을 failed로 기록 후 즉시 반환
-                console.error(`[execute] Firebase Storage 업로드 실패. submissionId=${submissionId}:`, uploadErr.message);
-                const failedAt = new Date().toISOString();
-                // Firestore에 아직 미등록 상태이므로 set으로 failed 문서 직접 생성
+            if (retentionPolicy.storeOriginalFiles) {
                 try {
-                    await db.collection("submissions").doc(submissionId).set({
+                    console.log(`[execute] Firebase Storage 원본 파일 업로드 시작. submissionId=${submissionId}`);
+                    const fileRef = await (0, storage_1.uploadFileToStorage)({
+                        localPath: file.path,
+                        originalFileName: file.originalname,
+                        mimeType: file.mimetype,
                         submissionId,
                         clientId,
                         uid,
                         workflowKey,
-                        automationId,
-                        trigger: input.trigger || "manual",
-                        status: "failed",
-                        input: {
-                            title: input.title,
-                            text: input.text || null,
-                            fileUrl: null,
-                            fileName: file.originalname || null,
-                            mimeType: file.mimetype || null,
-                            sizeBytes: file.size || null,
-                            inputType: input.inputType || "file",
-                        },
-                        originalFileRefs: [],
-                        processorResult: null,
-                        resultRefs: [],
-                        settingsSnapshot: filterSensitiveSettings(finalSettings),
-                        result: { resultUrl: null, summary: null },
-                        error: {
-                            code: "STORAGE_UPLOAD_FAILED",
-                            message: uploadErr.message || "Firebase Storage 원본 파일 저장 실패",
-                        },
-                        retryOf: null,
-                        settingsMergeSummary,
-                        createdAt: now.toISOString(),
-                        updatedAt: failedAt,
-                        completedAt: failedAt,
+                        inputType: input.inputType || "file",
+                    });
+                    originalFileRefs = [fileRef];
+                    console.log(`[execute] Storage 업로드 완료. storagePath=${fileRef.storagePath}`);
+                }
+                catch (uploadErr) {
+                    console.error(`[execute] Firebase Storage 업로드 실패. submissionId=${submissionId}:`, uploadErr.message);
+                    const failedAt = new Date().toISOString();
+                    try {
+                        await db.collection("submissions").doc(submissionId).set({
+                            submissionId,
+                            clientId,
+                            uid,
+                            workflowKey,
+                            automationId,
+                            trigger: input.trigger || "manual",
+                            status: "failed",
+                            input: {
+                                title: input.title,
+                                text: input.text || null,
+                                fileUrl: null,
+                                fileName: file.originalname || null,
+                                mimeType: file.mimetype || null,
+                                sizeBytes: file.size || null,
+                                inputType: input.inputType || "file",
+                            },
+                            originalFileRefs: [],
+                            processorResult: null,
+                            resultRefs: [],
+                            settingsSnapshot: filterSensitiveSettings(finalSettings),
+                            retentionPolicySnapshot: retentionPolicy,
+                            result: { resultUrl: null, summary: null },
+                            error: {
+                                code: "STORAGE_UPLOAD_FAILED",
+                                message: uploadErr.message || "Firebase Storage 원본 파일 저장 실패",
+                            },
+                            retryOf: null,
+                            settingsMergeSummary,
+                            createdAt: now.toISOString(),
+                            updatedAt: failedAt,
+                            completedAt: failedAt,
+                        });
+                    }
+                    catch (dbErr) {
+                        console.error("[execute] Storage 실패 상태 Firestore 기록 오류:", dbErr);
+                    }
+                    return res.status(500).json({
+                        success: false,
+                        submissionId,
+                        error: "파일 저장 실패: Firebase Storage 업로드 중 오류가 발생했습니다.",
                     });
                 }
-                catch (dbErr) {
-                    console.error("[execute] Storage 실패 상태 Firestore 기록 오류:", dbErr);
-                }
-                return res.status(500).json({
-                    success: false,
-                    submissionId,
-                    error: "파일 저장 실패: Firebase Storage 업로드 중 오류가 발생했습니다.",
-                });
+            }
+            else {
+                console.log(`[execute] retentionPolicy 정책(level=${retentionPolicy.level})에 의해 Storage 파일 업로드를 생략합니다.`);
             }
         }
         // [v2] settingsSnapshot: 민감값 필터링 후 저장
@@ -298,7 +387,6 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             uid,
             workflowKey,
             automationId,
-            // [v2] trigger: 실행 진입점 식별자
             trigger: input.trigger || "manual",
             status: "queued",
             input: {
@@ -310,15 +398,11 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                 sizeBytes: fileMetadata?.sizeBytes || null,
                 inputType: resolvedInputType,
             },
-            // [v2] originalFileRefs: Storage 원본 파일 참조 목록 (Storage 업로드 성공 후에만 채워짐)
             originalFileRefs,
-            // [v2] processorResult: n8n 처리 결과 (초기값 null, callback 시 갱신)
             processorResult: null,
-            // [v2] resultRefs: 처리 산출물 Storage 참조 목록 (초기값 [], callback 시 갱신)
             resultRefs: [],
-            // [v2] settingsSnapshot: 실행 시점의 병합된 설정값 스냅샷 (민감값 제외)
             settingsSnapshot,
-            // --- 하위 호환: 기존 result/error 필드 유지 ---
+            retentionPolicySnapshot: retentionPolicy,
             result: { resultUrl: null, summary: null },
             error: { code: null, message: null },
             retryOf: null,
@@ -338,8 +422,8 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             automationId,
             settings: finalSettings,
             input: submissionData.input,
-            // [v2] originalFileRefs: n8n 워크플로우에서 Storage 원본 파일 접근 가능하도록 전달
             originalFileRefs,
+            retentionPolicy,
             requestedAt: now.toISOString(),
             callbackUrl: `${gatewayBaseUrl.replace(/\/$/, "")}/api/automation/callback`,
         };
@@ -428,27 +512,42 @@ app.post("/api/automation/callback", async (req, res) => {
         if (!docSnap.exists) {
             return res.status(404).json({ success: false, error: "해당 실행 이력(submission)을 찾을 수 없습니다." });
         }
+        const subDoc = docSnap.data();
+        // 기존 데이터 호환용 fallback: retentionPolicySnapshot이 없으면 기본 'full_archive' 정책으로 간주
+        const policy = subDoc.retentionPolicySnapshot || { level: "full_archive", storeProcessorResult: true, storeOriginalFiles: true };
+        const level = policy.level || "full_archive";
         // 2. 최종 상태(success/failed) 및 메타데이터 업데이트
         const completedAt = new Date().toISOString();
         const updateData = {
             status: status === "success" ? "success" : "failed",
             updatedAt: completedAt,
-            // [v2] completedAt: 처리 완료 시각 명시적 기록
             completedAt,
         };
         if (status === "success") {
-            // --- 하위 호환: 기존 result 필드 유지 ---
+            // 공통: result.summary, result.resultUrl 정도는 모든 레벨에서 기본 저장 허용
             updateData.result = {
                 resultUrl: result?.resultUrl || null,
                 summary: result?.summary || null,
             };
-            // [v2] processorResult: n8n이 전달하는 구조화된 처리 결과
-            if (processorResult !== undefined && processorResult !== null) {
-                updateData.processorResult = processorResult;
+            if (level === "full_archive") {
+                if (processorResult !== undefined && processorResult !== null) {
+                    updateData.processorResult = processorResult;
+                }
+                if (Array.isArray(resultRefs) && resultRefs.length > 0) {
+                    updateData.resultRefs = resultRefs;
+                }
             }
-            // [v2] resultRefs: 처리 산출물 Storage 참조 목록
-            if (Array.isArray(resultRefs) && resultRefs.length > 0) {
-                updateData.resultRefs = resultRefs;
+            else if (level === "processed_result") {
+                if (processorResult !== undefined && processorResult !== null) {
+                    updateData.processorResult = processorResult;
+                }
+                // processed_result 에서는 결과 파일 참조를 저장하지 않음
+                updateData.resultRefs = [];
+            }
+            else if (level === "notify_only") {
+                // notify_only 에서는 processorResult와 결과 파일 참조 모두 비우거나 저장하지 않음
+                updateData.processorResult = null;
+                updateData.resultRefs = [];
             }
         }
         else {
@@ -458,12 +557,109 @@ app.post("/api/automation/callback", async (req, res) => {
             };
         }
         await docRef.update(updateData);
-        console.log(`[callback] submissionId=${submissionId} 업데이트 완료. Status: ${updateData.status}, processorResult=${!!processorResult}, resultRefs=${resultRefs?.length ?? 0}건`);
+        console.log(`[callback] submissionId=${submissionId} (level=${level}) 업데이트 완료. Status: ${updateData.status}, processorResult=${!!updateData.processorResult}, resultRefs=${updateData.resultRefs?.length ?? 0}건`);
         return res.status(200).json({ success: true });
     }
     catch (error) {
         console.error("[callback] 처리 중 서버 오류:", error);
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+// 4. GET /api/automation/download (보안 격리 파일 다운로드 API)
+app.get("/api/automation/download", auth_1.checkAuth, async (req, res) => {
+    try {
+        const uid = req.user?.uid;
+        if (!uid) {
+            return res.status(401).json({ success: false, error: "인증되지 않은 사용자입니다." });
+        }
+        const { submissionId, refType, index } = req.query;
+        if (!submissionId || !refType || index === undefined) {
+            return res.status(400).json({ success: false, error: "필수 파라미터(submissionId, refType, index)가 누락되었습니다." });
+        }
+        const idx = parseInt(index, 10);
+        if (isNaN(idx)) {
+            return res.status(400).json({ success: false, error: "index 파라미터는 숫자 형식이어야 합니다." });
+        }
+        if (refType !== "original" && refType !== "result") {
+            return res.status(400).json({ success: false, error: "refType은 'original' 또는 'result'만 허용됩니다." });
+        }
+        const db = (0, firebase_1.getAdminFirestore)();
+        // 1. 사용자 정보 조회 (권한 검증용)
+        const userSnap = await db.collection("users").doc(uid).get();
+        if (!userSnap.exists) {
+            return res.status(404).json({ success: false, error: "사용자 정보를 찾을 수 없습니다." });
+        }
+        const userDoc = userSnap.data();
+        const userRole = userDoc.role;
+        const userClientId = userDoc.clientId;
+        // 2. submissions/{submissionId} 조회
+        const subSnap = await db.collection("submissions").doc(submissionId).get();
+        if (!subSnap.exists) {
+            return res.status(404).json({ success: false, error: "해당 실행 이력(submission)을 찾을 수 없습니다." });
+        }
+        const subDoc = subSnap.data();
+        // 3. 권한 매핑 검증
+        // operator: 무조건 허용
+        // company_admin: submission.clientId === user.clientId 이면 허용
+        // user: submission.uid === uid 이면 허용
+        let isAllowed = false;
+        if (userRole === "operator") {
+            isAllowed = true;
+        }
+        else if (userRole === "company_admin") {
+            if (subDoc.clientId === userClientId) {
+                isAllowed = true;
+            }
+        }
+        else if (userRole === "user") {
+            if (subDoc.uid === uid) {
+                isAllowed = true;
+            }
+        }
+        if (!isAllowed) {
+            return res.status(403).json({ success: false, error: "해당 파일에 대한 접근 권한이 없습니다." });
+        }
+        // 4. refType에 따른 ref 획득
+        let targetRef = null;
+        if (refType === "original") {
+            const refs = subDoc.originalFileRefs || [];
+            if (idx >= 0 && idx < refs.length) {
+                targetRef = refs[idx];
+            }
+        }
+        else if (refType === "result") {
+            const refs = subDoc.resultRefs || [];
+            if (idx >= 0 && idx < refs.length) {
+                targetRef = refs[idx];
+            }
+        }
+        if (!targetRef || !targetRef.storagePath) {
+            return res.status(404).json({ success: false, error: "지정한 인덱스에 해당하는 파일 정보를 찾을 수 없습니다." });
+        }
+        const { storagePath, fileName, mimeType } = targetRef;
+        // 5. Firebase Storage 파일 검증 및 스트리밍 다운로드
+        const bucket = (0, firebase_1.getAdminStorage)().bucket();
+        const file = bucket.file(storagePath);
+        const [exists] = await file.exists();
+        if (!exists) {
+            return res.status(404).json({ success: false, error: "실제 저장소(Storage) 내 파일이 존재하지 않습니다." });
+        }
+        // 파일명 인코딩 보완 (헤더 인코딩 깨짐 방지 RFC 5987 호환)
+        const encodedFileName = encodeURIComponent(fileName).replace(/['()]/g, escape).replace(/\*/g, "%2A");
+        res.setHeader("Content-Type", mimeType || "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodedFileName}`);
+        const readStream = file.createReadStream();
+        readStream.on("error", (streamErr) => {
+            console.error("[download] 파일 스트림 읽기 실패:", streamErr);
+            if (!res.headersSent) {
+                res.status(500).json({ success: false, error: "파일 전송 중 서버 오류가 발생했습니다." });
+            }
+        });
+        readStream.pipe(res);
+    }
+    catch (error) {
+        console.error("[download] 처리 중 예외 발생:", error);
+        return res.status(500).json({ success: false, error: error.message || "파일 다운로드 실패" });
     }
 });
 // 4. GET /api/translate (무료 구글 번역기 프록시 API)
