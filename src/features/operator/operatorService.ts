@@ -154,7 +154,8 @@ export async function updateWorkflowTemplate(
  */
 export async function createClient(
   db: Firestore,
-  client: ClientDoc
+  client: ClientDoc,
+  operatorUid?: string
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const normalizedCode = client.companyCode.trim().toUpperCase();
@@ -182,6 +183,23 @@ export async function createClient(
       };
     }
 
+    // 2.5 ownerAdminUid 지정 검증
+    if (client.ownerAdminUid) {
+      const userRef = doc(db, "users", client.ownerAdminUid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return { success: false, message: "지정된 관리자 UID를 가진 사용자가 존재하지 않습니다." };
+      }
+      const userData = userSnap.data() as UserDoc;
+      // 다른 clientId에 이미 승인되어 있는지 확인
+      if (userData.clientId && userData.clientId !== client.clientId && userData.approvalStatus === "approved") {
+        return {
+          success: false,
+          message: `해당 사용자는 이미 다른 회사(${userData.clientId})의 승인된 소속입니다.`,
+        };
+      }
+    }
+
     // 3. batch를 통한 원자적 생성
     const { writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
@@ -201,6 +219,28 @@ export async function createClient(
       status: client.status === "active" ? "active" : "disabled", // active 일 때만 가입 신청이 가능함
     });
 
+    // 지정된 관리자가 있는 경우 users 및 companyJoinRequests 업데이트
+    if (client.ownerAdminUid) {
+      const userRef = doc(db, "users", client.ownerAdminUid);
+      batch.update(userRef, {
+        clientId: client.clientId,
+        role: "company_admin",
+        approvalStatus: "approved",
+        updatedAt: new Date().toISOString(),
+      });
+
+      const requestId = `${client.ownerAdminUid}_${client.clientId}`;
+      const requestRef = doc(db, "companyJoinRequests", requestId);
+      const requestSnap = await getDoc(requestRef);
+      if (requestSnap.exists() && requestSnap.data().status === "pending") {
+        batch.update(requestRef, {
+          status: "approved",
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: operatorUid || "operator",
+        });
+      }
+    }
+
     await batch.commit();
     return { success: true };
   } catch (error: any) {
@@ -216,11 +256,29 @@ export async function updateClient(
   db: Firestore,
   clientId: string,
   companyCode: string,
-  data: Partial<ClientDoc>
+  data: Partial<ClientDoc>,
+  operatorUid?: string
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const docRef = doc(db, "clients", clientId);
     const normalizedCode = companyCode.trim().toUpperCase();
+
+    // 1. ownerAdminUid 변경 시 검증
+    if (data.ownerAdminUid) {
+      const userRef = doc(db, "users", data.ownerAdminUid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return { success: false, message: "지정된 관리자 UID를 가진 사용자가 존재하지 않습니다." };
+      }
+      const userData = userSnap.data() as UserDoc;
+      // 이미 다른 clientId에 approved 상태로 배정되어 있는지 검증 (동일 clientId인 경우는 제외)
+      if (userData.clientId && userData.clientId !== clientId && userData.approvalStatus === "approved") {
+        return {
+          success: false,
+          message: `해당 사용자는 이미 다른 회사(${userData.clientId})의 승인된 소속이므로 관리자로 지정할 수 없습니다.`,
+        };
+      }
+    }
 
     // 수정 가능한 필드만 엄격히 격리 (clientId, companyCode 수정 차단)
     const allowedData = {
@@ -251,6 +309,28 @@ export async function updateClient(
         },
         { merge: true }
       );
+    }
+
+    // 지정된 관리자가 있으면 users와 companyJoinRequests 문서 일괄 업데이트
+    if (data.ownerAdminUid) {
+      const userRef = doc(db, "users", data.ownerAdminUid);
+      batch.update(userRef, {
+        clientId: clientId,
+        role: "company_admin",
+        approvalStatus: "approved",
+        updatedAt: new Date().toISOString(),
+      });
+
+      const requestId = `${data.ownerAdminUid}_${clientId}`;
+      const requestRef = doc(db, "companyJoinRequests", requestId);
+      const requestSnap = await getDoc(requestRef);
+      if (requestSnap.exists() && requestSnap.data().status === "pending") {
+        batch.update(requestRef, {
+          status: "approved",
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: operatorUid || "operator",
+        });
+      }
     }
 
     await batch.commit();

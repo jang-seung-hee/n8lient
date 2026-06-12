@@ -280,6 +280,41 @@ export interface UserAutomationSettings {
 
 
 /**
+ * 파일 참조 정보 (v2 원본 파일)
+ */
+export interface FileRef {
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  inputType: string;
+}
+
+/**
+ * 결과 파일 참조 정보 (v2 생성 결과 파일)
+ */
+export interface ResultRef {
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  resultType: string;
+}
+
+/**
+ * n8n 프로세서가 반환하는 가공된 결과 구조
+ */
+export interface ProcessorResult {
+  title: string | null;
+  summary: string | null;
+  content: string | null;
+  mdContent: string | null;
+  structuredData: Record<string, any> | null;
+  keywords: string[] | null;
+  warnings: string[] | null;
+}
+
+/**
  * submissions 컬렉션 — 자동화 실행 요청 및 처리 상태
  */
 export interface Submission {
@@ -295,13 +330,14 @@ export interface Submission {
     fileUrl?: string;
     fileName?: string;
     mimeType?: string;
+    sizeBytes?: number; // 하위 호환용 크기
   };
   result: {
     resultUrl?: string | null;
     summary?: string | null;
   };
   error: {
-    code?: N8nErrorCode | null;
+    code?: N8nErrorCode | string | null; // N8nErrorCode 외 Gateway 에러코드 대응을 위해 string 확장
     message?: string | null;
   };
   /** 재전송 시 원본 submissionId 참조 */
@@ -312,6 +348,16 @@ export interface Submission {
     mergedKeys: string[];
     fallbackKeys: string[];
   } | null;
+  
+  // ── v2 추가 필드 (하위 호환을 위해 모두 옵셔널로 처리) ──
+  trigger?: {
+    type: string;
+  };
+  originalFileRefs?: FileRef[];
+  processorResult?: ProcessorResult | null;
+  resultRefs?: ResultRef[];
+  settingsSnapshot?: Record<string, string | number | boolean>;
+  
   createdAt: string;
   updatedAt: string;
   completedAt?: string | null;

@@ -171,17 +171,17 @@ export function WorkflowDetail({
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>허용 입력 형태</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>{template.inputSchema.acceptedInputTypes.join(", ")}</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{template.inputSchema?.acceptedInputTypes?.join(", ") || "없음"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>허용 파일 확장자</span>
                 <span style={{ fontWeight: 600, color: "#111111", fontFamily: "monospace" }}>
-                  {template.inputSchema.allowedFileTypes?.join(", ") || "없음"}
+                  {template.inputSchema?.allowedFileTypes?.join(", ") || "없음"}
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>최대 업로드 제한 크기</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>{template.inputSchema.maxFileSizeMB || 50} MB</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{template.inputSchema?.maxFileSizeMB || 50} MB</span>
               </div>
             </div>
           </div>

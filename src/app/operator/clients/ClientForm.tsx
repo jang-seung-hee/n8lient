@@ -184,11 +184,30 @@ export function ClientForm({
       setDefaultTimezone(initialData.defaultTimezone || "Asia/Seoul");
       setDefaultReportEmail(initialData.defaultReportEmail || "");
       setDefaultDriveRootFolderId(initialData.defaultDriveRootFolderId || "");
-      // 수정 모드: 기존 ownerAdminUid만 복원 (이메일은 별도 조회 필요)
       setOwnerAdminUid(initialData.ownerAdminUid || "");
-      setAdminEmail("");
-      setAdminDisplayName("");
-      setAdminLookupStatus("idle");
+      
+      // 수정 모드: 기존 ownerAdminUid가 있으면 users 컬렉션에서 이메일 및 displayName 로드
+      if (initialData.ownerAdminUid) {
+        const fetchAdminUser = async () => {
+          try {
+            const userRef = doc(db, "users", initialData.ownerAdminUid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              setAdminEmail(userData.email || "");
+              setAdminDisplayName(userData.displayName || "");
+              setAdminLookupStatus("found");
+            }
+          } catch (err) {
+            console.error("이전 관리자 정보 로드 실패:", err);
+          }
+        };
+        fetchAdminUser();
+      } else {
+        setAdminEmail("");
+        setAdminDisplayName("");
+        setAdminLookupStatus("idle");
+      }
     } else {
       setClientId("");
       setCompanyName("");

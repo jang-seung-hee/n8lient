@@ -15,7 +15,7 @@ import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
 import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
 
 export default function UserExecute() {
-  const { user, userDoc } = useAuthUser();
+  const { user, userDoc, loading: authLoading } = useAuthUser();
   const [automations, setAutomations] = useState<ClientAutomation[]>([]);
   const [templates, setTemplates] = useState<Record<string, WorkflowTemplate>>({});
   const [selectedAutoId, setSelectedAutoId] = useState("");
@@ -32,7 +32,10 @@ export default function UserExecute() {
   const [showModal, setShowModal] = useState(false);
 
   const loadData = async () => {
-    if (!userDoc?.clientId) return;
+    if (!userDoc?.clientId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -78,10 +81,19 @@ export default function UserExecute() {
   };
 
   useEffect(() => {
-    if (userDoc?.clientId) {
-      loadData();
+    if (authLoading) return;
+    
+    if (!user || !userDoc) {
+      setLoading(false);
+      return;
     }
-  }, [userDoc]);
+
+    if (userDoc.clientId) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [userDoc, user, authLoading]);
 
   useEffect(() => {
     if (selectedAutoId) {
@@ -166,6 +178,46 @@ export default function UserExecute() {
       setSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <p style={{ fontSize: "13px", color: "#6b7280", textAlign: "center", padding: "24px" }}>
+        {siteConfig.messages.loading}
+      </p>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", color: "#4b5563", fontSize: "14px" }}>
+        🔒 자동화 실행을 위해 로그인이 필요합니다.
+      </div>
+    );
+  }
+
+  if (!userDoc) {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", color: "#dc2626", fontSize: "14px" }}>
+        ⚠️ 사용자 프로필 정보를 찾을 수 없습니다. 관리자에게 문의하세요.
+      </div>
+    );
+  }
+
+  if (userDoc.approvalStatus !== "approved") {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", color: "#d97706", fontSize: "14px" }}>
+        ⏳ 계정 승인 대기 상태입니다. 관리자의 승인 완료 후 실행 가능합니다.
+      </div>
+    );
+  }
+
+  if (!userDoc.clientId) {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", color: "#4b5563", fontSize: "14px" }}>
+        🏢 소속 회사 가입 승인 정보가 등록되어 있지 않습니다.
+      </div>
+    );
+  }
 
   if (loading && automations.length === 0) {
     return (

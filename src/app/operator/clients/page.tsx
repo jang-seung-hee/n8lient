@@ -11,6 +11,7 @@ import {
   updateClient,
 } from "@/features/operator/operatorService";
 import type { ClientDoc } from "@/types/n8lient";
+import { useAuthUser } from "@/features/auth/useAuthUser";
 
 // 하위 컴포넌트 임포트
 import { ClientList } from "./ClientList";
@@ -25,6 +26,8 @@ export default function OperatorClients() {
   const [clients, setClients] = useState<ClientDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { user } = useAuthUser();
 
   // 1. 고객사 목록 로드
   const loadClients = async () => {
@@ -71,11 +74,15 @@ export default function OperatorClients() {
 
   // 3. 저장 및 수정 처리 (트랜잭션/Batch 비즈니스 연동 완료)
   const handleFormSubmit = async (client: ClientDoc) => {
+    if (!user) {
+      alert("인증 정보가 확인되지 않습니다.");
+      return;
+    }
     try {
       setLoading(true);
       if (isEditMode) {
         // 수정 처리
-        const res = await updateClient(db, client.clientId, client.companyCode, client);
+        const res = await updateClient(db, client.clientId, client.companyCode, client, user.uid);
         if (res.success) {
           alert(`고객사 [${client.companyName}] 정보가 성공적으로 수정되었습니다.`);
           // 수정 후 목록이 아닌 해당 상세 화면으로 이동
@@ -87,7 +94,7 @@ export default function OperatorClients() {
         }
       } else {
         // 신규 등록 처리 (clients 와 companyCodeLookups 배치 등록)
-        const res = await createClient(db, client);
+        const res = await createClient(db, client, user.uid);
         if (res.success) {
           alert(`고객사 [${client.companyName}] 등록이 완료되었습니다.`);
           // 저장 후 목록이 아닌 해당 상세 화면으로 이동

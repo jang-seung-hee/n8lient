@@ -129,3 +129,16 @@
 - [x] Cloud Run 재배포 (루트 env.yaml 기준) 및 이전 `n8lient-gateway/env.yaml` 제거
 - [x] 재배포 후 환경변수 제거 확인 (`gcloud run services describe` 확인)
 - [x] 개발 가이드 문서 업데이트 및 정리
+
+## 2026-06-12: 오퍼레이터 관리자 매핑 승인 동기화 및 파일 검증 로직 개선
+- [x] **고객사 마스터 관리자 매핑 동기화**:
+  - `operatorService.ts`의 `createClient` 및 `updateClient` 함수 수정 (매핑된 `ownerAdminUid`를 지닌 사용자의 `role`을 `"company_admin"`, `approvalStatus`를 `"approved"`로 자동 갱신)
+  - `companyJoinRequests` 중 해당 고객사 코드로 생성된 대기(`pending`) 요청이 있을 시 `status = "approved"` 및 `reviewedBy/At`을 기록하는 자동 클린업 및 승인 로직 구현
+  - 이미 타 회사에 승인 소속된 사용자를 관리자로 지정하려 할 시 수정을 사전에 차단하는 중복 제약 기능 추가
+- [x] **운영자 전용 Firestore 규칙 보안 강화**: `firestore.rules`에서 `users` 및 `companyJoinRequests` 컬렉션의 update 조건에 `operator` 역할 권한을 명시적으로 추가 및 배포 완료
+- [x] **ClientForm 로딩 고도화**: 고객사 정보 수정 진입 시 기존 관리자 `ownerAdminUid`가 있을 경우, 사용자의 이름/이메일을 Firestore에서 자동으로 조회해 폼 매핑 필드에 표시되도록 개선
+- [x] **오디오(mp3, webm, m4a, wav) 검증 및 UI 개선**:
+  - `WorkflowInputPanel.tsx` 내 확장자(`.`) 및 MIME 검증 분리 구현 및 브라우저별 오디오 MIME 매핑 후보군 추가 적용
+  - 일반 파일 첨부 input 태그에 동적으로 `accept` 속성이 부여되도록 기능 보완
+  - 파일 용량 제한 메시지가 하드코딩 용량이 아닌 템플릿의 `maxFileSizeMB`와 동적 연동되도록 수정
+- [x] **E2E 실행 및 빌드 검증**: `sub_20260612065844_08jxfn` 성공 케이스(mp3 업로드 및 callback 수신 완료)를 기준으로 E2E 전 흐름 작동 및 Next.js 프로덕션 빌드 통과 완료

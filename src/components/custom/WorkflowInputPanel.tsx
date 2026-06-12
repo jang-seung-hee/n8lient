@@ -93,6 +93,57 @@ export default function WorkflowInputPanel({
     propagateChange(val, selectedFile, activeTab);
   };
 
+  // 파일 확장자 추출 헬퍼
+  const getFileExtension = (filename: string): string => {
+    const parts = filename.split(".");
+    return parts.length > 1 ? parts.pop()?.toLowerCase() || "" : "";
+  };
+
+  // 허용 확장자 정규화 (. 제거 및 소문자화)
+  const normalizeAllowedExtensions = (types?: string[]): string[] => {
+    if (!types) return [];
+    return types.map((t) => t.replace(/^\./, "").trim().toLowerCase());
+  };
+
+  // 확장자 기준 허용 여부 체크
+  const isAllowedByExtension = (fileExt: string, allowedExts: string[]): boolean => {
+    return allowedExts.includes(fileExt);
+  };
+
+  // MIME 타입 기준 허용 여부 체크 (mp3, webm, m4a, wav MIME 후보군 정규식 및 mapping 포함)
+  const isAllowedByMime = (fileMime: string, allowedExts: string[]): boolean => {
+    const mimeMap: Record<string, string[]> = {
+      mp3: ["audio/mpeg", "audio/mp3", "audio/x-mp3"],
+      webm: ["audio/webm", "video/webm"],
+      m4a: ["audio/mp4", "audio/x-m4a", "audio/m4a"],
+      wav: ["audio/wav", "audio/wave", "audio/x-wav"],
+    };
+
+    const lowercaseMime = fileMime.toLowerCase();
+
+    // 1. 매핑된 명시적 후보군 검사
+    for (const ext of allowedExts) {
+      const candidates = mimeMap[ext];
+      if (candidates && candidates.includes(lowercaseMime)) {
+        return true;
+      }
+    }
+
+    // 2. 일반적 MIME 매칭 (예: audio/* 등 와일드카드 검사 지원)
+    for (const ext of allowedExts) {
+      if (ext === "audio" && lowercaseMime.startsWith("audio/")) return true;
+      if (ext === "image" && lowercaseMime.startsWith("image/")) return true;
+      if (ext === "video" && lowercaseMime.startsWith("video/")) return true;
+      
+      const regexStr = ext.replace("*", ".*");
+      if (lowercaseMime.match(new RegExp(regexStr))) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   // 파일 유효성 검사 (용량 및 확장자)
   const validateFile = (file: File): boolean => {
     const fileSizeMB = file.size / (1024 * 1024);
@@ -102,11 +153,14 @@ export default function WorkflowInputPanel({
     }
 
     if (allowedFileTypes && allowedFileTypes.length > 0) {
-      const fileExtension = `.${file.name.split(".").pop()?.toLowerCase()}`;
-      const isAllowed = allowedFileTypes.some(
-        (ext) => ext.toLowerCase() === fileExtension || file.type.match(new RegExp(ext.replace("*", ".*")))
-      );
-      if (!isAllowed) {
+      const fileExt = getFileExtension(file.name);
+      const normalizedExts = normalizeAllowedExtensions(allowedFileTypes);
+
+      const hasValidExtension = isAllowedByExtension(fileExt, normalizedExts);
+      const hasValidMime = isAllowedByMime(file.type, normalizedExts);
+
+      // 확장자나 MIME 타입 중 하나라도 만족하면 승인
+      if (!hasValidExtension && !hasValidMime) {
         alert(`허용되지 않는 파일 형식입니다. 허용 형식: ${allowedFileTypes.join(", ")}`);
         return false;
       }
@@ -292,6 +346,11 @@ export default function WorkflowInputPanel({
             <input
               type="file"
               ref={fileInputRef}
+              accept={
+                allowedFileTypes && allowedFileTypes.length > 0
+                  ? allowedFileTypes.map((ext) => (ext.startsWith(".") ? ext : `.${ext}`)).join(",") + ",audio/*"
+                  : undefined
+              }
               onChange={(e) => handleFileChange(e, "file")}
               disabled={submitting}
               style={{ fontSize: "13px", width: "100%" }}

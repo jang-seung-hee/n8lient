@@ -14,8 +14,40 @@ const form_data_1 = __importDefault(require("form-data"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const firebase_1 = require("./lib/firebase");
 const auth_1 = require("./middleware/auth");
+const storage_1 = require("./lib/storage");
 // .env 파일 로드 (로컬 개발용)
 dotenv_1.default.config();
+/**
+ * settingsSnapshot 저장 시, 민감한 설정값을 대소문자 구분 없이 자동 감지하여 누락 처리합니다.
+ * 'key' 단독 키워드는 필터 범위에서 제외됩니다.
+ */
+function filterSensitiveSettings(settings) {
+    const filtered = {};
+    const sensitiveKeywords = [
+        "secret",
+        "token",
+        "password",
+        "credential",
+        "auth",
+        "apikey",
+        "accesstoken",
+        "refreshtoken",
+        "privatekey",
+        "secretkey",
+        "clientsecret"
+    ];
+    for (const [key, value] of Object.entries(settings)) {
+        const keyLower = key.toLowerCase();
+        const isSensitive = sensitiveKeywords.some(keyword => keyLower.includes(keyword));
+        if (!isSensitive) {
+            filtered[key] = value;
+        }
+        else {
+            console.log(`[filterSensitiveSettings] 민감값 자동 감지: '${key}' 필드를 settingsSnapshot에서 누락 처리합니다.`);
+        }
+    }
+    return filtered;
+}
 const app = (0, express_1.default)();
 const port = process.env.PORT || 8080;
 // CORS 설정
@@ -187,12 +219,87 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             sizeBytes: file.size,
             inputType: input.inputType || "file"
         } : null;
+        // [v2] Firebase Storage 원본 파일 업로드
+        // - 파일이 있는 실행에서 Storage 업로드 실패 시 n8n을 호출하지 않고 즉시 failed 처리한다.
+        // - 파일이 없는 텍스트 실행은 이 블록을 건너뛰고 정상 진행한다.
+        let originalFileRefs = [];
+        if (file) {
+            try {
+                console.log(`[execute] Firebase Storage 원본 파일 업로드 시작. submissionId=${submissionId}`);
+                const fileRef = await (0, storage_1.uploadFileToStorage)({
+                    localPath: file.path,
+                    originalFileName: file.originalname,
+                    mimeType: file.mimetype,
+                    submissionId,
+                    clientId,
+                    uid,
+                    workflowKey,
+                    inputType: input.inputType || "file",
+                });
+                originalFileRefs = [fileRef];
+                console.log(`[execute] Storage 업로드 완료. storagePath=${fileRef.storagePath}`);
+            }
+            catch (uploadErr) {
+                // [v2] 파일 실행에서 Storage 업로드 실패 → n8n 미호출, submission을 failed로 기록 후 즉시 반환
+                console.error(`[execute] Firebase Storage 업로드 실패. submissionId=${submissionId}:`, uploadErr.message);
+                const failedAt = new Date().toISOString();
+                // Firestore에 아직 미등록 상태이므로 set으로 failed 문서 직접 생성
+                try {
+                    await db.collection("submissions").doc(submissionId).set({
+                        submissionId,
+                        clientId,
+                        uid,
+                        workflowKey,
+                        automationId,
+                        trigger: input.trigger || "manual",
+                        status: "failed",
+                        input: {
+                            title: input.title,
+                            text: input.text || null,
+                            fileUrl: null,
+                            fileName: file.originalname || null,
+                            mimeType: file.mimetype || null,
+                            sizeBytes: file.size || null,
+                            inputType: input.inputType || "file",
+                        },
+                        originalFileRefs: [],
+                        processorResult: null,
+                        resultRefs: [],
+                        settingsSnapshot: filterSensitiveSettings(finalSettings),
+                        result: { resultUrl: null, summary: null },
+                        error: {
+                            code: "STORAGE_UPLOAD_FAILED",
+                            message: uploadErr.message || "Firebase Storage 원본 파일 저장 실패",
+                        },
+                        retryOf: null,
+                        settingsMergeSummary,
+                        createdAt: now.toISOString(),
+                        updatedAt: failedAt,
+                        completedAt: failedAt,
+                    });
+                }
+                catch (dbErr) {
+                    console.error("[execute] Storage 실패 상태 Firestore 기록 오류:", dbErr);
+                }
+                return res.status(500).json({
+                    success: false,
+                    submissionId,
+                    error: "파일 저장 실패: Firebase Storage 업로드 중 오류가 발생했습니다.",
+                });
+            }
+        }
+        // [v2] settingsSnapshot: 민감값 필터링 후 저장
+        const settingsSnapshot = filterSensitiveSettings(finalSettings);
+        // [v2] input.inputType 판별 (파일/텍스트)
+        const resolvedInputType = fileMetadata?.inputType || (input.text ? "text" : "unknown");
         const submissionData = {
             submissionId,
             clientId,
             uid,
             workflowKey,
             automationId,
+            // [v2] trigger: 실행 진입점 식별자
+            trigger: input.trigger || "manual",
             status: "queued",
             input: {
                 title: input.title,
@@ -201,8 +308,17 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                 fileName: fileMetadata?.fileName || null,
                 mimeType: fileMetadata?.mimeType || null,
                 sizeBytes: fileMetadata?.sizeBytes || null,
-                inputType: fileMetadata?.inputType || null,
+                inputType: resolvedInputType,
             },
+            // [v2] originalFileRefs: Storage 원본 파일 참조 목록 (Storage 업로드 성공 후에만 채워짐)
+            originalFileRefs,
+            // [v2] processorResult: n8n 처리 결과 (초기값 null, callback 시 갱신)
+            processorResult: null,
+            // [v2] resultRefs: 처리 산출물 Storage 참조 목록 (초기값 [], callback 시 갱신)
+            resultRefs: [],
+            // [v2] settingsSnapshot: 실행 시점의 병합된 설정값 스냅샷 (민감값 제외)
+            settingsSnapshot,
+            // --- 하위 호환: 기존 result/error 필드 유지 ---
             result: { resultUrl: null, summary: null },
             error: { code: null, message: null },
             retryOf: null,
@@ -222,6 +338,8 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             automationId,
             settings: finalSettings,
             input: submissionData.input,
+            // [v2] originalFileRefs: n8n 워크플로우에서 Storage 원본 파일 접근 가능하도록 전달
+            originalFileRefs,
             requestedAt: now.toISOString(),
             callbackUrl: `${gatewayBaseUrl.replace(/\/$/, "")}/api/automation/callback`,
         };
@@ -299,7 +417,8 @@ app.post("/api/automation/callback", async (req, res) => {
         if (receivedSecret !== callbackSecret) {
             return res.status(401).json({ success: false, error: "잘못된 Callback Secret 자격증명입니다." });
         }
-        const { submissionId, status, result, error } = req.body;
+        // [v2] processorResult, resultRefs 필드도 선택적으로 수신
+        const { submissionId, status, result, error, processorResult, resultRefs } = req.body;
         if (!submissionId || !status) {
             return res.status(400).json({ success: false, error: "필수 파라미터가 누락되었습니다." });
         }
@@ -310,16 +429,27 @@ app.post("/api/automation/callback", async (req, res) => {
             return res.status(404).json({ success: false, error: "해당 실행 이력(submission)을 찾을 수 없습니다." });
         }
         // 2. 최종 상태(success/failed) 및 메타데이터 업데이트
+        const completedAt = new Date().toISOString();
         const updateData = {
             status: status === "success" ? "success" : "failed",
-            updatedAt: new Date().toISOString(),
-            completedAt: new Date().toISOString(),
+            updatedAt: completedAt,
+            // [v2] completedAt: 처리 완료 시각 명시적 기록
+            completedAt,
         };
         if (status === "success") {
+            // --- 하위 호환: 기존 result 필드 유지 ---
             updateData.result = {
                 resultUrl: result?.resultUrl || null,
                 summary: result?.summary || null,
             };
+            // [v2] processorResult: n8n이 전달하는 구조화된 처리 결과
+            if (processorResult !== undefined && processorResult !== null) {
+                updateData.processorResult = processorResult;
+            }
+            // [v2] resultRefs: 처리 산출물 Storage 참조 목록
+            if (Array.isArray(resultRefs) && resultRefs.length > 0) {
+                updateData.resultRefs = resultRefs;
+            }
         }
         else {
             updateData.error = {
@@ -328,12 +458,39 @@ app.post("/api/automation/callback", async (req, res) => {
             };
         }
         await docRef.update(updateData);
-        console.log(`[callback] submissionId=${submissionId} 업데이트 완료. Status: ${updateData.status}`);
+        console.log(`[callback] submissionId=${submissionId} 업데이트 완료. Status: ${updateData.status}, processorResult=${!!processorResult}, resultRefs=${resultRefs?.length ?? 0}건`);
         return res.status(200).json({ success: true });
     }
     catch (error) {
         console.error("[callback] 처리 중 서버 오류:", error);
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+// 4. GET /api/translate (무료 구글 번역기 프록시 API)
+app.get("/api/translate", async (req, res) => {
+    const text = req.query.q;
+    if (!text || typeof text !== "string") {
+        return res.status(400).json({ success: false, error: "번역할 텍스트('q')가 누락되었습니다." });
+    }
+    try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+        const response = await axios_1.default.get(url, {
+            timeout: 5000,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+        });
+        if (response.data && response.data[0] && response.data[0][0] && response.data[0][0][0]) {
+            const translatedText = response.data[0][0][0];
+            return res.status(200).json({ success: true, translatedText });
+        }
+        else {
+            throw new Error("구글 번역기 응답 포맷이 올바르지 않습니다.");
+        }
+    }
+    catch (err) {
+        console.error("[translate] 번역 중 오류:", err.message);
+        return res.status(500).json({ success: false, error: err.message || "번역에 실패했습니다." });
     }
 });
 // 서버 가동

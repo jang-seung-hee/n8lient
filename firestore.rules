@@ -52,7 +52,9 @@ service cloud.firestore {
         // 회사 관리자가 소속 사용자의 상태를 승인/거절 처리할 수 있음
         (isCompanyAdmin() && 
          getMyUser().clientId == resource.data.clientId &&
-         getMyUser().clientId == request.resource.data.clientId)
+         getMyUser().clientId == request.resource.data.clientId) ||
+        // 총괄운영자는 모든 사용자의 역할 및 상태를 수정할 수 있음
+        getMyUser().role == 'operator'
       );
       
       allow delete: if false;
@@ -84,7 +86,8 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (
         resource == null || 
         resource.data.uid == request.auth.uid || 
-        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId) ||
+        getMyUser().role == 'operator'
       );
       
       // 본인의 가입 요청 리스트 조회 또는 해당 회사의 관리자가 승인 대기 리스트를 쿼리할 수 있도록 허용 (list)
@@ -93,7 +96,8 @@ service cloud.firestore {
       // 사용자는 본인의 요청 문서를 업데이트(재신청 등) 가능하며, 회사 관리자도 승인/거절 상태(status) 업데이트 가능
       allow update: if isAuthenticated() && (
         (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid) ||
-        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId)
+        (isCompanyAdmin() && getMyUser().clientId == resource.data.clientId) ||
+        getMyUser().role == 'operator'
       );
         
       allow delete: if false;

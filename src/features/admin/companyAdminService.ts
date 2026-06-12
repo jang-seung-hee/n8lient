@@ -244,7 +244,7 @@ export async function saveClientAutomation(
       automationName,
       enabled,
       configStatus: "configured", // 설정 완료 상태
-      configSchemaVersion: template.configSchemaVersion,
+      configSchemaVersion: template.configSchemaVersion || 1,
       settings,
       createdBy: adminUid,
       createdAt: new Date().toISOString(),
