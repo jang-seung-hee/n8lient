@@ -141,33 +141,99 @@ export default function CompanyAutomationDetail({
         ) : (
           <div
             style={{
-              backgroundColor: "#f9fafb",
-              borderRadius: "6px",
-              padding: "8px 16px",
-              border: "1px solid #e5e7eb",
               display: "flex",
               flexDirection: "column",
-              gap: "8px",
+              gap: "12px",
             }}
           >
-            {Object.entries(automation.settings)
-              .filter(([key]) => !isSecurityKey(key))
-              .map(([key, val]) => (
-                <div
-                  key={key}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: "13px",
-                    borderBottom: "1px solid #f3f4f6",
-                    paddingBottom: "6px",
-                    paddingTop: "4px",
-                  }}
-                >
-                  <span style={{ fontFamily: "monospace", color: "#4b5563", fontWeight: 500 }}>{key}</span>
-                  <span style={{ color: "#111827", fontWeight: 600 }}>{String(val)}</span>
+            {/* 1. 템플릿의 configSchema 배열 순서대로 매핑하여 렌더링 */}
+            {template?.configSchema && template.configSchema.length > 0 && (
+              <div
+                style={{
+                  backgroundColor: "#f9fafb",
+                  borderRadius: "6px",
+                  padding: "8px 16px",
+                  border: "1px solid #e5e7eb",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                {template.configSchema
+                  .filter((field) => !isSecurityKey(field.key))
+                  .map((field) => {
+                    const val = automation.settings[field.key];
+                    const displayVal = val !== undefined && val !== null ? String(val) : "-";
+                    return (
+                      <div
+                        key={field.key}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "13px",
+                          borderBottom: "1px solid #f3f4f6",
+                          paddingBottom: "6px",
+                          paddingTop: "4px",
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ fontSize: "13px", fontWeight: 600, color: "#111827" }}>{field.label}</span>
+                          <span style={{ fontFamily: "monospace", color: "#6b7280", fontSize: "11px" }}>{field.key}</span>
+                        </div>
+                        <span style={{ color: "#111827", fontWeight: 600, alignSelf: "center" }}>{displayVal}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* 2. settings에는 존재하지만 template.configSchema에 없는 legacy/unknown key 표시 */}
+            {(() => {
+              const schemaKeys = new Set(template?.configSchema?.map((f) => f.key) || []);
+              const extraSettings = Object.entries(automation.settings).filter(
+                ([key]) => !schemaKeys.has(key) && !isSecurityKey(key)
+              );
+
+              if (extraSettings.length === 0) return null;
+
+              return (
+                <div style={{ marginTop: "8px" }}>
+                  <h5 style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563", margin: "0 0 6px 0" }}>
+                    ⚙️ 기타 설정값 (이전 스키마 또는 임시 데이터)
+                  </h5>
+                  <div
+                    style={{
+                      backgroundColor: "#f9fafb",
+                      borderRadius: "6px",
+                      padding: "8px 16px",
+                      border: "1px dashed #d1d5db",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    {extraSettings.map(([key, val]) => (
+                      <div
+                        key={key}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "13px",
+                          borderBottom: "1px solid #f3f4f6",
+                          paddingBottom: "6px",
+                          paddingTop: "4px",
+                        }}
+                      >
+                        <span style={{ fontFamily: "monospace", color: "#ef4444", fontWeight: 500 }}>
+                          {key} (정의되지 않음)
+                        </span>
+                        <span style={{ color: "#4b5563", fontWeight: 600 }}>{String(val)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              );
+            })()}
           </div>
         )}
       </div>

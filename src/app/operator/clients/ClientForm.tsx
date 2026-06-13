@@ -9,6 +9,8 @@ import type { ClientDoc } from "@/types/n8lient";
 import { db } from "@/lib/firebase";
 import { findUserByEmail } from "@/features/operator/operatorService";
 import { doc, getDoc } from "firebase/firestore";
+import useClientIdentitySetup from "@/app/operator/clients/hooks/useClientIdentitySetup";
+import { OwnerAdminMappingForm } from "@/app/operator/clients/components/OwnerAdminMappingForm";
 
 interface ClientFormProps {
   initialData: ClientDoc | null;
@@ -39,141 +41,21 @@ export function ClientForm({
   const [adminDisplayName, setAdminDisplayName] = useState("");
   const [adminLookupStatus, setAdminLookupStatus] = useState<"idle" | "loading" | "found" | "notfound" | "error">("idle");
 
-  // 한글 로마자 발음 표기 변환 헬퍼 (초성, 중성, 종성 조합)
-  const romanizeKorean = (text: string): string => {
-    const chosung = ['g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss', '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'];
-    const jungsung = ['a', 'ae', 'ya', 'yae', 'eo', 'e', 'ye', 'ye', 'o', 'wa', 'wae', 'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'];
-    const jongsung = ['', 'g', 'kk', 'gs', 'n', 'nj', 'nh', 'd', 'l', 'lg', 'lm', 'lb', 'ls', 'lt', 'lp', 'lh', 'm', 'b', 'bs', 's', 'ss', 'ng', 'j', 'ch', 'k', 't', 'p', 'h'];
 
-    let result = "";
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-      if (code >= 0xac00 && code <= 0xd7a3) {
-        const hangulIndex = code - 0xac00;
-        const cho = Math.floor(hangulIndex / 28 / 21);
-        const jung = Math.floor((hangulIndex / 28) % 21);
-        const jong = hangulIndex % 28;
-        result += chosung[cho] + jungsung[jung] + (jongsung[jong] || "");
-      } else {
-        const char = text.charAt(i).toLowerCase();
-        if (/[a-z0-9]/.test(char)) {
-          result += char;
-        } else if (/\s/.test(char)) {
-          result += "-";
-        }
-      }
-    }
-    return result.replace(/-+/g, "-").replace(/^-|-$/g, "");
-  };
 
-  const [checkingId, setCheckingId] = useState(false);
-  const [checkingCode, setCheckingCode] = useState(false);
-
-  const handleRecommendId = async () => {
-    if (!companyName.trim()) {
-      alert("먼저 고객사명을 입력해 주세요.");
-      return;
-    }
-    setCheckingId(true);
-    try {
-      let baseText = "";
-      
-      // 1. 게이트웨이 번역 API 호출 시도
-      try {
-        const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_BASE_URL || "http://localhost:8080";
-        const res = await fetch(`${gatewayUrl.replace(/\/$/, "")}/api/translate?q=${encodeURIComponent(companyName.trim())}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.translatedText) {
-            baseText = data.translatedText.toLowerCase();
-          }
-        }
-      } catch (translateErr) {
-        console.warn("번역 API 호출 실패, 로마자 발음 표기법으로 대체합니다:", translateErr);
-      }
-
-      // 2. 번역 결과가 없거나 실패한 경우 로컬 로마자 발음 표기법 적용 (Fallback)
-      if (!baseText) {
-        baseText = romanizeKorean(companyName.trim().toLowerCase());
-      }
-
-      // slugify 처리 (소문자, 숫자, 언더스코어만 남기고 공백/하이픈 등은 언더스코어로 변환)
-      let baseId = baseText
-        .replace(/\s+/g, "_")
-        .replace(/-+/g, "_")
-        .replace(/[^a-z0-9_]/g, "")
-        .replace(/_+/g, "_")
-        .replace(/^_+|_+$/g, "");
-
-      if (!baseId) {
-        baseId = "client";
-      }
-
-      let checkId = baseId;
-      let counter = 1;
-      let isUnique = false;
-
-      while (!isUnique) {
-        const docRef = doc(db, "clients", checkId);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-          isUnique = true;
-        } else {
-          counter++;
-          checkId = `${baseId}_${counter}`;
-        }
-      }
-
-      setClientId(checkId);
-    } catch (err: any) {
-      console.error(err);
-      alert("ID 추천 중 오류 발생: " + err.message);
-    } finally {
-      setCheckingId(false);
-    }
-  };
-
-  const handleGenerateCode = async () => {
-    setCheckingCode(true);
-    try {
-      let prefix = "";
-      if (clientId) {
-        prefix = clientId.slice(0, 4).toUpperCase();
-      } else if (companyName.trim()) {
-        prefix = romanizeKorean(companyName.trim()).slice(0, 4).toUpperCase();
-      } else {
-        prefix = "CLI";
-      }
-      
-      prefix = prefix.replace(/[^A-Z0-9]/g, "");
-      if (!prefix) prefix = "CLI";
-
-      let isUnique = false;
-      let finalCode = "";
-
-      while (!isUnique) {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        let randomPart = "";
-        for (let i = 0; i < 4; i++) {
-          randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        finalCode = `${prefix}-${randomPart}`;
-
-        const docRef = doc(db, "companyCodeLookups", finalCode);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-          isUnique = true;
-        }
-      }
-
-      setCompanyCode(finalCode);
-    } catch (err: any) {
-      console.error(err);
-      alert("회사코드 생성 중 오류 발생: " + err.message);
-    } finally {
-      setCheckingCode(false);
-    }
-  };
+  // 고객사 ID 추천 및 회사코드 생성 훅 연동
+  const {
+    checkingId,
+    checkingCode,
+    handleRecommendId,
+    handleGenerateCode,
+  } = useClientIdentitySetup({
+    db,
+    companyName,
+    clientId,
+    setClientId,
+    setCompanyCode,
+  });
 
   useEffect(() => {
     if (initialData) {
@@ -253,6 +135,16 @@ export function ClientForm({
     setAdminLookupStatus("idle");
   };
 
+  // 관리자 이메일 변경 핸들러
+  const handleAdminEmailChange = useCallback((email: string) => {
+    setAdminEmail(email);
+    if (adminLookupStatus !== "idle") {
+      setOwnerAdminUid("");
+      setAdminDisplayName("");
+      setAdminLookupStatus("idle");
+    }
+  }, [adminLookupStatus]);
+
   const handleSubmitInternal = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -286,38 +178,7 @@ export function ClientForm({
     onSubmit(client);
   };
 
-  // 관리자 매핑 안내 메시지 렌더링
-  const renderAdminLookupFeedback = () => {
-    if (adminLookupStatus === "loading") {
-      return (
-        <p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0 0 0" }}>
-          🔍 사용자를 조회 중...
-        </p>
-      );
-    }
-    if (adminLookupStatus === "found") {
-      return (
-        <p style={{ fontSize: "12px", color: "#065f46", margin: "4px 0 0 0", fontWeight: 600 }}>
-          ✅ 관리자 매핑 완료: {adminDisplayName} ({ownerAdminUid.slice(0, 8)}...)
-        </p>
-      );
-    }
-    if (adminLookupStatus === "notfound") {
-      return (
-        <p style={{ fontSize: "12px", color: "#b91c1c", margin: "4px 0 0 0" }}>
-          ⚠️ 아직 가입되지 않은 사용자입니다. 먼저 Google 로그인 후 다시 등록해 주세요.
-        </p>
-      );
-    }
-    if (adminLookupStatus === "error") {
-      return (
-        <p style={{ fontSize: "12px", color: "#b91c1c", margin: "4px 0 0 0" }}>
-          ⚠️ 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.
-        </p>
-      );
-    }
-    return null;
-  };
+
 
   return (
     <div
@@ -495,83 +356,16 @@ export function ClientForm({
           />
         </div>
 
-        {/* 관리자 이메일 조회 섹션 */}
-        <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
-        <h4 style={{ fontSize: "12.5px", fontWeight: 700, color: "#374151", margin: 0 }}>👤 소유자 관리자 매핑</h4>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>관리자 이메일 (이메일로 자동 조회)</label>
-          <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-            <input
-              type="email"
-              value={adminEmail}
-              onChange={(e) => {
-                setAdminEmail(e.target.value);
-                // 이메일이 바뀌면 기존 조회 결과 초기화
-                if (adminLookupStatus !== "idle") {
-                  setOwnerAdminUid("");
-                  setAdminDisplayName("");
-                  setAdminLookupStatus("idle");
-                }
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdminLookup(); } }}
-              placeholder="관리자 이메일 입력 후 조회 버튼 클릭"
-              style={{
-                flex: 1,
-                height: "36px",
-                border: `1px solid ${adminLookupStatus === "found" ? "#6ee7b7" : adminLookupStatus === "notfound" || adminLookupStatus === "error" ? "#fca5a5" : "#d1d5db"}`,
-                borderRadius: "6px",
-                padding: "0 8px",
-                fontSize: "13px",
-                outline: "none",
-                color: "#111111",
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleAdminLookup}
-              disabled={!adminEmail.trim() || adminLookupStatus === "loading"}
-              style={{
-                height: "36px",
-                backgroundColor: adminLookupStatus === "loading" ? "#6b7280" : "#1d4ed8",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "0 14px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: !adminEmail.trim() || adminLookupStatus === "loading" ? "not-allowed" : "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {adminLookupStatus === "loading" ? "조회 중..." : "🔍 조회"}
-            </button>
-            {(adminLookupStatus === "found" || ownerAdminUid) && (
-              <button
-                type="button"
-                onClick={handleAdminClear}
-                style={{
-                  height: "36px",
-                  backgroundColor: "#f3f4f6",
-                  color: "#374151",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
-                  padding: "0 10px",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                }}
-              >
-                초기화
-              </button>
-            )}
-          </div>
-          {renderAdminLookupFeedback()}
-          {isEditMode && !adminLookupStatus.startsWith("found") && ownerAdminUid && (
-            <p style={{ fontSize: "11.5px", color: "#6b7280", margin: "2px 0 0 0" }}>
-              💡 현재 등록된 관리자 UID: <span style={{ fontFamily: "monospace" }}>{ownerAdminUid.slice(0, 12)}...</span> (변경하려면 이메일 조회 후 적용)
-            </p>
-          )}
-        </div>
+        <OwnerAdminMappingForm
+          adminEmail={adminEmail}
+          onChangeAdminEmail={handleAdminEmailChange}
+          adminLookupStatus={adminLookupStatus}
+          ownerAdminUid={ownerAdminUid}
+          adminDisplayName={adminDisplayName}
+          handleAdminLookup={handleAdminLookup}
+          handleAdminClear={handleAdminClear}
+          isEditMode={isEditMode}
+        />
 
         {isEditMode && (
           <div style={{ backgroundColor: "#f3f4f6", borderLeft: "4px solid #111111", padding: "10px", borderRadius: "4px", fontSize: "11.5px", color: "#4b5563", lineHeight: 1.4 }}>
