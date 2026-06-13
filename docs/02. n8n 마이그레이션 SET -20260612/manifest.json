@@ -1,0 +1,15 @@
+{
+  "created": "2026-06-13",
+  "updates": [
+    "마이그레이션 프롬프트 v2.0 → v2.1",
+    "결과 DB화/지식검색 최소 구조 반영",
+    "processorResult 표준 필드에 hashtags, attachments 추가",
+    "keywords는 구버전 호환 필드로 처리",
+    "knowledgeSearchIndex/embeddingIndex/백링크/지식그래프 생성 금지 명시",
+    "시작프롬프트에 07 문서 확인 및 Level 2 이상 DB화 기준 추가"
+  ],
+  "files": [
+    "N8Lient_n8n_마이그레이션_프롬프트_v2.1_결과DB화.md",
+    "시작프롬프트_v1.1_결과DB화.md"
+  ]
+}

@@ -1,5 +1,21 @@
 # 개발 컨텍스트 및 의사결정 기록
 
+## 2026-06-12: N8Lient 결과/보관 정책 v1.1 적용
+
+### 1. 결과/보관 정책 계층 및 책임 정리
+* **배경**: 자동화 실행 결과의 보관 기간 및 저장 범위를 체계적으로 관리하고, 시스템 자원 및 계약 요건을 일치시키기 위해 결과/보관 정책 v1.1을 수립했습니다.
+* **의사결정**:
+  - **정책 계층 구조**:
+    1. **워크플로우 마스터 (Workflow Master)**: 기술적으로 허용 가능한 최대 보관 설정.
+    2. **회사별 계약/매핑 (Client Automation/Contract)**: 계약서에 명시된 한도(Limit)로 작동.
+    3. **회사 관리자 설정 (Company Admin Settings)**: 회사 내부 보안/보관 권장값으로 계약 한도 내에서 설정.
+    4. **개인 사용자 설정 (User Execution Settings)**: 개인 실행 시 선택 가능한 범위로 회사 권장값 이하에서 결정.
+  - **시스템적 방어 및 연동 (Gateway & n8n)**:
+    - **Gateway**: 최종적으로 상위 계층부터 하위 개인 설정까지 상속 관계를 적용하여 유효한 `retentionPolicy`를 계산 및 방어(최종 필터링 및 validation).
+    - **n8n**: Gateway가 최종 결정하여 payload로 내려준 `retentionPolicy`에 따라 워크플로우 내에서 분기(notify_only / processed_result / full_archive) 처리.
+
+---
+
 ## 2026-06-07: Next.js React TypeScript 초기 환경 구축
 
 ### 1. 임시 프로젝트(`temp-next-app`)를 통한 세팅 결정

@@ -279,6 +279,17 @@ export function WorkflowForm({
       }
     }
 
+    // 최종 제출용 schemaFields 정제 (tempOptionsStr가 있는 경우 최종 파싱 반영 및 UI 임시 필드 제거)
+    const cleanedSchemaFields = schemaFields.map(field => {
+      const copy = { ...field } as any;
+      if (copy.type === "select") {
+        const sourceStr = copy.tempOptionsStr !== undefined ? copy.tempOptionsStr : (copy.options?.join(", ") || "");
+        copy.options = sourceStr.split(",").map((x: string) => x.trim()).filter(Boolean);
+      }
+      delete copy.tempOptionsStr;
+      return copy;
+    });
+
     // 보관 정책 생성 (getDefaultRetentionPolicy)
     const { getDefaultRetentionPolicy } = require("@/types/n8lient");
 
@@ -297,7 +308,7 @@ export function WorkflowForm({
         allowedFileTypes,
         maxFileSizeMB,
       },
-      configSchema: schemaFields,
+      configSchema: cleanedSchemaFields,
       retentionPolicy: getDefaultRetentionPolicy(opDefaultLevel), // 하위 호환
       retentionCapabilities: {
         maxLevel,
@@ -779,8 +790,26 @@ export function WorkflowForm({
                       <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>셀렉트 옵션 리스트 (쉼표 구분)</span>
                       <input
                         type="text"
-                        value={field.options?.join(", ") || ""}
-                        onChange={(e) => handleFieldChange(idx, "options", e.target.value.split(",").map(x => x.trim()).filter(Boolean))}
+                        value={field.tempOptionsStr !== undefined ? field.tempOptionsStr : (field.options?.join(", ") || "")}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // 입력 중에는 쉼표를 포함한 문자열을 그대로 유지하기 위해 임시 필드에 할당합니다.
+                          handleFieldChange(idx, "tempOptionsStr" as any, val);
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          const splitArray = val.split(",").map(x => x.trim()).filter(Boolean);
+                          const formattedStr = splitArray.join(", ");
+                          
+                          // options 배열 업데이트 및 임시 필드 갱신
+                          const next = [...schemaFields];
+                          next[idx] = {
+                            ...next[idx],
+                            options: splitArray,
+                            tempOptionsStr: formattedStr
+                          } as any;
+                          setSchemaFields(next);
+                        }}
                         placeholder="옵션1, 옵션2, 옵션3"
                         style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
                       />

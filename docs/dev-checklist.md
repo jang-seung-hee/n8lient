@@ -1,5 +1,16 @@
 # 개발 작업 체크리스트
 
+## 2026-06-12: N8Lient 결과/보관 정책 v1.1 반영
+- [x] N8Lient 결과/보관 정책 v1.1에 대한 보존형 기초설계서 문서세트 정리 및 docs/01. 기초 설계서/ 폴더 내 최신화
+- [x] 기존 레거시 문서 7종 삭제하지 않고 docs/01. 기초 설계서/archive/ 폴더로 이동 및 보관
+- [x] docs/context-notes.md 및 docs/dev-checklist.md에 최신 결과/보관 정책 요약 및 의사결정 기록 추가
+- [x] Front-end 프로젝트 프로덕션 빌드 최종 검증 (`npm run build`)
+- [x] Gateway 프로젝트 프로덕션 빌드 최종 검증 (`n8lient-gateway` 빌드)
+- [x] git status 확인 및 비대상 민감 정보 파일 노출 여부 점검
+- [x] 커밋 메시지 제안서 작성 및 결과 보고
+
+---
+
 ## 2026-06-07: Next.js React TypeScript 초기 환경 구축
 - [x] 기존 디렉터리 구조 조사 및 파일 백업
 - [x] npx create-next-app을 활용한 임시 프로젝트 생성

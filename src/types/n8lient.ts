@@ -195,6 +195,8 @@ export interface ConfigSchemaField {
   placeholder?: string;
   /** 사용자/관리자 화면에 노출할 이 필드에 대한 상세 가이드 설명 */
   description?: string;
+  /** UI 폼 입력 시 쉼표 포함 실시간 편집용 임시 필드 */
+  tempOptionsStr?: string;
 }
 
 /**
