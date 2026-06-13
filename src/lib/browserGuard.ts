@@ -26,14 +26,23 @@ export function detectInAppBrowser(userAgent: string): InAppBrowserInfo {
   const isTwitter = ua.includes("twitter");
   const isDaum = ua.includes("daumapps");
 
-  // 일반적인 Webview 패턴 검출
-  const isWebview =
-    ua.includes("webview") ||
-    ua.includes("wv") ||
-    (ua.includes("iphone") && !ua.includes("safari")) ||
-    (ua.includes("android") && ua.includes("version/"));
+  // 명시적 인앱 브라우저 토큰 검증
+  const isKnownInApp = isKakao || isInstagram || isFacebook || isNaver || isLine || isTwitter || isDaum;
 
-  const isInApp = isKakao || isInstagram || isFacebook || isNaver || isLine || isTwitter || isDaum || isWebview;
+  // 일반적인 Webview 패턴 검출
+  const isAndroidWebView =
+    ua.includes("android") &&
+    (ua.includes("; wv") || ua.includes(" wv") || ua.includes("webview") || ua.includes("version/"));
+
+  const isIOSWebView =
+    /iphone|ipad|ipod/.test(ua) &&
+    !ua.includes("safari") &&
+    !ua.includes("crios") &&
+    !ua.includes("fxios") &&
+    !ua.includes("edgios") &&
+    !ua.includes("opios");
+
+  const isInApp = isKnownInApp || isAndroidWebView || isIOSWebView;
 
   let browserName = "Generic Webview";
   if (isKakao) browserName = "KakaoTalk";
