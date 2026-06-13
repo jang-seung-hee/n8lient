@@ -216,6 +216,7 @@ export interface WorkflowTemplate {
     acceptedInputTypes: Array<"text" | "file" | "audio" | "image">;
     allowedFileTypes?: string[];
     maxFileSizeMB?: number;
+    titleRequired?: boolean;
   };
   /** settings의 key 이름과 반드시 일치해야 하는 설정 스키마 */
   configSchema: ConfigSchemaField[];
