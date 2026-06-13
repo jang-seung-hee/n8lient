@@ -86,9 +86,9 @@ export async function POST(req: NextRequest) {
 
     const { automationId, input } = body;
 
-    if (!automationId || !input || !input.title) {
+    if (!automationId || !input) {
       return NextResponse.json(
-        { success: false, error: "automationId 또는 입력 데이터(input.title)가 누락되었습니다." },
+        { success: false, error: "automationId 또는 입력 데이터(input)가 누락되었습니다." },
         { status: 400 }
       );
     }
@@ -187,6 +187,26 @@ export async function POST(req: NextRequest) {
     const n8nServerKey: string = templateDoc.n8nServerKey || "main";
     const webhookSecretId: string = templateDoc.webhookSecretId || workflowKey;
 
+    // ── 5.5. 실행 제목(titleRequired) 검증 및 자동 생성 ──────────────────
+    const titleRequired = templateDoc.inputSchema?.titleRequired !== false;
+    let finalTitle = (input.title || "").trim();
+
+    if (titleRequired && !finalTitle) {
+      return NextResponse.json(
+        { success: false, error: "실행 제목(input.title)이 누락되었습니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!finalTitle) {
+      // 자동 제목 생성 규칙
+      const nowFormatted = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })
+        .replace(/\. /g, "-").replace(/\./g, "").slice(0, 16); // YYYY-MM-DD HH:mm 형태 근접 매핑
+      
+      const workflowName = templateDoc.name || workflowKey;
+      finalTitle = `[${workflowName}] ${nowFormatted} 실행`;
+    }
+
     // ── 6. 환경변수에서 Webhook URL 조회 (서버 공통 Base URL + 자동화별 Path) ────
     const webhookConfig = getWebhookConfig(n8nServerKey, webhookSecretId);
 
@@ -204,7 +224,7 @@ export async function POST(req: NextRequest) {
       automationId,
       status: "queued",
       input: {
-        title: input.title,
+        title: finalTitle,
         text: input.text || null,
         fileUrl: input.fileUrl || null,
         fileName: file ? file.name : (input.fileName || null),

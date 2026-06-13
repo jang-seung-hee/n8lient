@@ -6,6 +6,10 @@
 import { useEffect, useState, useRef } from "react";
 import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
 import { playAppSound } from "@/lib/appSound";
+import ConfigSchemaEditor from "./components/ConfigSchemaEditor";
+import WorkflowRetentionPolicyForm from "./components/WorkflowRetentionPolicyForm";
+import WorkflowInputSchemaForm from "./components/WorkflowInputSchemaForm";
+import WorkflowBasicInfoForm from "./components/WorkflowBasicInfoForm";
 
 interface WorkflowFormProps {
   initialData: WorkflowTemplate | null;
@@ -173,23 +177,9 @@ export function WorkflowForm({
   }, [initialData, isEditMode]);
 
   // 3. 로컬 이벤트 핸들러
-  const handleWorkflowKeyChange = (val: string) => {
-    setWorkflowKey(val);
-    if (!isEditMode) {
-      setWebhookSecretId(val);
-    }
-  };
 
-  const handleCheckboxChange = (type: string, checked: boolean) => {
-    if (checked) {
-      setAcceptedTypes([...acceptedTypes, type]);
-    } else {
-      setAcceptedTypes(acceptedTypes.filter((t) => t !== type));
-    }
-  };
 
-  // 드래그 정렬을 위한 상태 정의
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+
 
   const handleMoveField = (fromIdx: number, toIdx: number) => {
     if (toIdx < 0 || toIdx >= schemaFields.length) return;
@@ -197,6 +187,16 @@ export function WorkflowForm({
     const next = [...schemaFields];
     const [moved] = next.splice(fromIdx, 1);
     next.splice(toIdx, 0, moved);
+    setSchemaFields(next);
+  };
+
+  const handleSelectOptionsChange = (index: number, options: string[], tempOptionsStr: string) => {
+    const next = [...schemaFields];
+    next[index] = {
+      ...next[index],
+      options,
+      tempOptionsStr,
+    } as any;
     setSchemaFields(next);
   };
 
@@ -391,587 +391,74 @@ export function WorkflowForm({
         {isEditMode ? "⚙️ N8N 워크플로우 수정" : "➕ 새 N8N 워크플로우 등록"}
       </h3>
       <form onSubmit={handleSubmitInternal} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>워크플로우 Key * (영문소문자/숫자/-)</label>
-            <input
-              type="text"
-              value={workflowKey}
-              onChange={(e) => handleWorkflowKeyChange(e.target.value)}
-              placeholder="예: expense-report"
-              required
-              disabled={isEditMode}
-              style={{
-                height: "36px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                padding: "0 8px",
-                fontSize: "13px",
-                outline: "none",
-                color: isEditMode ? "#9ca3af" : "#111111",
-                backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
-              }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>워크플로우 이름 *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="예: 지출결의서 자동 정리"
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-        </div>
+        <WorkflowBasicInfoForm
+          workflowKey={workflowKey}
+          setWorkflowKey={setWorkflowKey}
+          name={name}
+          setName={setName}
+          shortName={shortName}
+          setShortName={setShortName}
+          version={version}
+          setVersion={setVersion}
+          status={status}
+          setStatus={setStatus}
+          webhookSecretId={webhookSecretId}
+          setWebhookSecretId={setWebhookSecretId}
+          n8nServerKey={n8nServerKey}
+          setN8nServerKey={setN8nServerKey}
+          description={description}
+          setDescription={setDescription}
+          isEditMode={isEditMode}
+        />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1fr", gap: "12px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>줄임말 *</label>
-            <input
-              type="text"
-              value={shortName}
-              onChange={(e) => setShortName(e.target.value)}
-              placeholder="예: 지결자"
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>버전 *</label>
-            <input
-              type="text"
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder="1.0.0"
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>배포 상태 *</label>
-            <select
-              value={status}
-              onChange={(e: any) => setStatus(e.target.value)}
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-            >
-              <option value="published">배포완료 (published)</option>
-              <option value="draft">작성중 (draft)</option>
-              <option value="disabled">비활성 (disabled)</option>
-            </select>
-          </div>
-        </div>
+        <WorkflowRetentionPolicyForm
+          maxLevel={maxLevel}
+          setMaxLevel={setMaxLevel}
+          supportedLevels={supportedLevels}
+          setSupportedLevels={setSupportedLevels}
+          capsDefaultLevel={capsDefaultLevel}
+          setCapsDefaultLevel={setCapsDefaultLevel}
+          supportsProcessorResult={supportsProcessorResult}
+          setSupportsProcessorResult={setSupportsProcessorResult}
+          supportsOriginalFileRefs={supportsOriginalFileRefs}
+          setSupportsOriginalFileRefs={setSupportsOriginalFileRefs}
+          supportsResultRefs={supportsResultRefs}
+          setSupportsResultRefs={setSupportsResultRefs}
+          supportsResultPolicyRouter={supportsResultPolicyRouter}
+          setSupportsResultPolicyRouter={setSupportsResultPolicyRouter}
+          opAllowedLevels={opAllowedLevels}
+          setOpAllowedLevels={setOpAllowedLevels}
+          opDefaultLevel={opDefaultLevel}
+          setOpDefaultLevel={setOpDefaultLevel}
+          allowCompanyOverride={allowCompanyOverride}
+          setAllowCompanyOverride={setAllowCompanyOverride}
+          allowUserOverride={allowUserOverride}
+          setAllowUserOverride={setAllowUserOverride}
+        />
 
-        {/* [v2.6] retentionCapabilities (워크플로우 보관 지원 범위) */}
-        <div style={{ backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: 0 }}>⚙️ 워크플로우 보관 지원 범위 (Capabilities)</h4>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>워크플로우 최대 보관 지원 단계 (maxLevel) *</label>
-              <select
-                value={maxLevel}
-                onChange={(e: any) => setMaxLevel(e.target.value)}
-                style={{ height: "32px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 6px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff" }}
-              >
-                <option value="notify_only">1단계: 알림/로그형 (notify_only)</option>
-                <option value="processed_result">2단계: 가공지식 저장형 (processed_result)</option>
-                <option value="full_archive">3단계: 원본 포함 지식보관형 (full_archive)</option>
-              </select>
-              <span style={{ fontSize: "10.5px", color: "#6b7280" }}>
-                💡 이 워크플로우가 기술적으로 지원 가능한 최대 보관 수준입니다. 고객사 계약 또는 회사 설정은 이 범위를 초과할 수 없습니다.
-              </span>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>기본 지원 레벨</label>
-              <select
-                value={capsDefaultLevel}
-                onChange={(e: any) => setCapsDefaultLevel(e.target.value)}
-                style={{ height: "32px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 6px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff" }}
-              >
-                {supportedLevels.map((lvl) => (
-                  <option key={lvl} value={lvl}>{lvl}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>기술적 지원 레벨 (다중 선택)</span>
-            <div style={{ display: "flex", gap: "12px", fontSize: "12px" }}>
-              {["notify_only", "processed_result", "full_archive"].map((lvl) => (
-                <label key={lvl} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={supportedLevels.includes(lvl as any)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSupportedLevels([...supportedLevels, lvl as any]);
-                      } else {
-                        setSupportedLevels(supportedLevels.filter((l) => l !== lvl));
-                      }
-                    }}
-                  />
-                  {lvl === "notify_only" && "알림/로그형"}
-                  {lvl === "processed_result" && "가공지식 저장형"}
-                  {lvl === "full_archive" && "원본 포함 지식보관형"}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px", marginTop: "4px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-              <input type="checkbox" checked={supportsProcessorResult} onChange={(e) => setSupportsProcessorResult(e.target.checked)} />
-              processorResult 생성 지원
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-              <input type="checkbox" checked={supportsOriginalFileRefs} onChange={(e) => setSupportsOriginalFileRefs(e.target.checked)} />
-              originalFileRefs 지원
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-              <input type="checkbox" checked={supportsResultRefs} onChange={(e) => setSupportsResultRefs(e.target.checked)} />
-              resultRefs 지원
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-              <input type="checkbox" checked={supportsResultPolicyRouter} onChange={(e) => setSupportsResultPolicyRouter(e.target.checked)} />
-              Result Policy Router 지원
-            </label>
-          </div>
-        </div>
-
-        {/* [v2.6] operatorRetentionPolicy (오퍼레이터 허용 보관 정책) */}
-        <div style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#166534", margin: 0 }}>🛡️ 오퍼레이터 허용 보관 정책 (Operator Policy)</h4>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#14532d" }}>고객사에 허용할 레벨 (다중 선택)</span>
-            <div style={{ display: "flex", gap: "12px", fontSize: "12px" }}>
-              {supportedLevels.map((lvl) => (
-                <label key={lvl} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#14532d" }}>
-                  <input
-                    type="checkbox"
-                    checked={opAllowedLevels.includes(lvl)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setOpAllowedLevels([...opAllowedLevels, lvl]);
-                      } else {
-                        setOpAllowedLevels(opAllowedLevels.filter((l) => l !== lvl));
-                      }
-                    }}
-                  />
-                  {lvl === "notify_only" && "알림/로그형"}
-                  {lvl === "processed_result" && "가공지식 저장형"}
-                  {lvl === "full_archive" && "원본 포함 지식보관형"}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#14532d" }}>오퍼레이터 기본 지정 레벨</label>
-              <select
-                value={opDefaultLevel}
-                onChange={(e: any) => setOpDefaultLevel(e.target.value)}
-                style={{ height: "32px", border: "1px solid #bbf7d0", borderRadius: "6px", padding: "0 6px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff" }}
-              >
-                {opAllowedLevels.map((lvl) => (
-                  <option key={lvl} value={lvl}>{lvl}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#14532d", marginTop: "4px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-              <input type="checkbox" checked={allowCompanyOverride} onChange={(e) => setAllowCompanyOverride(e.target.checked)} />
-              회사 관리자의 정책 수정 허용
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
-              <input type="checkbox" checked={allowUserOverride} onChange={(e) => setAllowUserOverride(e.target.checked)} />
-              일반 사용자의 개인 보관 선호 수정 허용
-            </label>
-          </div>
-        </div>
-
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>Webhook Secret 참조 ID *</label>
-            <input
-              type="text"
-              value={webhookSecretId}
-              onChange={(e) => setWebhookSecretId(e.target.value)}
-              placeholder="예: expense-report"
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>n8n 서버 식별 Key *</label>
-            <input
-              type="text"
-              value={n8nServerKey}
-              onChange={(e) => setN8nServerKey(e.target.value)}
-              placeholder="main"
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>설명</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="N8N 워크플로우 명세에 관한 상세 설명을 적으십시오."
-            style={{ minHeight: "40px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "6px 8px", fontSize: "13px", outline: "none", color: "#111111", resize: "vertical" }}
-          />
-        </div>
+        <WorkflowInputSchemaForm
+          titleRequired={titleRequired}
+          setTitleRequired={setTitleRequired}
+          acceptedTypes={acceptedTypes}
+          setAcceptedTypes={setAcceptedTypes}
+          allowedFileTypesStr={allowedFileTypesStr}
+          setAllowedFileTypesStr={setAllowedFileTypesStr}
+          maxFileSizeMB={maxFileSizeMB}
+          setMaxFileSizeMB={setMaxFileSizeMB}
+        />
 
         <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
-        <h4 style={{ fontSize: "12.5px", fontWeight: 700, color: "#374151", margin: 0 }}>⚙️ inputSchema (입력 정보 요구사항)</h4>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>허용 입력 형태 (다중 선택 가능)</span>
-          <div style={{ display: "flex", gap: "16px", fontSize: "13px" }}>
-            {["text", "file", "audio", "image"].map((type) => (
-              <label key={type} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#111111" }}>
-                <input
-                  type="checkbox"
-                  checked={acceptedTypes.includes(type)}
-                  onChange={(e) => handleCheckboxChange(type, e.target.checked)}
-                  style={{ cursor: "pointer" }}
-                />
-                {type}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>허용 파일 확장자 (쉼표 구분)</label>
-            <input
-              type="text"
-              value={allowedFileTypesStr}
-              onChange={(e) => setAllowedFileTypesStr(e.target.value)}
-              placeholder="pdf, jpg, png, xlsx"
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>최대 파일 크기 (MB)</label>
-            <input
-              type="number"
-              value={maxFileSizeMB}
-              onChange={(e) => setMaxFileSizeMB(Number(e.target.value))}
-              required
-              style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", height: "100%", marginTop: "18px" }}>
-            <input
-              type="checkbox"
-              id="title-required-checkbox"
-              checked={titleRequired}
-              onChange={(e) => setTitleRequired(e.target.checked)}
-              style={{ cursor: "pointer" }}
-            />
-            <label htmlFor="title-required-checkbox" style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563", cursor: "pointer" }}>
-              실행 제목 필수 여부
-            </label>
-          </div>
-        </div>
-
-        <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h4 style={{ fontSize: "12.5px", fontWeight: 700, color: "#374151", margin: 0 }}>⚙️ configSchema (설정 맵핑 요구사항)</h4>
-          <button
-            type="button"
-            onClick={handleAddField}
-            style={{ fontSize: "11px", fontWeight: 600, color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}
-          >
-            ＋ 설정 필드 추가
-          </button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {schemaFields.length === 0 ? (
-            <p style={{ fontSize: "12px", color: "#9ca3af", textAlign: "center", margin: "8px 0" }}>
-              지정된 설정 요구사항이 없습니다. 필드를 추가해 주십시오.
-            </p>
-          ) : (
-            schemaFields.map((field, idx) => {
-              const isExistingField = isEditMode && originalStatus === "published" && originalSchemaKeys.has(field.key);
-              const cardTitle = field.label ? field.label : (field.key ? field.key : `설정 필드 ${idx + 1}`);
-
-              return (
-                <div
-                  key={idx}
-                  draggable
-                  onDragStart={() => setDraggedIdx(idx)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (draggedIdx !== null && draggedIdx !== idx) {
-                      handleMoveField(draggedIdx, idx);
-                      setDraggedIdx(idx);
-                    }
-                  }}
-                  onDragEnd={() => setDraggedIdx(null)}
-                  style={{
-                    border: "1px solid #d8dee9",
-                    borderRadius: "8px",
-                    backgroundColor: "#ffffff",
-                    position: "relative",
-                    display: "flex",
-                    flexDirection: "column",
-                    overflow: "hidden",
-                    opacity: draggedIdx === idx ? 0.4 : 1,
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {/* 카드 헤더 영역 */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      backgroundColor: "#eef6ff",
-                      padding: "8px 12px",
-                      borderBottom: "1px solid #d8dee9",
-                      cursor: "grab",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "14px", color: "#6b7280", userSelect: "none" }}>⠿</span>
-                      <strong style={{ fontSize: "13.5px", color: "#111827" }}>{cardTitle}</strong>
-                      {field.key && (
-                        <span style={{ fontSize: "11px", color: "#6b7280", fontFamily: "monospace" }}>
-                          (key: {field.key})
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      {/* 순서 조정 보조 버튼 */}
-                      <button
-                        type="button"
-                        onClick={() => handleMoveField(idx, idx - 1)}
-                        disabled={idx === 0}
-                        style={{
-                          height: "22px",
-                          width: "22px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "4px",
-                          backgroundColor: "#ffffff",
-                          cursor: idx === 0 ? "not-allowed" : "pointer",
-                          opacity: idx === 0 ? 0.4 : 1,
-                        }}
-                        title="위로 이동"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMoveField(idx, idx + 1)}
-                        disabled={idx === schemaFields.length - 1}
-                        style={{
-                          height: "22px",
-                          width: "22px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "4px",
-                          backgroundColor: "#ffffff",
-                          cursor: idx === schemaFields.length - 1 ? "not-allowed" : "pointer",
-                          opacity: idx === schemaFields.length - 1 ? 0.4 : 1,
-                        }}
-                        title="아래로 이동"
-                      >
-                        ▼
-                      </button>
-                      {!isExistingField && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveField(idx)}
-                          style={{
-                            border: "none",
-                            background: "none",
-                            color: "#ef4444",
-                            fontSize: "12px",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            marginLeft: "6px",
-                          }}
-                        >
-                          제거
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "12px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                      backgroundColor: "#f9fafb",
-                    }}
-                  >
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginRight: "32px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>설정 Key * (영문/숫자)</span>
-                      <input
-                        type="text"
-                        value={field.key}
-                        onChange={(e) => handleFieldChange(idx, "key", e.target.value)}
-                        placeholder="예: googleDriveFolderId"
-                        required
-                        disabled={isExistingField}
-                        style={{
-                          height: "30px",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "4px",
-                          padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
-                          color: isExistingField ? "#9ca3af" : "#111111",
-                          backgroundColor: isExistingField ? "#f3f4f6" : "#ffffff",
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>라벨 이름 *</span>
-                      <input
-                        type="text"
-                        value={field.label}
-                        onChange={(e) => handleFieldChange(idx, "label", e.target.value)}
-                        placeholder="예: 구글 드라이브 폴더 ID"
-                        required
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>인풋 타입</span>
-                      <select
-                        value={field.type}
-                        onChange={(e: any) => handleFieldChange(idx, "type", e.target.value)}
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 4px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
-                      >
-                        <option value="text">text</option>
-                        <option value="email">email</option>
-                        <option value="number">number</option>
-                        <option value="boolean">boolean</option>
-                        <option value="select">select</option>
-                        <option value="textarea">textarea</option>
-                        <option value="secret">secret</option>
-                      </select>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>기본값 출처</span>
-                      <input
-                        type="text"
-                        value={field.defaultValueSource || ""}
-                        onChange={(e) => handleFieldChange(idx, "defaultValueSource", e.target.value)}
-                        placeholder="예: auth.email"
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", height: "100%", marginTop: "16px" }}>
-                      <input
-                        type="checkbox"
-                        id={`required-${idx}`}
-                        checked={field.required}
-                        onChange={(e) => handleFieldChange(idx, "required", e.target.checked)}
-                        style={{ cursor: "pointer" }}
-                      />
-                      <label htmlFor={`required-${idx}`} style={{ fontSize: "11px", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
-                        필수 입력 항목
-                      </label>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>입력 힌트 (Placeholder)</span>
-                      <input
-                        type="text"
-                        value={field.placeholder || ""}
-                        onChange={(e) => handleFieldChange(idx, "placeholder", e.target.value)}
-                        placeholder="예: 구글 드라이브 폴더 ID 입력"
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>가이드 설명 (Description)</span>
-                      <input
-                        type="text"
-                        value={field.description || ""}
-                        onChange={(e) => handleFieldChange(idx, "description", e.target.value)}
-                        placeholder="예: 사용자의 개인 드라이브 폴더 ID를 기재합니다."
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
-                      />
-                    </div>
-                  </div>
-
-                  {field.type === "select" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>셀렉트 옵션 리스트 (쉼표 구분)</span>
-                      <input
-                        type="text"
-                        value={field.tempOptionsStr !== undefined ? field.tempOptionsStr : (field.options?.join(", ") || "")}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          // 입력 중에는 쉼표를 포함한 문자열을 그대로 유지하기 위해 임시 필드에 할당합니다.
-                          handleFieldChange(idx, "tempOptionsStr" as any, val);
-                        }}
-                        onBlur={(e) => {
-                          const val = e.target.value;
-                          const splitArray = val.split(",").map(x => x.trim()).filter(Boolean);
-                          const formattedStr = splitArray.join(", ");
-                          
-                          // options 배열 업데이트 및 임시 필드 갱신
-                          const next = [...schemaFields];
-                          next[idx] = {
-                            ...next[idx],
-                            options: splitArray,
-                            tempOptionsStr: formattedStr
-                          } as any;
-                          setSchemaFields(next);
-                        }}
-                        placeholder="옵션1, 옵션2, 옵션3"
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
-                      />
-                    </div>
-                  )}
-
-                  {isEditMode && !isExistingField && field.required && (
-                    <div style={{ backgroundColor: "#fffbeb", border: "1px solid #fcd34d", color: "#78350f", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 500 }}>
-                      ⚠️ 주의: 배포 완료(published)된 기존 워크플로우에 필수 설정 필드를 신규 추가하면, 이미 이 워크플로우를 배정받아 사용 중인 회사의 자동화 설정값과 충돌하여 작동 오류가 발생할 수 있습니다.
-                    </div>
-                  )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <ConfigSchemaEditor
+          schemaFields={schemaFields}
+          isEditMode={isEditMode}
+          originalStatus={originalStatus}
+          originalSchemaKeys={originalSchemaKeys}
+          onAddField={handleAddField}
+          onRemoveField={handleRemoveField}
+          onFieldChange={handleFieldChange}
+          onMoveField={handleMoveField}
+          onSelectOptionsChange={handleSelectOptionsChange}
+        />
 
         <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
           <button
