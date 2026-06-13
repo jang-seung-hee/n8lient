@@ -3,7 +3,7 @@
 // 보안 규정: submissions를 프론트에서 직접 생성하는 구조는 사용하지 않습니다.
 
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { getActiveAutomations, getUserAutomationSettings } from "@/features/user/userService";
@@ -13,6 +13,7 @@ import { siteConfig } from "@/config/siteConfig";
 import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsModal";
 import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
 import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
+import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 
 export default function UserExecute() {
   const { user, userDoc, loading: authLoading } = useAuthUser();
@@ -30,6 +31,29 @@ export default function UserExecute() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  
+  // 녹음 오작동 방지용 상태 및 ref
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const inputPanelRef = useRef<{ stopRecording: () => void } | null>(null);
+
+  // alert 지연 호출용 타이머 ID 보존 목록
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  // 컴포넌트 unmount 시 Mute 해제 및 pending alert 타이머 전체 취소
+  useEffect(() => {
+    return () => {
+      setAppSoundMuted(false);
+      timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+    };
+  }, []);
+
+  const addDelayedAlert = (message: string, delay = 150) => {
+    const id = setTimeout(() => {
+      alert(message);
+    }, delay) as any;
+    timeoutIdsRef.current.push(id);
+  };
 
   const loadData = async () => {
     if (!userDoc?.clientId) {
@@ -107,8 +131,10 @@ export default function UserExecute() {
   const currentTemplate = currentAuto ? templates[currentAuto.workflowKey] : null;
 
   const handleOpenSettingsModal = () => {
+    playAppSound("click");
     if (!selectedAutoId) {
-      alert("N8N 워크플로우를 먼저 선택해 주십시오.");
+      playAppSound("notify");
+      addDelayedAlert("N8N 워크플로우를 먼저 선택해 주십시오.");
       return;
     }
     setShowModal(true);
@@ -118,8 +144,20 @@ export default function UserExecute() {
     e.preventDefault();
     if (!user || !userDoc?.clientId || !currentAuto) return;
 
-    if (!title.trim()) {
-      alert("실행 제목을 입력해 주십시오.");
+    // 녹음 중 제출 버튼 클릭 시, 제출하지 않고 녹음 정지만 수행
+    if (isRecording) {
+      if (inputPanelRef.current) {
+        inputPanelRef.current.stopRecording();
+      }
+      return;
+    }
+
+    playAppSound("click");
+
+    const isTitleRequired = currentTemplate?.inputSchema?.titleRequired !== false;
+    if (isTitleRequired && !title.trim()) {
+      playAppSound("notify");
+      addDelayedAlert("실행 제목을 입력해 주십시오.");
       return;
     }
 
@@ -167,11 +205,14 @@ export default function UserExecute() {
         setInputText("");
         setSelectedFile(null);
         setInputType(null);
-        alert(`실행 요청이 성공적으로 전달되었습니다.\n요청 ID: ${data.submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
+        playAppSound("success");
+        addDelayedAlert(`실행 요청이 성공적으로 전달되었습니다.\n요청 ID: ${data.submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
       } else {
+        playAppSound("error");
         setError(data.error || "실행 요청 처리 중 오류가 발생했습니다.");
       }
     } catch (err: any) {
+      playAppSound("error");
       console.error("[N8Lient] N8N 실행 요청 처리 실패 상세 오류 로그:", err);
       setError(`오류 발생: ${err.message}`);
     } finally {
@@ -326,17 +367,24 @@ export default function UserExecute() {
             </p>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>실행 제목 *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 5월 카드 지출 내역 정리 요청"
-              required
-              style={{ height: "38px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "8px 10px", fontSize: "14px", color: "#111111", outline: "none", boxSizing: "border-box" }}
-            />
-          </div>
+          {(() => {
+            const isTitleRequired = currentTemplate?.inputSchema?.titleRequired !== false;
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+                  실행 제목{isTitleRequired ? " *" : ""}
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={isTitleRequired ? "예: 5월 카드 지출 내역 정리 요청" : "입력하지 않으면 자동 생성됩니다."}
+                  required={isTitleRequired}
+                  style={{ height: "38px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "8px 10px", fontSize: "14px", color: "#111111", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            );
+          })()}
 
           {currentTemplate?.inputSchema && (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -347,17 +395,51 @@ export default function UserExecute() {
                 maxFileSizeMB={currentTemplate.inputSchema.maxFileSizeMB}
                 onChange={({ text, file, inputType }) => { setInputText(text || ""); setSelectedFile(file); setInputType(inputType); }}
                 submitting={submitting}
+                innerRef={inputPanelRef}
+                onRecordingStateChange={(rec, sec) => {
+                  setIsRecording(rec);
+                  setRecordingTime(sec);
+                }}
               />
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{ height: "38px", backgroundColor: submitting ? "#4b5563" : "#111111", color: "#ffffff", borderRadius: "6px", fontSize: "13px", fontWeight: 600, border: "none", cursor: submitting ? "not-allowed" : "pointer", marginTop: "8px", display: "flex", alignItems: "center", justifyContent: "center", transition: "background-color 0.15s ease" }}
-          >
-            {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "🚀 N8N 워크플로우 실행 요청 제출"}
-          </button>
+          {isRecording ? (
+            <button
+              type="submit"
+              style={{
+                height: "38px",
+                backgroundColor: "#ef4444",
+                color: "#ffffff",
+                borderRadius: "6px",
+                fontSize: "13px",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+                marginTop: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background-color 0.15s ease",
+                gap: "6px"
+              }}
+            >
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ffffff", animation: "pulse 1.5s infinite" }}></span>
+              🛑 녹음 정지 ({(() => {
+                const mins = Math.floor(recordingTime / 60);
+                const secs = recordingTime % 60;
+                return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+              })()})
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{ height: "38px", backgroundColor: submitting ? "#4b5563" : "#111111", color: "#ffffff", borderRadius: "6px", fontSize: "13px", fontWeight: 600, border: "none", cursor: submitting ? "not-allowed" : "pointer", marginTop: "8px", display: "flex", alignItems: "center", justifyContent: "center", transition: "background-color 0.15s ease" }}
+            >
+              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "🚀 N8N 워크플로우 실행 요청 제출"}
+            </button>
+          )}
         </form>
       )}
 

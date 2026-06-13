@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { siteConfig } from "@/config/siteConfig";
+import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 
 interface WorkflowInputPanelProps {
   acceptedInputTypes: Array<"text" | "file" | "audio" | "image">;
@@ -13,6 +14,8 @@ interface WorkflowInputPanelProps {
     inputType: "text" | "file" | "image" | "audio" | null;
   }) => void;
   submitting: boolean;
+  onRecordingStateChange?: (isRecording: boolean, seconds: number) => void;
+  innerRef?: React.RefObject<{ stopRecording: () => void } | null>;
 }
 
 export default function WorkflowInputPanel({
@@ -21,6 +24,8 @@ export default function WorkflowInputPanel({
   maxFileSizeMB,
   onChange,
   submitting,
+  onRecordingStateChange,
+  innerRef,
 }: WorkflowInputPanelProps) {
   // 환경변수 기반 최대 업로드 용량 결정 (기본값: 4MB)
   const envMaxUploadMB = process.env.NEXT_PUBLIC_MAX_UPLOAD_MB
@@ -234,13 +239,28 @@ export default function WorkflowInputPanel({
         
         // 스트림 트랙 중지
         stream.getTracks().forEach((track) => track.stop());
+
+        // 녹음이 완료된 시점에 unmute 후 성공 알림음 재생
+        setAppSoundMuted(false);
+        playAppSound("success");
       };
 
+      // 녹음 시 UI 효과음이 유입되지 않도록 음소거 처리
+      setAppSoundMuted(true);
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      if (onRecordingStateChange) {
+        onRecordingStateChange(true, 0);
+      }
       timerRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        setRecordingTime((prev) => {
+          const nextTime = prev + 1;
+          if (onRecordingStateChange) {
+            onRecordingStateChange(true, nextTime);
+          }
+          return nextTime;
+        });
       }, 1000);
     } catch (err: any) {
       console.error("마이크 사용 권한 획득 실패:", err);
@@ -253,12 +273,32 @@ export default function WorkflowInputPanel({
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      
+      if (onRecordingStateChange) {
+        onRecordingStateChange(false, 0);
+      }
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     }
   };
+
+  // 컴포넌트 unmount 시 음소거 풀기 및 타이머 정리 cleanup
+  useEffect(() => {
+    return () => {
+      setAppSoundMuted(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (innerRef) {
+      innerRef.current = { stopRecording };
+    }
+  }, [innerRef, isRecording]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -409,7 +449,10 @@ export default function WorkflowInputPanel({
                   {!isRecording ? (
                     <button
                       type="button"
-                      onClick={startRecording}
+                      onClick={() => {
+                        playAppSound("click");
+                        startRecording();
+                      }}
                       disabled={submitting}
                       style={{ height: "36px", padding: "0 12px", fontSize: "13px", fontWeight: 600, border: "none", borderRadius: "6px", backgroundColor: "#ef4444", color: "#ffffff", cursor: "pointer" }}
                     >
@@ -418,7 +461,10 @@ export default function WorkflowInputPanel({
                   ) : (
                     <button
                       type="button"
-                      onClick={stopRecording}
+                      onClick={() => {
+                        // 녹음 정지 시에는 click 효과음 대신 success 효과음이 stopRecording 내부에서 재생됨 (소리가 겹치거나 마이크에 들어가지 않도록 정밀 대응)
+                        stopRecording();
+                      }}
                       style={{ height: "36px", padding: "0 12px", fontSize: "13px", fontWeight: 600, border: "none", borderRadius: "6px", backgroundColor: "#111111", color: "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
                     >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ef4444", animation: "pulse 1.5s infinite" }}></span>

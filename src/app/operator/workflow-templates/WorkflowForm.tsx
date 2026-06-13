@@ -3,8 +3,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
+import { playAppSound } from "@/lib/appSound";
 
 interface WorkflowFormProps {
   initialData: WorkflowTemplate | null;
@@ -21,6 +22,22 @@ export function WorkflowForm({
   onCancel,
   loading,
 }: WorkflowFormProps) {
+  // alert 지연 호출용 타이머 ID 보존 목록
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+    };
+  }, []);
+
+  const addDelayedAlert = (message: string, delay = 150) => {
+    const id = setTimeout(() => {
+      alert(message);
+    }, delay) as any;
+    timeoutIdsRef.current.push(id);
+  };
+
   // 1. 폼 로컬 상태 선언
   const [workflowKey, setWorkflowKey] = useState("");
   const [name, setName] = useState("");
@@ -34,6 +51,7 @@ export function WorkflowForm({
   const [allowedFileTypesStr, setAllowedFileTypesStr] = useState("pdf, jpg, png, xlsx");
   const [maxFileSizeMB, setMaxFileSizeMB] = useState(50);
   const [schemaFields, setSchemaFields] = useState<ConfigSchemaField[]>([]);
+  const [titleRequired, setTitleRequired] = useState(true);
   
   // [v2.6] retentionCapabilities 상태 정의
   const [maxLevel, setMaxLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
@@ -77,6 +95,7 @@ export function WorkflowForm({
       setAcceptedTypes(initialData.inputSchema.acceptedInputTypes);
       setAllowedFileTypesStr(initialData.inputSchema.allowedFileTypes?.join(", ") || "");
       setMaxFileSizeMB(initialData.inputSchema.maxFileSizeMB || 50);
+      setTitleRequired(initialData.inputSchema.titleRequired !== false);
       setSchemaFields(initialData.configSchema || []);
 
       // capabilities 매핑
@@ -132,6 +151,7 @@ export function WorkflowForm({
       setAllowedFileTypesStr("pdf, jpg, png, xlsx");
       setMaxFileSizeMB(50);
       setSchemaFields([]);
+      setTitleRequired(true);
       
       setMaxLevel("full_archive");
       setSupportedLevels(["notify_only", "processed_result", "full_archive"]);
@@ -186,9 +206,11 @@ export function WorkflowForm({
   const handleRemoveField = (index: number) => {
     const targetField = schemaFields[index];
     if (isEditMode && originalStatus === "published" && originalSchemaKeys.has(targetField.key)) {
-      alert("배포 일관성 보호 정책에 의해, 이미 배포 완료(published)된 N8N 워크플로우의 기존 설정 필드 Key는 삭제할 수 없습니다. 큰 변경은 복제 기능을 사용하십시오.");
+      playAppSound("notify");
+      addDelayedAlert("배포 일관성 보호 정책에 의해, 이미 배포 완료(published)된 N8N 워크플로우의 기존 설정 필드 Key는 삭제할 수 없습니다. 큰 변경은 복제 기능을 사용하십시오.");
       return;
     }
+    playAppSound("click");
     const next = [...schemaFields];
     next.splice(index, 1);
     setSchemaFields(next);
@@ -197,7 +219,8 @@ export function WorkflowForm({
   const handleFieldChange = (index: number, keyProp: keyof ConfigSchemaField, val: any) => {
     const targetField = schemaFields[index];
     if (keyProp === "key" && isEditMode && originalStatus === "published" && originalSchemaKeys.has(targetField.key)) {
-      alert("배포 일관성 보호 정책에 의해, 이미 배포 완료(published)된 N8N 워크플로우의 기존 설정 필드 Key는 수정할 수 없습니다. 큰 변경은 복제 기능을 사용하십시오.");
+      playAppSound("notify");
+      addDelayedAlert("배포 일관성 보호 정책에 의해, 이미 배포 완료(published)된 N8N 워크플로우의 기존 설정 필드 Key는 수정할 수 없습니다. 큰 변경은 복제 기능을 사용하십시오.");
       return;
     }
     const next = [...schemaFields];
@@ -210,11 +233,13 @@ export function WorkflowForm({
 
   const handleSubmitInternal = (e: React.FormEvent) => {
     e.preventDefault();
+    playAppSound("click");
 
     // 입력값 검증 (기존 page.tsx 로직 완벽 보존)
     const keyRegex = /^[a-z0-9-]+$/;
     if (!keyRegex.test(workflowKey)) {
-      alert("N8N 워크플로우 Key는 영문 소문자, 숫자, 하이픈(-)만 허용합니다. (예: expense-report)");
+      playAppSound("notify");
+      addDelayedAlert("N8N 워크플로우 Key는 영문 소문자, 숫자, 하이픈(-)만 허용합니다. (예: expense-report)");
       return;
     }
 
@@ -226,17 +251,20 @@ export function WorkflowForm({
       const trimmedKey = field.key.trim();
 
       if (!trimmedKey) {
-        alert(`${i + 1}번째 설정 필드의 Key가 비어 있습니다. 입력해 주십시오.`);
+        playAppSound("notify");
+        addDelayedAlert(`${i + 1}번째 설정 필드의 Key가 비어 있습니다. 입력해 주십시오.`);
         return;
       }
 
       if (!keyPattern.test(trimmedKey)) {
-        alert(`${i + 1}번째 설정 필드 Key(${trimmedKey})에 허용되지 않는 한글, 공백, 또는 특수문자가 포함되어 있습니다. (영문/숫자만 허용)`);
+        playAppSound("notify");
+        addDelayedAlert(`${i + 1}번째 설정 필드 Key(${trimmedKey})에 허용되지 않는 한글, 공백, 또는 특수문자가 포함되어 있습니다. (영문/숫자만 허용)`);
         return;
       }
 
       if (schemaKeys.has(trimmedKey)) {
-        alert(`설정 필드 Key 중복 오류: 중복되는 Key '${trimmedKey}'가 존재합니다.`);
+        playAppSound("notify");
+        addDelayedAlert(`설정 필드 Key 중복 오류: 중복되는 Key '${trimmedKey}'가 존재합니다.`);
         return;
       }
       schemaKeys.add(trimmedKey);
@@ -250,18 +278,21 @@ export function WorkflowForm({
     // [v2.6] 검증 규칙: operatorRetentionPolicy.allowedLevels는 retentionCapabilities.supportedLevels 안에 있어야 한다.
     for (const lvl of opAllowedLevels) {
       if (!supportedLevels.includes(lvl)) {
-        alert(`검증 오류: 오퍼레이터 허용 레벨(${lvl})은 워크플로우 지원 레벨(${supportedLevels.join(", ")})에 포함되어야 합니다.`);
+        playAppSound("notify");
+        addDelayedAlert(`검증 오류: 오퍼레이터 허용 레벨(${lvl})은 워크플로우 지원 레벨(${supportedLevels.join(", ")})에 포함되어야 합니다.`);
         return;
       }
     }
     // [v2.6] 검증 규칙: operatorRetentionPolicy.defaultLevel은 allowedLevels 안에 있어야 한다.
     if (!opAllowedLevels.includes(opDefaultLevel)) {
-      alert(`검증 오류: 오퍼레이터 기본 레벨(${opDefaultLevel})은 허용 레벨 목록(${opAllowedLevels.join(", ")})에 포함되어야 합니다.`);
+      playAppSound("notify");
+      addDelayedAlert(`검증 오류: 오퍼레이터 기본 레벨(${opDefaultLevel})은 허용 레벨 목록(${opAllowedLevels.join(", ")})에 포함되어야 합니다.`);
       return;
     }
     // [v2.6] 검증 규칙: retentionCapabilities.defaultLevel은 supportedLevels 안에 있어야 한다.
     if (!supportedLevels.includes(capsDefaultLevel)) {
-      alert(`검증 오류: 기본 지원 레벨(${capsDefaultLevel})은 지원 레벨 목록(${supportedLevels.join(", ")})에 포함되어야 합니다.`);
+      playAppSound("notify");
+      addDelayedAlert(`검증 오류: 기본 지원 레벨(${capsDefaultLevel})은 지원 레벨 목록(${supportedLevels.join(", ")})에 포함되어야 합니다.`);
       return;
     }
 
@@ -274,7 +305,8 @@ export function WorkflowForm({
     const maxVal = RETENTION_LEVEL_ORDER[maxLevel];
     for (const lvl of opAllowedLevels) {
       if (RETENTION_LEVEL_ORDER[lvl] > maxVal) {
-        alert(`검증 오류: 오퍼레이터 허용 레벨(${lvl})이 워크플로우 최대 보관 지원 단계(${maxLevel})를 초과할 수 없습니다.`);
+        playAppSound("notify");
+        addDelayedAlert(`검증 오류: 오퍼레이터 허용 레벨(${lvl})이 워크플로우 최대 보관 지원 단계(${maxLevel})를 초과할 수 없습니다.`);
         return;
       }
     }
@@ -307,6 +339,7 @@ export function WorkflowForm({
         acceptedInputTypes: acceptedTypes as Array<"text" | "file" | "audio" | "image">,
         allowedFileTypes,
         maxFileSizeMB,
+        titleRequired,
       },
       configSchema: cleanedSchemaFields,
       retentionPolicy: getDefaultRetentionPolicy(opDefaultLevel), // 하위 호환
@@ -609,7 +642,7 @@ export function WorkflowForm({
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>허용 파일 확장자 (쉼표 구분)</label>
             <input
@@ -629,6 +662,18 @@ export function WorkflowForm({
               required
               style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111" }}
             />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", height: "100%", marginTop: "18px" }}>
+            <input
+              type="checkbox"
+              id="title-required-checkbox"
+              checked={titleRequired}
+              onChange={(e) => setTitleRequired(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+            <label htmlFor="title-required-checkbox" style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563", cursor: "pointer" }}>
+              실행 제목 필수 여부
+            </label>
           </div>
         </div>
 

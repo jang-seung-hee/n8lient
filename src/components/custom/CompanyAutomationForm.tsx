@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Firestore } from "firebase/firestore";
 import { saveClientAutomation } from "@/features/admin/companyAdminService";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
+import { playAppSound } from "@/lib/appSound";
 
 interface CompanyAutomationFormProps {
   db: Firestore;
@@ -26,6 +27,21 @@ export default function CompanyAutomationForm({
   onSuccess,
   onCancel,
 }: CompanyAutomationFormProps) {
+  // alert 지연 호출용 타이머 ID 보존 목록
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+    };
+  }, []);
+
+  const addDelayedAlert = (message: string, delay = 150) => {
+    const id = setTimeout(() => {
+      alert(message);
+    }, delay) as any;
+    timeoutIdsRef.current.push(id);
+  };
   const [formName, setFormName] = useState("");
   const [formEnabled, setFormEnabled] = useState(true);
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
@@ -101,6 +117,7 @@ export default function CompanyAutomationForm({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    playAppSound("click");
     try {
       setSubmitting(true);
       
@@ -119,14 +136,16 @@ export default function CompanyAutomationForm({
 
       // 검증 규칙: companyRetentionPolicy.recommendedLevel은 contractRetentionLimit.allowedLevels 안에 있어야 한다.
       if (!contractRetentionLimit.allowedLevels.includes(companyDefaultLevel)) {
-        alert(`검증 오류: 회사의 권장 보관 레벨(${companyDefaultLevel})은 계약상 허용된 범위(${contractRetentionLimit.allowedLevels.join(", ")})에 포함되어야 합니다.`);
+        playAppSound("notify");
+        addDelayedAlert(`검증 오류: 회사의 권장 보관 레벨(${companyDefaultLevel})은 계약상 허용된 범위(${contractRetentionLimit.allowedLevels.join(", ")})에 포함되어야 합니다.`);
         return;
       }
 
       // 검증 규칙: companyRetentionPolicy.allowedUserLevels도 contractRetentionLimit.allowedLevels 안에 있어야 한다.
       for (const lvl of coAllowedUserLevels) {
         if (!contractRetentionLimit.allowedLevels.includes(lvl)) {
-          alert(`검증 오류: 사용자 허용 레벨(${lvl})은 계약상 허용된 범위(${contractRetentionLimit.allowedLevels.join(", ")})에 포함되어야 합니다.`);
+          playAppSound("notify");
+          addDelayedAlert(`검증 오류: 사용자 허용 레벨(${lvl})은 계약상 허용된 범위(${contractRetentionLimit.allowedLevels.join(", ")})에 포함되어야 합니다.`);
           return;
         }
       }
@@ -174,13 +193,16 @@ export default function CompanyAutomationForm({
       } as any);
 
       if (res.success) {
-        alert("N8N 워크플로우 설정이 성공적으로 저장 및 활성화되었습니다.");
+        playAppSound("success");
+        addDelayedAlert("N8N 워크플로우 설정이 성공적으로 저장 및 활성화되었습니다.");
         onSuccess();
       } else {
-        alert(res.message || "설정 저장 실패");
+        playAppSound("error");
+        addDelayedAlert(res.message || "설정 저장 실패");
       }
     } catch (err: any) {
-      alert(`저장 중 오류: ${err.message}`);
+      playAppSound("error");
+      addDelayedAlert(`저장 중 오류: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -371,7 +393,10 @@ export default function CompanyAutomationForm({
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              playAppSound("click");
+              onCancel();
+            }}
             style={{
               height: "36px",
               backgroundColor: "#f3f4f6",

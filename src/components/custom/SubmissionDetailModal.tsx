@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { Submission } from "@/types/n8lient";
 import { downloadSubmissionFile } from "@/features/user/userService";
 import { auth } from "@/lib/firebase";
+import { useAuthUser } from "@/features/auth/useAuthUser";
+import {
+  buildSubmissionMarkdownExport,
+  downloadMarkdownFile,
+  sanitizeMarkdownFileName,
+} from "@/features/user/markdownExport";
+import { playAppSound } from "@/lib/appSound";
 
 interface SubmissionDetailModalProps {
   isOpen: boolean;
@@ -16,16 +23,36 @@ export default function SubmissionDetailModal({
   onClose,
   submission,
 }: SubmissionDetailModalProps) {
+  const { user, userDoc } = useAuthUser();
   const [downloadingIndex, setDownloadingIndex] = useState<{ type: string; idx: number } | null>(null);
+
+  // alert 지연 호출용 타이머 ID 보존 목록
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+    };
+  }, []);
+
+  const addDelayedAlert = (message: string, delay = 150) => {
+    const id = setTimeout(() => {
+      alert(message);
+    }, delay) as any;
+    timeoutIdsRef.current.push(id);
+  };
 
   if (!isOpen) return null;
 
   const handleDownload = async (refType: "original" | "result", index: number, fileName: string) => {
+    playAppSound("click");
     try {
       setDownloadingIndex({ type: refType, idx: index });
       await downloadSubmissionFile(auth, submission.submissionId, refType, index, fileName);
+      playAppSound("success");
     } catch (err: any) {
-      alert(`다운로드 실패: ${err.message}`);
+      playAppSound("error");
+      addDelayedAlert(`다운로드 실패: ${err.message}`);
     } finally {
       setDownloadingIndex(null);
     }
@@ -195,9 +222,54 @@ export default function SubmissionDetailModal({
             </div>
 
             {/* 마크다운 본문 */}
-            {submission.processorResult.mdContent && (
+            {submission.processorResult && (submission.processorResult.mdContent || submission.processorResult.content) && (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 600, color: "#6b7280" }}>상세 리포트 본문:</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: "#6b7280" }}>상세 리포트 본문:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playAppSound("click");
+                      try {
+                        const rawTitle =
+                          submission.processorResult?.title ||
+                          (submission as any).result?.title ||
+                          submission.input.title ||
+                          submission.submissionId;
+                        
+                        const cleanTitle = sanitizeMarkdownFileName(rawTitle);
+                        const fileName = `${cleanTitle}.md`;
+
+                        const markdown = buildSubmissionMarkdownExport({
+                          submission,
+                          currentUserDoc: userDoc,
+                          currentUser: user,
+                        });
+
+                        downloadMarkdownFile(markdown, fileName);
+                      } catch (err: any) {
+                        playAppSound("error");
+                        addDelayedAlert(`MD 다운로드 중 에러 발생: ${err.message}`);
+                      }
+                    }}
+                    style={{
+                      height: "22px",
+                      padding: "0 8px",
+                      fontSize: "10.5px",
+                      backgroundColor: "#f3f4f6",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      color: "#374151",
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "3px"
+                    }}
+                  >
+                    📝 MD 다운로드
+                  </button>
+                </div>
                 <div
                   style={{
                     backgroundColor: "#f9fafb",
@@ -213,7 +285,7 @@ export default function SubmissionDetailModal({
                     fontFamily: "monospace",
                   }}
                 >
-                  {submission.processorResult.mdContent}
+                  {submission.processorResult.mdContent || submission.processorResult.content}
                 </div>
               </div>
             )}

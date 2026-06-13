@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
 import {
   getWorkflowTemplates,
@@ -12,6 +12,7 @@ import {
 } from "@/features/operator/operatorService";
 import type { WorkflowTemplate } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
+import { playAppSound } from "@/lib/appSound";
 
 // 서브 컴포넌트 임포트
 import { WorkflowList } from "./WorkflowList";
@@ -28,6 +29,22 @@ export default function OperatorTemplates() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // alert 지연 호출용 타이머 ID 보존 목록
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+    };
+  }, []);
+
+  const addDelayedAlert = (message: string, delay = 150) => {
+    const id = setTimeout(() => {
+      alert(message);
+    }, delay) as any;
+    timeoutIdsRef.current.push(id);
+  };
 
   // 2. N8N 워크플로우 목록 로드
   const loadTemplates = async () => {
@@ -55,18 +72,21 @@ export default function OperatorTemplates() {
   };
 
   const handleCreateClick = () => {
+    playAppSound("click");
     setSelectedTemplate(null);
     setIsEditMode(false);
     setViewMode("form");
   };
 
   const handleEditClick = () => {
+    playAppSound("click");
     if (!selectedTemplate) return;
     setIsEditMode(true);
     setViewMode("form");
   };
 
   const handleCloneClick = () => {
+    playAppSound("click");
     if (!selectedTemplate) return;
     setIsEditMode(false);
     // 복제 시에는 새 workflowKey를 사용자가 새로 입력해야 하므로 key를 비움
@@ -80,10 +100,11 @@ export default function OperatorTemplates() {
     };
     setSelectedTemplate(cloneTarget);
     setViewMode("form");
-    alert("N8N 워크플로우 설정이 폼에 복사되었습니다. 새로운 워크플로우 Key를 입력하여 신규 등록해 주십시오.");
+    addDelayedAlert("N8N 워크플로우 설정이 폼에 복사되었습니다. 새로운 워크플로우 Key를 입력하여 신규 등록해 주십시오.");
   };
 
   const handleBackToList = () => {
+    playAppSound("click");
     setSelectedTemplate(null);
     setViewMode("list");
   };
@@ -96,27 +117,32 @@ export default function OperatorTemplates() {
         // 수정 모드: update 실행
         const res = await updateWorkflowTemplate(db, template.workflowKey, template);
         if (res.success) {
-          alert(`N8N 워크플로우 [${template.name}] 수정 저장이 완료되었습니다.`);
+          playAppSound("success");
+          addDelayedAlert(`N8N 워크플로우 [${template.name}] 수정 저장이 완료되었습니다.`);
           setViewMode("list");
           setSelectedTemplate(null);
           loadTemplates();
         } else {
-          alert(res.message);
+          playAppSound("error");
+          addDelayedAlert(res.message || "수정 저장 실패");
         }
       } else {
         // 등록/복제 모드: create 실행 (중복 체크 포함)
         const res = await createWorkflowTemplate(db, template);
         if (res.success) {
-          alert(`N8N 워크플로우 [${template.name}] 등록이 완료되었습니다.`);
+          playAppSound("success");
+          addDelayedAlert(`N8N 워크플로우 [${template.name}] 등록이 완료되었습니다.`);
           setViewMode("list");
           setSelectedTemplate(null);
           loadTemplates();
         } else {
-          alert(res.message);
+          playAppSound("error");
+          addDelayedAlert(res.message || "등록 실패");
         }
       }
     } catch (err: any) {
-      alert("처리 도중 에러가 발생했습니다: " + err.message);
+      playAppSound("error");
+      addDelayedAlert("처리 도중 에러가 발생했습니다: " + err.message);
     } finally {
       setLoading(false);
     }
