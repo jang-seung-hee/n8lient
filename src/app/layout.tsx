@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import InAppBrowserGuard from "@/components/custom/InAppBrowserGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,8 +33,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {/* 앱 전체에 Firebase Auth 컨텍스트를 공급합니다 */}
-        <AuthProvider>{children}</AuthProvider>
+        {/* 앱 전체에 Firebase Auth 컨텍스트 및 인앱 브라우저 진입 제한 가드를 적용합니다 */}
+        <AuthProvider>
+          <InAppBrowserGuard>{children}</InAppBrowserGuard>
+        </AuthProvider>
       </body>
     </html>
   );
