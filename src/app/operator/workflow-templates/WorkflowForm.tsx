@@ -188,6 +188,18 @@ export function WorkflowForm({
     }
   };
 
+  // 드래그 정렬을 위한 상태 정의
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+
+  const handleMoveField = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= schemaFields.length) return;
+    playAppSound("click");
+    const next = [...schemaFields];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    setSchemaFields(next);
+  };
+
   const handleAddField = () => {
     const newField: ConfigSchemaField = {
       key: "",
@@ -697,39 +709,127 @@ export function WorkflowForm({
           ) : (
             schemaFields.map((field, idx) => {
               const isExistingField = isEditMode && originalStatus === "published" && originalSchemaKeys.has(field.key);
+              const cardTitle = field.label ? field.label : (field.key ? field.key : `설정 필드 ${idx + 1}`);
 
               return (
                 <div
                   key={idx}
+                  draggable
+                  onDragStart={() => setDraggedIdx(idx)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (draggedIdx !== null && draggedIdx !== idx) {
+                      handleMoveField(draggedIdx, idx);
+                      setDraggedIdx(idx);
+                    }
+                  }}
+                  onDragEnd={() => setDraggedIdx(null)}
                   style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "6px",
-                    padding: "10px",
-                    backgroundColor: "#f9fafb",
+                    border: "1px solid #d8dee9",
+                    borderRadius: "8px",
+                    backgroundColor: "#ffffff",
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "8px",
+                    overflow: "hidden",
+                    opacity: draggedIdx === idx ? 0.4 : 1,
+                    transition: "all 0.15s ease",
                   }}
                 >
-                  {!isExistingField && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveField(idx)}
-                      style={{
-                        position: "absolute",
-                        top: "6px",
-                        right: "8px",
-                        border: "none",
-                        background: "none",
-                        color: "#ef4444",
-                        fontSize: "12px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      제거
-                    </button>
-                  )}
+                  {/* 카드 헤더 영역 */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      backgroundColor: "#eef6ff",
+                      padding: "8px 12px",
+                      borderBottom: "1px solid #d8dee9",
+                      cursor: "grab",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "14px", color: "#6b7280", userSelect: "none" }}>⠿</span>
+                      <strong style={{ fontSize: "13.5px", color: "#111827" }}>{cardTitle}</strong>
+                      {field.key && (
+                        <span style={{ fontSize: "11px", color: "#6b7280", fontFamily: "monospace" }}>
+                          (key: {field.key})
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {/* 순서 조정 보조 버튼 */}
+                      <button
+                        type="button"
+                        onClick={() => handleMoveField(idx, idx - 1)}
+                        disabled={idx === 0}
+                        style={{
+                          height: "22px",
+                          width: "22px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          backgroundColor: "#ffffff",
+                          cursor: idx === 0 ? "not-allowed" : "pointer",
+                          opacity: idx === 0 ? 0.4 : 1,
+                        }}
+                        title="위로 이동"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveField(idx, idx + 1)}
+                        disabled={idx === schemaFields.length - 1}
+                        style={{
+                          height: "22px",
+                          width: "22px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          backgroundColor: "#ffffff",
+                          cursor: idx === schemaFields.length - 1 ? "not-allowed" : "pointer",
+                          opacity: idx === schemaFields.length - 1 ? 0.4 : 1,
+                        }}
+                        title="아래로 이동"
+                      >
+                        ▼
+                      </button>
+                      {!isExistingField && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveField(idx)}
+                          style={{
+                            border: "none",
+                            background: "none",
+                            color: "#ef4444",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            marginLeft: "6px",
+                          }}
+                        >
+                          제거
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      backgroundColor: "#f9fafb",
+                    }}
+                  >
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginRight: "32px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -866,6 +966,7 @@ export function WorkflowForm({
                       ⚠️ 주의: 배포 완료(published)된 기존 워크플로우에 필수 설정 필드를 신규 추가하면, 이미 이 워크플로우를 배정받아 사용 중인 회사의 자동화 설정값과 충돌하여 작동 오류가 발생할 수 있습니다.
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })
