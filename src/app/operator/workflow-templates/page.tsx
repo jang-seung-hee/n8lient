@@ -18,12 +18,18 @@ import { playAppSound } from "@/lib/appSound";
 import { WorkflowList } from "./WorkflowList";
 import { WorkflowDetail } from "./WorkflowDetail";
 import { WorkflowForm } from "./WorkflowForm";
+import { WorkflowImportPanel } from "./components/WorkflowImportPanel";
+import { mapAnalysisToWorkflowTemplate, type WorkflowTemplateImportDraft } from "@/features/operator/workflowAnalyzer";
 
 export default function OperatorTemplates() {
   // 1. 핵심 상태 제어 변수
-  const [viewMode, setViewMode] = useState<"list" | "detail" | "form">("list");
+  const [viewMode, setViewMode] = useState<"list" | "detail" | "form" | "import">("list");
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // 3단계 신규 분석 드래프트 진단 및 경고 확인 상태
+  const [activeImportDraft, setActiveImportDraft] = useState<WorkflowTemplateImportDraft | null>(null);
+  const [warningConfirmed, setWarningConfirmed] = useState(false);
 
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +81,27 @@ export default function OperatorTemplates() {
     playAppSound("click");
     setSelectedTemplate(null);
     setIsEditMode(false);
+    setActiveImportDraft(null);
+    setWarningConfirmed(false);
+    setViewMode("import");
+  };
+
+  const handleDirectCreate = () => {
+    playAppSound("click");
+    setSelectedTemplate(null);
+    setIsEditMode(false);
+    setActiveImportDraft(null);
+    setWarningConfirmed(false);
+    setViewMode("form");
+  };
+
+  const handleApplyDraft = (draft: WorkflowTemplateImportDraft) => {
+    playAppSound("click");
+    const mapped = mapAnalysisToWorkflowTemplate(draft);
+    setSelectedTemplate(mapped);
+    setIsEditMode(false);
+    setActiveImportDraft(draft);
+    setWarningConfirmed(false);
     setViewMode("form");
   };
 
@@ -82,6 +109,8 @@ export default function OperatorTemplates() {
     playAppSound("click");
     if (!selectedTemplate) return;
     setIsEditMode(true);
+    setActiveImportDraft(null);
+    setWarningConfirmed(false);
     setViewMode("form");
   };
 
@@ -89,6 +118,8 @@ export default function OperatorTemplates() {
     playAppSound("click");
     if (!selectedTemplate) return;
     setIsEditMode(false);
+    setActiveImportDraft(null);
+    setWarningConfirmed(false);
     // 복제 시에는 새 workflowKey를 사용자가 새로 입력해야 하므로 key를 비움
     const cloneTarget: WorkflowTemplate = {
       ...selectedTemplate,
@@ -106,11 +137,46 @@ export default function OperatorTemplates() {
   const handleBackToList = () => {
     playAppSound("click");
     setSelectedTemplate(null);
+    setActiveImportDraft(null);
+    setWarningConfirmed(false);
     setViewMode("list");
   };
 
   // 4. 폼 등록/수정 서브밋 처리 (DB 연동 로직 완벽 보존)
   const handleFormSubmit = async (template: WorkflowTemplate) => {
+    // 3단계: 신규 등록 분석 진행 시 저장 직전 재검증 처리
+    if (!isEditMode && activeImportDraft) {
+      const draftCopy: WorkflowTemplateImportDraft = {
+        ...activeImportDraft,
+        workflowTemplate: {
+          ...activeImportDraft.workflowTemplate,
+          ...template
+        }
+      };
+
+      const { validateWorkflowImport } = require("@/features/operator/workflowAnalyzer");
+      const revalidatedDraft = validateWorkflowImport(draftCopy, templates);
+
+      setActiveImportDraft(revalidatedDraft);
+
+      const hasError = revalidatedDraft.diagnostics.severity === "error" || 
+                       revalidatedDraft.diagnostics.items.some((item: any) => item.level === "error");
+      const hasWarning = revalidatedDraft.diagnostics.severity === "warning" || 
+                         revalidatedDraft.diagnostics.items.some((item: any) => item.level === "warning");
+
+      if (hasError) {
+        playAppSound("error");
+        addDelayedAlert("분석 결과에 오류 항목(중복 키 또는 명칭 등)이 존재하여 저장할 수 없습니다. 폼 상단 리스트의 빨간색 오류 사항을 수정해 주십시오.");
+        return;
+      }
+
+      if (hasWarning && !warningConfirmed) {
+        playAppSound("notify");
+        addDelayedAlert("분석 결과에 검토 경고 항목이 잔존해 있습니다. 폼 상단 배너의 '경고 항목 확인'에 동의 체크박스를 체크한 후 저장해 주십시오.");
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       if (isEditMode) {
@@ -334,14 +400,88 @@ export default function OperatorTemplates() {
         />
       )}
 
-      {viewMode === "form" && (
-        <WorkflowForm
-          initialData={selectedTemplate}
-          isEditMode={isEditMode}
-          onSubmit={handleFormSubmit}
+      {viewMode === "import" && (
+        <WorkflowImportPanel
+          existingTemplates={templates}
+          onApplyDraft={handleApplyDraft}
+          onDirectCreate={handleDirectCreate}
           onCancel={handleBackToList}
-          loading={loading}
         />
+      )}
+
+      {viewMode === "form" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
+          {activeImportDraft && (
+            <div
+              style={{
+                backgroundColor: activeImportDraft.diagnostics.severity === "error" ? "#fee2e2" : "#ffedd5",
+                border: activeImportDraft.diagnostics.severity === "error" ? "1px solid #fca5a5" : "1px solid #fed7aa",
+                borderRadius: "8px",
+                padding: "16px",
+                fontSize: "13px",
+                color: activeImportDraft.diagnostics.severity === "error" ? "#991b1b" : "#9a3412",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "16px" }}>
+                  {activeImportDraft.diagnostics.severity === "error" ? "⚠️" : "💡"}
+                </span>
+                <span style={{ fontWeight: 700, fontSize: "14px" }}>
+                  {activeImportDraft.diagnostics.severity === "error" ? "분석 진단 오류 존재" : "분석 진단 경고 검토"}
+                </span>
+              </div>
+              <p style={{ margin: 0, lineHeight: 1.45 }}>
+                이 워크플로우는 n8n JSON 분석 파일에서 자동 추출된 필드로 구성되었습니다.
+                {activeImportDraft.diagnostics.severity === "error" 
+                  ? " 중복된 식별 Key 등 치명적 오류가 존재합니다. 아래 진단 목록을 참고하여 입력 폼에서 올바르게 수정한 뒤 저장해야 완료할 수 있습니다."
+                  : " 아래 확인 필요 사항이 존재합니다. 관련 값을 검토하시고, 하단 동의 체크박스를 체크해야 저장할 수 있습니다."}
+              </p>
+              
+              {/* 진단 에러/경고 목록 표시 */}
+              <div
+                style={{
+                  maxHeight: "120px",
+                  overflowY: "auto",
+                  border: "1px solid rgba(0, 0, 0, 0.08)",
+                  borderRadius: "6px",
+                  padding: "10px",
+                  backgroundColor: "rgba(255, 255, 255, 0.5)",
+                }}
+              >
+                <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.5 }}>
+                  {activeImportDraft.diagnostics.items.map((item: any, idx: number) => (
+                    <li key={idx} style={{ color: item.level === "error" ? "#b91c1c" : "#c2410c", marginBottom: "4px" }}>
+                      <strong>[{item.field}]</strong>: {item.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {activeImportDraft.diagnostics.severity !== "error" && (
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }}>
+                  <input
+                    type="checkbox"
+                    checked={warningConfirmed}
+                    onChange={(e) => setWarningConfirmed(e.target.checked)}
+                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                  />
+                  <span>경고 항목들을 모두 확인했으며, 현재 값으로 저장을 진행합니다.</span>
+                </label>
+              )}
+            </div>
+          )}
+
+          <WorkflowForm
+            initialData={selectedTemplate}
+            isEditMode={isEditMode}
+            onSubmit={handleFormSubmit}
+            onCancel={handleBackToList}
+            loading={loading}
+          />
+        </div>
       )}
     </div>
   );

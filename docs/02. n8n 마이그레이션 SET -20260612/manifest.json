@@ -1,15 +1,26 @@
 {
   "created": "2026-06-13",
-  "updates": [
-    "마이그레이션 프롬프트 v2.0 → v2.1",
-    "결과 DB화/지식검색 최소 구조 반영",
-    "processorResult 표준 필드에 hashtags, attachments 추가",
-    "keywords는 구버전 호환 필드로 처리",
-    "knowledgeSearchIndex/embeddingIndex/백링크/지식그래프 생성 금지 명시",
-    "시작프롬프트에 07 문서 확인 및 Level 2 이상 DB화 기준 추가"
+  "version_updates": {
+    "start_prompt": "v1.1 -> v1.2",
+    "migration_prompt": "v2.2 -> v2.3",
+    "workflow_master_html_prompt": "v1.2 -> v1.3"
+  },
+  "main_changes": [
+    "08 Google Drive Optional Export 최소 계약 문서 반영",
+    "Google Drive MD 폴더와 첨부파일 폴더 분리 구조 반영",
+    "표준 설정 키 optionalExportProvider/googleDriveMdFolderName/googleDriveMdFolderId/googleDriveAttachmentFolderName/googleDriveAttachmentFolderId 반영",
+    "구형 settings.driveId/settings.mdFolderId/settings.originalFileFolderId 표현 제거 또는 금지 처리",
+    "resultRefs 타입 optional_export_md/optional_export_attachment 반영",
+    "워크플로우 마스터 등록 HTML 프롬프트 configSchema 출력 기준 보강"
   ],
-  "files": [
-    "N8Lient_n8n_마이그레이션_프롬프트_v2.1_결과DB화.md",
-    "시작프롬프트_v1.1_결과DB화.md"
+  "source_files": [
+    "01. 시작프롬프트_v1.1_결과DB화.md",
+    "02. N8Lient_n8n_마이그레이션_프롬프트_v2.2_결과DB화.md",
+    "03. N8Lient_워크플로우_마스터_등록_HTML명세_추출_프롬프트_v1.2_UI맞춤.md"
+  ],
+  "output_files": [
+    "01_시작프롬프트_v1.2_결과DB화_GoogleDriveOptionalExport.md",
+    "02_N8Lient_n8n_마이그레이션_프롬프트_v2.3_결과DB화_GoogleDriveOptionalExport.md",
+    "03_N8Lient_워크플로우_마스터_등록_HTML명세_추출_프롬프트_v1.3_UI맞춤_GoogleDriveOptionalExport.md"
   ]
 }

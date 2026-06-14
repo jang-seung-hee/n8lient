@@ -1,6 +1,20 @@
-# N8Lient 워크플로우 마스터 등록 HTML 명세 추출 프롬프트 v1.2
+# N8Lient 워크플로우 마스터 등록 HTML 명세 추출 프롬프트 v1.4 단독형
 
-마이그레이션이 완료된 n8n 워크플로우 JSON, N8Lient 기초설계서, 마이그레이션 지시서, 테스트 결과를 기준으로, 이 워크플로우를 N8Lient 앱의 **N8N 워크플로우 마스터 등록 화면**에 입력하기 위한 등록 명세를 추출하라.
+마이그레이션이 완료된 **최종 n8n 워크플로우 JSON**을 기준으로, 이 워크플로우를 N8Lient 앱의 **N8N 워크플로우 마스터 등록 화면**에 입력하기 위한 등록 명세를 추출하라.
+
+이 프롬프트는 **단독 사용**을 전제로 한다.  
+즉, 기본적으로는 아래 2개만 첨부되어 있어도 작업을 진행해야 한다.
+
+```text
+1. 이 프롬프트 파일
+2. 최종 n8n 워크플로우 JSON 파일
+```
+
+N8Lient 기초설계서, 마이그레이션 지시서, 테스트 결과가 함께 첨부되어 있으면 참고하되, 첨부되어 있지 않더라도 추가 자료를 요구하지 말고 최종 n8n JSON에서 확인 가능한 값만 사용한다.
+
+확실하지 않은 값은 추측하지 말고 `확인 필요`로 표시한다.
+
+Google Drive Optional Export가 n8n JSON에서 확인되거나 설정 후보로 필요하다고 판단되면, MD 파일 보관 폴더와 첨부파일 보관 폴더를 분리하는 최신 기준을 따른다.
 
 결과물은 JSON 보고서가 아니라 **등록 화면 기준의 단일 HTML 문서**로 작성하라.  
 오퍼레이터가 HTML을 보면서 필요한 값만 복사해 N8Lient 화면에 붙여넣을 수 있어야 한다.
@@ -19,8 +33,27 @@
 8. n8n 워크플로우 JSON은 수정하지 않는다.
 9. Credential, Token, Secret, API Key 값은 출력하지 않는다.
 10. HTML은 외부 라이브러리 없이 단일 파일로 동작해야 한다.
+11. 기초설계서, 마이그레이션 지시서, 테스트 결과가 없다는 이유로 작업을 중단하지 않는다.
+12. 최종 n8n JSON만으로 판단이 어려운 값은 `확인 필요`로 표시한다.
 
 ---
+
+## 0-1. 입력 자료 우선순위
+
+입력 자료는 아래 우선순위로 해석한다.
+
+```text
+1순위: 최종 n8n 워크플로우 JSON
+2순위: 마이그레이션 완료 보고서 또는 테스트 결과
+3순위: N8Lient 기초설계서 / 마이그레이션 지시서
+```
+
+단, 2순위와 3순위 자료가 없더라도 작업을 중단하지 않는다.
+
+최종 n8n JSON에서 확인 가능한 값은 그대로 추출하고, 확인 불가능한 값은 `확인 필요`로 표시한다.
+
+추가 자료 요청은 하지 않는다.
+
 
 ## 1. 출력 형식
 
@@ -417,7 +450,146 @@ settings.xxx
 타임존
 파일명 prefix
 Optional Export 대상
+Google Drive Optional Export가 있는 경우 아래 5개 표준 키
 ```
+
+
+### Google Drive Optional Export 표준 configSchema
+
+워크플로우가 Google Drive Optional Export를 지원하면 아래 설정 필드를 우선 추출한다.
+
+```text
+optionalExportProvider
+googleDriveMdFolderName
+googleDriveMdFolderId
+googleDriveAttachmentFolderName
+googleDriveAttachmentFolderId
+```
+
+각 필드는 실제 등록 화면 기준으로 아래처럼 출력한다.
+
+```text
+설정 Key
+optionalExportProvider [복사]
+
+라벨 이름
+외부 내보내기 방식 [복사]
+
+인풋 타입
+select [복사]
+
+기본값 출처
+none [복사]
+
+필수 입력 항목
+☐ 필수 입력 항목
+
+입력 힌트
+none, google_drive [복사]
+
+가이드 설명
+Google Drive 내보내기 사용 여부를 선택합니다. [복사]
+```
+
+```text
+설정 Key
+googleDriveMdFolderName [복사]
+
+라벨 이름
+MD 파일 보관 폴더명 [복사]
+
+인풋 타입
+text [복사]
+
+기본값 출처
+직접 입력 [복사]
+
+필수 입력 항목
+☐ 필수 입력 항목
+
+입력 힌트
+N8Lient Notes [복사]
+
+가이드 설명
+MD 결과 파일을 저장할 Google Drive 폴더의 표시명입니다. google_drive 선택 시 필요합니다. [복사]
+```
+
+```text
+설정 Key
+googleDriveMdFolderId [복사]
+
+라벨 이름
+MD 파일 보관 폴더 ID [복사]
+
+인풋 타입
+text [복사]
+
+기본값 출처
+직접 입력 [복사]
+
+필수 입력 항목
+☐ 필수 입력 항목
+
+입력 힌트
+Google Drive 폴더 ID [복사]
+
+가이드 설명
+MD 결과 파일을 저장할 Google Drive 폴더 ID입니다. google_drive 선택 시 필요합니다. [복사]
+```
+
+```text
+설정 Key
+googleDriveAttachmentFolderName [복사]
+
+라벨 이름
+첨부파일 보관 폴더명 [복사]
+
+인풋 타입
+text [복사]
+
+기본값 출처
+직접 입력 [복사]
+
+필수 입력 항목
+☐ 필수 입력 항목
+
+입력 힌트
+Attachments [복사]
+
+가이드 설명
+원본 음성, 이미지, 첨부파일을 저장할 Google Drive 폴더의 표시명입니다. google_drive 선택 시 필요합니다. [복사]
+```
+
+```text
+설정 Key
+googleDriveAttachmentFolderId [복사]
+
+라벨 이름
+첨부파일 보관 폴더 ID [복사]
+
+인풋 타입
+text [복사]
+
+기본값 출처
+직접 입력 [복사]
+
+필수 입력 항목
+☐ 필수 입력 항목
+
+입력 힌트
+Google Drive 폴더 ID [복사]
+
+가이드 설명
+원본 음성, 이미지, 첨부파일을 저장할 Google Drive 폴더 ID입니다. google_drive 선택 시 필요합니다. [복사]
+```
+
+주의:
+
+```text
+앱 화면이 조건부 필수 체크박스를 지원하지 않으면 체크박스는 선택으로 두고, 가이드 설명에 “google_drive 선택 시 필요”라고 적는다.
+Google Access Token, Refresh Token, Credential ID는 출력하지 않는다.
+```
+
 
 다음 값은 configSchema에 넣지 않는다.
 
@@ -483,5 +655,5 @@ HTML 출력 전에 아래를 점검하라.
 파일명 규칙:
 
 ```text
-N8Lient_워크플로우_마스터_등록명세_{workflowKey}_v1.2.html
+N8Lient_워크플로우_마스터_등록명세_{workflowKey}_v1.4.html
 ```

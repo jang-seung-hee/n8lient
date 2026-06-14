@@ -1,71 +1,94 @@
 {
-  "created": "2026-06-12",
-  "type": "preserved_revision_with_knowledge_db_minimum_contract",
-  "policy": "기존 원문 보존 + 결과/보관 정책 계층 메모 유지 + 결과 DB화/지식검색 최소 계약 추가",
-  "note": "02 문서는 이번 업로드에 없어서 /mnt/data/02_엔팔라이언트_아키텍처_명세서_1.1(1).md 원문을 기반으로 보존형 메모를 붙여 포함했다.",
+  "created": "2026-06-13",
+  "type": "preserved_revision_with_google_drive_optional_export_contract",
+  "policy": "기존 원문 보존 + Google Drive Optional Export 고도화 메모 추가 + 08 신규 계약 문서 추가",
+  "core_decision": {
+    "base_storage": "Firestore + Firebase Storage",
+    "google_drive_role": "Optional Export only",
+    "google_drive_folders": [
+      "googleDriveMdFolderName",
+      "googleDriveMdFolderId",
+      "googleDriveAttachmentFolderName",
+      "googleDriveAttachmentFolderId"
+    ]
+  },
   "files": [
     {
-      "file": "00_README_문서세트_적용안내_v0.3_보존형.md",
-      "source": "00_README_문서세트_적용안내_v0.2_보존형.md",
-      "source_bytes": 6147,
-      "output_bytes": 8838,
-      "delta": 2691
+      "file": "00_README_문서세트_적용안내_v0.4_보존형.md",
+      "source": "00_README_문서세트_적용안내_v0.3_보존형.md",
+      "source_bytes": 8838,
+      "output_bytes": 12277,
+      "delta": 3439
     },
     {
-      "file": "01_엔팔라이언트_솔루션_헌법_1.3_보존형.md",
-      "source": "01_엔팔라이언트_솔루션_헌법_1.2_보존형(1).md",
-      "source_bytes": 20227,
-      "output_bytes": 22918,
-      "delta": 2691
+      "file": "01_엔팔라이언트_솔루션_헌법_1.4_보존형.md",
+      "source": "01_엔팔라이언트_솔루션_헌법_1.3_보존형(1).md",
+      "source_bytes": 22918,
+      "output_bytes": 26357,
+      "delta": 3439
     },
     {
-      "file": "02_엔팔라이언트_아키텍처_명세서_1.3_보존형.md",
-      "source": "02_엔팔라이언트_아키텍처_명세서_1.1(1).md",
-      "source_bytes": 18468,
-      "output_bytes": 23501,
-      "delta": 5033
+      "file": "02_엔팔라이언트_아키텍처_명세서_1.4_보존형.md",
+      "source": "02_엔팔라이언트_아키텍처_명세서_1.3_보존형(1).md",
+      "source_bytes": 23501,
+      "output_bytes": 26940,
+      "delta": 3439
     },
     {
-      "file": "03_엔팔라이언트_결과_보관_레벨_최소_계약_v0.3_보존형.md",
-      "source": "03_엔팔라이언트_결과_보관_레벨_최소_계약_v0.2_보존형(1).md",
-      "source_bytes": 13657,
-      "output_bytes": 16348,
-      "delta": 2691
+      "file": "03_엔팔라이언트_결과_보관_레벨_최소_계약_v0.4_보존형.md",
+      "source": "03_엔팔라이언트_결과_보관_레벨_최소_계약_v0.3_보존형(1).md",
+      "source_bytes": 16348,
+      "output_bytes": 19787,
+      "delta": 3439
     },
     {
-      "file": "04_엔팔라이언트_DB_Storage_최소_계약_v0.4_보존형.md",
-      "source": "04_엔팔라이언트_DB_Storage_최소_계약_v0.3_보존형(1).md",
-      "source_bytes": 9740,
-      "output_bytes": 12431,
-      "delta": 2691
+      "file": "04_엔팔라이언트_DB_Storage_최소_계약_v0.5_보존형.md",
+      "source": "04_엔팔라이언트_DB_Storage_최소_계약_v0.4_보존형(1).md",
+      "source_bytes": 12431,
+      "output_bytes": 15870,
+      "delta": 3439
     },
     {
-      "file": "05_엔팔라이언트_Gateway_n8n_실행_계약_v0.4_보존형.md",
-      "source": "05_엔팔라이언트_Gateway_n8n_실행_계약_v0.3_보존형(1).md",
-      "source_bytes": 11916,
-      "output_bytes": 14607,
-      "delta": 2691
+      "file": "05_엔팔라이언트_Gateway_n8n_실행_계약_v0.5_보존형.md",
+      "source": "05_엔팔라이언트_Gateway_n8n_실행_계약_v0.4_보존형(1).md",
+      "source_bytes": 14607,
+      "output_bytes": 18046,
+      "delta": 3439
     },
     {
-      "file": "06_엔팔라이언트_n8n_프로세서_전환_체크리스트_v0.4_보존형.md",
-      "source": "06_엔팔라이언트_n8n_프로세서_전환_체크리스트_v0.3_보존형(1).md",
-      "source_bytes": 11901,
-      "output_bytes": 14592,
-      "delta": 2691
+      "file": "06_엔팔라이언트_n8n_프로세서_전환_체크리스트_v0.5_보존형.md",
+      "source": "06_엔팔라이언트_n8n_프로세서_전환_체크리스트_v0.4_보존형(1).md",
+      "source_bytes": 14592,
+      "output_bytes": 18031,
+      "delta": 3439
     },
     {
-      "file": "07_엔팔라이언트_결과_DB화_지식검색_최소_계약_v0.1.md",
+      "file": "07_엔팔라이언트_결과_DB화_지식검색_최소_계약_v0.2_보존형.md",
+      "source": "07_엔팔라이언트_결과_DB화_지식검색_최소_계약_v0.1(1).md",
+      "source_bytes": 10023,
+      "output_bytes": 13462,
+      "delta": 3439
+    },
+    {
+      "file": "N8Lient_n8n_마이그레이션_프롬프트_보강_결과DB화_v0.2.md",
+      "source": "N8Lient_n8n_마이그레이션_프롬프트_보강_결과DB화_v0.1(1).md",
+      "source_bytes": 1298,
+      "output_bytes": 4737,
+      "delta": 3439
+    },
+    {
+      "file": "08_엔팔라이언트_Google_Drive_Optional_Export_최소_계약_v0.1.md",
       "source": "NEW",
       "source_bytes": 0,
-      "output_bytes": 10023,
-      "delta": 10023
+      "output_bytes": 9021,
+      "delta": 9021
     },
     {
-      "file": "N8Lient_n8n_마이그레이션_프롬프트_보강_결과DB화_v0.1.md",
+      "file": "N8Lient_n8n_마이그레이션_프롬프트_보강_GoogleDriveOptionalExport_v0.1.md",
       "source": "NEW",
       "source_bytes": 0,
-      "output_bytes": 1298,
-      "delta": 1298
+      "output_bytes": 1589,
+      "delta": 1589
     }
   ]
 }
