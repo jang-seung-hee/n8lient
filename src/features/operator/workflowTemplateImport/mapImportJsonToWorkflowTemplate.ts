@@ -32,14 +32,23 @@ export function mapImportJsonToWorkflowTemplate(
       return !sensitiveKeywords.some(keyword => fKey.includes(keyword));
     })
     .map(field => {
+      // [버그 수정] Import JSON에서 inputType 또는 type 중 하나만 있을 수 있으므로
+      // 두 필드를 모두 수용하여 앱 내부 canonical 필드인 'type'으로 정규화합니다.
+      // 우선순위: field.type > field.inputType
+      const normalizedType = (field as any).type || (field as any).inputType || "";
+
       // select 타입에 options가 없으면 crash 위험이 있어 안전 기본값 주입
-      if (field.type === "select" && (!field.options || field.options.length === 0)) {
+      if (normalizedType === "select" && (!field.options || field.options.length === 0)) {
         return {
           ...field,
+          type: normalizedType,
           options: ["none"]
-        };
+        } as any;
       }
-      return field;
+      return {
+        ...field,
+        type: normalizedType,  // canonical 필드로 통일
+      } as any;
     });
 
   // 2. inputSchema 조립 및 디폴트 값 바인딩

@@ -249,8 +249,9 @@ export default function ConfigSchemaEditor({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>인풋 타입</span>
+                      {/* [버그 수정] Import JSON에 inputType만 있는 경우에도 드롭다운 value가 정상 표시되도록 fallback 처리 */}
                       <select
-                        value={field.type}
+                        value={(field as any).type || (field as any).inputType || "text"}
                         onChange={(e: any) => onFieldChange(idx, "type", e.target.value)}
                         style={{
                           height: "30px",

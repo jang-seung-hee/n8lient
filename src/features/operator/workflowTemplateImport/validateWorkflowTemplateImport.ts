@@ -127,7 +127,9 @@ export function validateWorkflowTemplateImport(
     configSchema.forEach((field, index) => {
       const fieldPath = `configSchema[${index}]`;
       const fKey = (field.key || "").trim();
-      const fType = field.type || "";
+      // [버그 수정] Import JSON은 type 또는 inputType 중 하나만 제공할 수 있으므로
+      // 두 필드를 모두 수용하여 canonical 필드인 type 기준으로 검증합니다.
+      const fType = (field as any).type || (field as any).inputType || "";
 
       if (!fKey) {
         addDiag(`${fieldPath}.key`, "error", `${index + 1}번째 설정 필드의 Key가 비어 있습니다.`);
@@ -147,8 +149,9 @@ export function validateWorkflowTemplateImport(
         }
       }
 
+      // type 누락 검사: type과 inputType 둘 다 없을 때만 오류로 판단합니다.
       if (!fType) {
-        addDiag(`${fieldPath}.type`, "error", `${index + 1}번째 설정 필드의 타입(type)이 누락되었습니다.`);
+        addDiag(`${fieldPath}.type`, "error", `${index + 1}번째 설정 필드 '${fKey}'의 인풋 타입이 누락되었습니다. (type 또는 inputType 중 하나를 지정하세요.)`);
       } else if (!allowedFieldTypes.includes(fType)) {
         addDiag(`${fieldPath}.type`, "error", `${index + 1}번째 설정 필드의 타입(${fType})은 지원하지 않는 규격입니다.`);
       } else if (fType === "select") {
