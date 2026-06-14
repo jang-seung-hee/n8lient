@@ -2,6 +2,14 @@
 
 import React, { useState } from "react";
 import type { ConfigSchemaField } from "@/types/n8lient";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import {
+  getDiagnosticStyles,
+  getFieldDiagnosticLevel,
+  getFieldDiagnosticMessage,
+  getDiagnosticMessageStyle,
+  getConfigSchemaCardStyles
+} from "@/features/operator/workflowAnalyzer";
 import { playAppSound } from "@/lib/appSound";
 
 interface ConfigSchemaEditorProps {
@@ -14,6 +22,7 @@ interface ConfigSchemaEditorProps {
   onFieldChange: (index: number, keyProp: keyof ConfigSchemaField, val: any) => void;
   onMoveField: (fromIdx: number, toIdx: number) => void;
   onSelectOptionsChange: (index: number, options: string[], tempOptionsStr: string) => void;
+  diagnostics?: WorkflowImportDiagnostics | null;
 }
 
 export default function ConfigSchemaEditor({
@@ -26,6 +35,7 @@ export default function ConfigSchemaEditor({
   onFieldChange,
   onMoveField,
   onSelectOptionsChange,
+  diagnostics = null,
 }: ConfigSchemaEditorProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
@@ -84,6 +94,7 @@ export default function ConfigSchemaEditor({
                   overflow: "hidden",
                   opacity: draggedIdx === idx ? 0.4 : 1,
                   transition: "all 0.15s ease",
+                  ...getConfigSchemaCardStyles(idx, diagnostics),
                 }}
               >
                 {/* 카드 헤더 영역 */}
@@ -199,8 +210,14 @@ export default function ConfigSchemaEditor({
                           outline: "none",
                           color: isExistingField ? "#9ca3af" : "#111111",
                           backgroundColor: isExistingField ? "#f3f4f6" : "#ffffff",
+                          ...getDiagnosticStyles(`configSchema[${idx}].key`, diagnostics)
                         }}
                       />
+                      {getFieldDiagnosticMessage(`configSchema[${idx}].key`, diagnostics) && (
+                        <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel(`configSchema[${idx}].key`, diagnostics)!)}>
+                          {getFieldDiagnosticMessage(`configSchema[${idx}].key`, diagnostics)}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>라벨 이름 *</span>
@@ -210,8 +227,22 @@ export default function ConfigSchemaEditor({
                         onChange={(e) => onFieldChange(idx, "label", e.target.value)}
                         placeholder="예: 구글 드라이브 폴더 ID"
                         required
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
+                        style={{
+                          height: "30px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          padding: "0 6px",
+                          fontSize: "12px",
+                          outline: "none",
+                          color: "#111111",
+                          ...getDiagnosticStyles(`configSchema[${idx}].label`, diagnostics)
+                        }}
                       />
+                      {getFieldDiagnosticMessage(`configSchema[${idx}].label`, diagnostics) && (
+                        <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel(`configSchema[${idx}].label`, diagnostics)!)}>
+                          {getFieldDiagnosticMessage(`configSchema[${idx}].label`, diagnostics)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -221,7 +252,17 @@ export default function ConfigSchemaEditor({
                       <select
                         value={field.type}
                         onChange={(e: any) => onFieldChange(idx, "type", e.target.value)}
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 4px", fontSize: "12px", outline: "none", backgroundColor: "#ffffff", color: "#111111" }}
+                        style={{
+                          height: "30px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          padding: "0 4px",
+                          fontSize: "12px",
+                          outline: "none",
+                          backgroundColor: "#ffffff",
+                          color: "#111111",
+                          ...getDiagnosticStyles(`configSchema[${idx}].type`, diagnostics)
+                        }}
                       >
                         <option value="text">text</option>
                         <option value="email">email</option>
@@ -231,6 +272,11 @@ export default function ConfigSchemaEditor({
                         <option value="textarea">textarea</option>
                         <option value="secret">secret</option>
                       </select>
+                      {getFieldDiagnosticMessage(`configSchema[${idx}].type`, diagnostics) && (
+                        <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel(`configSchema[${idx}].type`, diagnostics)!)}>
+                          {getFieldDiagnosticMessage(`configSchema[${idx}].type`, diagnostics)}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>기본값 출처</span>
@@ -264,8 +310,22 @@ export default function ConfigSchemaEditor({
                         value={field.placeholder || ""}
                         onChange={(e) => onFieldChange(idx, "placeholder", e.target.value)}
                         placeholder="예: 구글 드라이브 폴더 ID 입력"
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
+                        style={{
+                          height: "30px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          padding: "0 6px",
+                          fontSize: "12px",
+                          outline: "none",
+                          color: "#111111",
+                          ...getDiagnosticStyles(`configSchema[${idx}].placeholder`, diagnostics)
+                        }}
                       />
+                      {getFieldDiagnosticMessage(`configSchema[${idx}].placeholder`, diagnostics) && (
+                        <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel(`configSchema[${idx}].placeholder`, diagnostics)!)}>
+                          {getFieldDiagnosticMessage(`configSchema[${idx}].placeholder`, diagnostics)}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>가이드 설명 (Description)</span>
@@ -274,8 +334,22 @@ export default function ConfigSchemaEditor({
                         value={field.description || ""}
                         onChange={(e) => onFieldChange(idx, "description", e.target.value)}
                         placeholder="예: 사용자의 개인 드라이브 폴더 ID를 기재합니다."
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
+                        style={{
+                          height: "30px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          padding: "0 6px",
+                          fontSize: "12px",
+                          outline: "none",
+                          color: "#111111",
+                          ...getDiagnosticStyles(`configSchema[${idx}].description`, diagnostics)
+                        }}
                       />
+                      {getFieldDiagnosticMessage(`configSchema[${idx}].description`, diagnostics) && (
+                        <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel(`configSchema[${idx}].description`, diagnostics)!)}>
+                          {getFieldDiagnosticMessage(`configSchema[${idx}].description`, diagnostics)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -296,8 +370,22 @@ export default function ConfigSchemaEditor({
                           onSelectOptionsChange(idx, splitArray, formattedStr);
                         }}
                         placeholder="옵션1, 옵션2, 옵션3"
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
+                        style={{
+                          height: "30px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          padding: "0 6px",
+                          fontSize: "12px",
+                          outline: "none",
+                          color: "#111111",
+                          ...getDiagnosticStyles(`configSchema[${idx}].options`, diagnostics)
+                        }}
                       />
+                      {getFieldDiagnosticMessage(`configSchema[${idx}].options`, diagnostics) && (
+                        <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel(`configSchema[${idx}].options`, diagnostics)!)}>
+                          {getFieldDiagnosticMessage(`configSchema[${idx}].options`, diagnostics)}
+                        </span>
+                      )}
                     </div>
                   )}
 

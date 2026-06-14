@@ -2,9 +2,15 @@
 
 import React from "react";
 import type { RetentionLevel } from "@/types/n8lient";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import {
+  getDiagnosticStyles,
+  getFieldDiagnosticLevel,
+  getFieldDiagnosticMessage,
+  getDiagnosticMessageStyle
+} from "@/features/operator/workflowAnalyzer";
 
 export interface WorkflowRetentionPolicyFormProps {
-  // 1. retentionCapabilities 관련 props
   maxLevel: RetentionLevel;
   setMaxLevel: (val: RetentionLevel) => void;
   supportedLevels: RetentionLevel[];
@@ -20,7 +26,6 @@ export interface WorkflowRetentionPolicyFormProps {
   supportsResultPolicyRouter: boolean;
   setSupportsResultPolicyRouter: (val: boolean) => void;
 
-  // 2. operatorRetentionPolicy 관련 props
   opAllowedLevels: RetentionLevel[];
   setOpAllowedLevels: (val: RetentionLevel[]) => void;
   opDefaultLevel: RetentionLevel;
@@ -29,6 +34,7 @@ export interface WorkflowRetentionPolicyFormProps {
   setAllowCompanyOverride: (val: boolean) => void;
   allowUserOverride: boolean;
   setAllowUserOverride: (val: boolean) => void;
+  diagnostics?: WorkflowImportDiagnostics | null;
 }
 
 export default function WorkflowRetentionPolicyForm({
@@ -54,6 +60,7 @@ export default function WorkflowRetentionPolicyForm({
   setAllowCompanyOverride,
   allowUserOverride,
   setAllowUserOverride,
+  diagnostics = null,
 }: WorkflowRetentionPolicyFormProps) {
   return (
     <>
@@ -67,6 +74,7 @@ export default function WorkflowRetentionPolicyForm({
           display: "flex",
           flexDirection: "column",
           gap: "10px",
+          ...getDiagnosticStyles("retentionCapabilities.maxLevel", diagnostics)
         }}
       >
         <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: 0 }}>
@@ -115,6 +123,7 @@ export default function WorkflowRetentionPolicyForm({
                 outline: "none",
                 backgroundColor: "#ffffff",
                 color: "#111111",
+                ...getDiagnosticStyles("retentionCapabilities.defaultLevel", diagnostics)
               }}
             >
               {supportedLevels.map((lvl) => (
@@ -123,6 +132,11 @@ export default function WorkflowRetentionPolicyForm({
                 </option>
               ))}
             </select>
+            {getFieldDiagnosticMessage("retentionCapabilities.defaultLevel", diagnostics) && (
+              <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("retentionCapabilities.defaultLevel", diagnostics)!)}>
+                {getFieldDiagnosticMessage("retentionCapabilities.defaultLevel", diagnostics)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -186,6 +200,12 @@ export default function WorkflowRetentionPolicyForm({
             Result Policy Router 지원
           </label>
         </div>
+        
+        {getFieldDiagnosticMessage("retentionCapabilities.maxLevel", diagnostics) && (
+          <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("retentionCapabilities.maxLevel", diagnostics)!)}>
+            {getFieldDiagnosticMessage("retentionCapabilities.maxLevel", diagnostics)}
+          </span>
+        )}
       </div>
 
       {/* [v2.6] operatorRetentionPolicy (오퍼레이터 허용 보관 정책) */}
@@ -198,6 +218,7 @@ export default function WorkflowRetentionPolicyForm({
           display: "flex",
           flexDirection: "column",
           gap: "10px",
+          ...getDiagnosticStyles("operatorRetentionPolicy.allowedLevels", diagnostics)
         }}
       >
         <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#166534", margin: 0 }}>
@@ -246,6 +267,7 @@ export default function WorkflowRetentionPolicyForm({
                 outline: "none",
                 backgroundColor: "#ffffff",
                 color: "#111111",
+                ...getDiagnosticStyles("operatorRetentionPolicy.defaultLevel", diagnostics)
               }}
             >
               {opAllowedLevels.map((lvl) => (
@@ -254,6 +276,11 @@ export default function WorkflowRetentionPolicyForm({
                 </option>
               ))}
             </select>
+            {getFieldDiagnosticMessage("operatorRetentionPolicy.defaultLevel", diagnostics) && (
+              <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("operatorRetentionPolicy.defaultLevel", diagnostics)!)}>
+                {getFieldDiagnosticMessage("operatorRetentionPolicy.defaultLevel", diagnostics)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -275,6 +302,12 @@ export default function WorkflowRetentionPolicyForm({
             일반 사용자의 개인 보관 선호 수정 허용
           </label>
         </div>
+
+        {getFieldDiagnosticMessage("operatorRetentionPolicy.allowedLevels", diagnostics) && (
+          <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("operatorRetentionPolicy.allowedLevels", diagnostics)!)}>
+            {getFieldDiagnosticMessage("operatorRetentionPolicy.allowedLevels", diagnostics)}
+          </span>
+        )}
       </div>
     </>
   );

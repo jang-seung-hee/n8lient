@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
 import { playAppSound } from "@/lib/appSound";
 import ConfigSchemaEditor from "./components/ConfigSchemaEditor";
 import WorkflowRetentionPolicyForm from "./components/WorkflowRetentionPolicyForm";
@@ -17,6 +18,7 @@ interface WorkflowFormProps {
   onSubmit: (template: WorkflowTemplate) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
+  diagnostics?: WorkflowImportDiagnostics | null;
 }
 
 export function WorkflowForm({
@@ -25,6 +27,7 @@ export function WorkflowForm({
   onSubmit,
   onCancel,
   loading,
+  diagnostics = null,
 }: WorkflowFormProps) {
   // alert 지연 호출용 타이머 ID 보존 목록
   const timeoutIdsRef = useRef<number[]>([]);
@@ -409,6 +412,7 @@ export function WorkflowForm({
           description={description}
           setDescription={setDescription}
           isEditMode={isEditMode}
+          diagnostics={diagnostics}
         />
 
         <WorkflowRetentionPolicyForm
@@ -434,6 +438,7 @@ export function WorkflowForm({
           setAllowCompanyOverride={setAllowCompanyOverride}
           allowUserOverride={allowUserOverride}
           setAllowUserOverride={setAllowUserOverride}
+          diagnostics={diagnostics}
         />
 
         <WorkflowInputSchemaForm
@@ -445,6 +450,7 @@ export function WorkflowForm({
           setAllowedFileTypesStr={setAllowedFileTypesStr}
           maxFileSizeMB={maxFileSizeMB}
           setMaxFileSizeMB={setMaxFileSizeMB}
+          diagnostics={diagnostics}
         />
 
         <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
@@ -458,6 +464,7 @@ export function WorkflowForm({
           onFieldChange={handleFieldChange}
           onMoveField={handleMoveField}
           onSelectOptionsChange={handleSelectOptionsChange}
+          diagnostics={diagnostics}
         />
 
         <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>

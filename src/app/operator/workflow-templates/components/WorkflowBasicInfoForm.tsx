@@ -2,6 +2,13 @@
 
 import React from "react";
 import type { WorkflowTemplateStatus } from "@/types/n8lient";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import {
+  getDiagnosticStyles,
+  getFieldDiagnosticLevel,
+  getFieldDiagnosticMessage,
+  getDiagnosticMessageStyle
+} from "@/features/operator/workflowAnalyzer";
 
 export interface WorkflowBasicInfoFormProps {
   workflowKey: string;
@@ -21,6 +28,7 @@ export interface WorkflowBasicInfoFormProps {
   description: string;
   setDescription: (val: string) => void;
   isEditMode: boolean;
+  diagnostics?: WorkflowImportDiagnostics | null;
 }
 
 export default function WorkflowBasicInfoForm({
@@ -41,6 +49,7 @@ export default function WorkflowBasicInfoForm({
   description,
   setDescription,
   isEditMode,
+  diagnostics = null,
 }: WorkflowBasicInfoFormProps) {
 
   const handleWorkflowKeyChange = (val: string) => {
@@ -73,8 +82,14 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               color: isEditMode ? "#9ca3af" : "#111111",
               backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
+              ...getDiagnosticStyles("workflowKey", diagnostics)
             }}
           />
+          {getFieldDiagnosticMessage("workflowKey", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("workflowKey", diagnostics)!)}>
+              {getFieldDiagnosticMessage("workflowKey", diagnostics)}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>워크플로우 이름 *</label>
@@ -93,8 +108,14 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
+              ...getDiagnosticStyles("name", diagnostics)
             }}
           />
+          {getFieldDiagnosticMessage("name", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("name", diagnostics)!)}>
+              {getFieldDiagnosticMessage("name", diagnostics)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -116,8 +137,14 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
+              ...getDiagnosticStyles("shortName", diagnostics)
             }}
           />
+          {getFieldDiagnosticMessage("shortName", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("shortName", diagnostics)!)}>
+              {getFieldDiagnosticMessage("shortName", diagnostics)}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>버전 *</label>
@@ -136,8 +163,14 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
+              ...getDiagnosticStyles("version", diagnostics)
             }}
           />
+          {getFieldDiagnosticMessage("version", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("version", diagnostics)!)}>
+              {getFieldDiagnosticMessage("version", diagnostics)}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>배포 상태 *</label>
@@ -153,12 +186,18 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               backgroundColor: "#ffffff",
               color: "#111111",
+              ...getDiagnosticStyles("status", diagnostics)
             }}
           >
             <option value="published">배포완료 (published)</option>
             <option value="draft">작성중 (draft)</option>
             <option value="disabled">비활성 (disabled)</option>
           </select>
+          {getFieldDiagnosticMessage("status", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("status", diagnostics)!)}>
+              {getFieldDiagnosticMessage("status", diagnostics)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -180,8 +219,14 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
+              ...getDiagnosticStyles("webhookSecretId", diagnostics)
             }}
           />
+          {getFieldDiagnosticMessage("webhookSecretId", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("webhookSecretId", diagnostics)!)}>
+              {getFieldDiagnosticMessage("webhookSecretId", diagnostics)}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>n8n 서버 식별 Key *</label>
@@ -200,8 +245,14 @@ export default function WorkflowBasicInfoForm({
               outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
+              ...getDiagnosticStyles("n8nServerKey", diagnostics)
             }}
           />
+          {getFieldDiagnosticMessage("n8nServerKey", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("n8nServerKey", diagnostics)!)}>
+              {getFieldDiagnosticMessage("n8nServerKey", diagnostics)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -221,8 +272,14 @@ export default function WorkflowBasicInfoForm({
             color: "#111111",
             backgroundColor: "#ffffff",
             resize: "vertical",
+            ...getDiagnosticStyles("description", diagnostics)
           }}
         />
+        {getFieldDiagnosticMessage("description", diagnostics) && (
+          <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("description", diagnostics)!)}>
+            {getFieldDiagnosticMessage("description", diagnostics)}
+          </span>
+        )}
       </div>
     </>
   );

@@ -30,6 +30,7 @@ export default function OperatorTemplates() {
   // 3단계 신규 분석 드래프트 진단 및 경고 확인 상태
   const [activeImportDraft, setActiveImportDraft] = useState<WorkflowTemplateImportDraft | null>(null);
   const [warningConfirmed, setWarningConfirmed] = useState(false);
+  const [showFullDiagnostics, setShowFullDiagnostics] = useState(false);
 
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -411,68 +412,93 @@ export default function OperatorTemplates() {
 
       {viewMode === "form" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
-          {activeImportDraft && (
-            <div
-              style={{
-                backgroundColor: activeImportDraft.diagnostics.severity === "error" ? "#fee2e2" : "#ffedd5",
-                border: activeImportDraft.diagnostics.severity === "error" ? "1px solid #fca5a5" : "1px solid #fed7aa",
-                borderRadius: "8px",
-                padding: "16px",
-                fontSize: "13px",
-                color: activeImportDraft.diagnostics.severity === "error" ? "#991b1b" : "#9a3412",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "16px" }}>
-                  {activeImportDraft.diagnostics.severity === "error" ? "⚠️" : "💡"}
-                </span>
-                <span style={{ fontWeight: 700, fontSize: "14px" }}>
-                  {activeImportDraft.diagnostics.severity === "error" ? "분석 진단 오류 존재" : "분석 진단 경고 검토"}
-                </span>
-              </div>
-              <p style={{ margin: 0, lineHeight: 1.45 }}>
-                이 워크플로우는 n8n JSON 분석 파일에서 자동 추출된 필드로 구성되었습니다.
-                {activeImportDraft.diagnostics.severity === "error" 
-                  ? " 중복된 식별 Key 등 치명적 오류가 존재합니다. 아래 진단 목록을 참고하여 입력 폼에서 올바르게 수정한 뒤 저장해야 완료할 수 있습니다."
-                  : " 아래 확인 필요 사항이 존재합니다. 관련 값을 검토하시고, 하단 동의 체크박스를 체크해야 저장할 수 있습니다."}
-              </p>
-              
-              {/* 진단 에러/경고 목록 표시 */}
+          {activeImportDraft && (() => {
+            const errorCount = activeImportDraft.diagnostics.items.filter((item: any) => item.level === "error").length;
+            const warningCount = activeImportDraft.diagnostics.items.filter((item: any) => item.level === "warning").length;
+            const okCount = activeImportDraft.diagnostics.items.filter((item: any) => item.level === "ok").length;
+
+            return (
               <div
                 style={{
-                  maxHeight: "120px",
-                  overflowY: "auto",
-                  border: "1px solid rgba(0, 0, 0, 0.08)",
-                  borderRadius: "6px",
-                  padding: "10px",
-                  backgroundColor: "rgba(255, 255, 255, 0.5)",
+                  backgroundColor: activeImportDraft.diagnostics.severity === "error" ? "#fee2e2" : "#ffedd5",
+                  border: activeImportDraft.diagnostics.severity === "error" ? "1px solid #fca5a5" : "1px solid #fed7aa",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  fontSize: "13px",
+                  color: activeImportDraft.diagnostics.severity === "error" ? "#991b1b" : "#9a3412",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
                 }}
               >
-                <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.5 }}>
-                  {activeImportDraft.diagnostics.items.map((item: any, idx: number) => (
-                    <li key={idx} style={{ color: item.level === "error" ? "#b91c1c" : "#c2410c", marginBottom: "4px" }}>
-                      <strong>[{item.field}]</strong>: {item.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "16px" }}>
+                      {activeImportDraft.diagnostics.severity === "error" ? "⚠️" : "💡"}
+                    </span>
+                    <span style={{ fontWeight: 700, fontSize: "14px" }}>
+                      분석 결과 요약 (오류 {errorCount}건 / 확인 필요 {warningCount}건 / 정상 {okCount}건)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFullDiagnostics(!showFullDiagnostics)}
+                    style={{
+                      fontSize: "11px",
+                      padding: "4px 8px",
+                      backgroundColor: "rgba(0, 0, 0, 0.05)",
+                      border: "1px solid rgba(0, 0, 0, 0.1)",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      color: "inherit"
+                    }}
+                  >
+                    {showFullDiagnostics ? "접기 ▲" : "전체 진단 목록 보기 ▼"}
+                  </button>
+                </div>
 
-              {activeImportDraft.diagnostics.severity !== "error" && (
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }}>
-                  <input
-                    type="checkbox"
-                    checked={warningConfirmed}
-                    onChange={(e) => setWarningConfirmed(e.target.checked)}
-                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
-                  />
-                  <span>경고 항목들을 모두 확인했으며, 현재 값으로 저장을 진행합니다.</span>
-                </label>
-              )}
-            </div>
-          )}
+                <div style={{ fontSize: "12px", lineHeight: 1.5, opacity: 0.9 }}>
+                  <p style={{ margin: "2px 0" }}>• <span style={{ color: "#b91c1c", fontWeight: 700 }}>빨간색 필드</span>는 저장 전 수정이 필요합니다.</p>
+                  <p style={{ margin: "2px 0" }}>• <span style={{ color: "#c2410c", fontWeight: 700 }}>주황색 필드</span>는 확인 후 저장할 수 있습니다.</p>
+                </div>
+                
+                {/* 접이식 진단 에러/경고 목록 표시 */}
+                {showFullDiagnostics && (
+                  <div
+                    style={{
+                      maxHeight: "150px",
+                      overflowY: "auto",
+                      border: "1px solid rgba(0, 0, 0, 0.08)",
+                      borderRadius: "6px",
+                      padding: "10px",
+                      backgroundColor: "rgba(255, 255, 255, 0.7)",
+                    }}
+                  >
+                    <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.5 }}>
+                      {activeImportDraft.diagnostics.items.map((item: any, idx: number) => (
+                        <li key={idx} style={{ color: item.level === "error" ? "#b91c1c" : item.level === "warning" ? "#c2410c" : "#1d4ed8", marginBottom: "4px" }}>
+                          <strong>[{item.field}]</strong> ({item.level.toUpperCase()}): {item.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {activeImportDraft.diagnostics.severity !== "error" && (
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }}>
+                    <input
+                      type="checkbox"
+                      checked={warningConfirmed}
+                      onChange={(e) => setWarningConfirmed(e.target.checked)}
+                      style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                    />
+                    <span>경고 항목들을 모두 확인했으며, 현재 값으로 저장을 진행합니다.</span>
+                  </label>
+                )}
+              </div>
+            );
+          })()}
 
           <WorkflowForm
             initialData={selectedTemplate}
@@ -480,6 +506,7 @@ export default function OperatorTemplates() {
             onSubmit={handleFormSubmit}
             onCancel={handleBackToList}
             loading={loading}
+            diagnostics={activeImportDraft?.diagnostics}
           />
         </div>
       )}

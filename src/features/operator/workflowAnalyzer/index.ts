@@ -5,3 +5,4 @@ export * from "./workflowImportTypes";
 export * from "./analyzeN8nWorkflow";
 export * from "./validateWorkflowImport";
 export * from "./mapAnalysisToWorkflowTemplate";
+export * from "./diagnosticFieldHelpers";
