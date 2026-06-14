@@ -43,6 +43,13 @@ export interface WorkflowTemplateImportDraft {
     n8nWorkflowName?: string;  // n8n 내에 정의된 워크플로우 이름
     n8nActive?: boolean | null; // n8n 활성화 여부
     detectedWebhookPath?: string; // 감지된 웹훅 경로
+    annotationDetected?: boolean; // 주석 메타 감지 여부
+    annotationBlocks?: {
+      workflowMeta: boolean;
+      configFieldCount: number;
+      retentionPolicy: boolean;
+    };
+    unknownFields?: string[]; // 알 수 없는 설정 필드 목록
   };
   workflowTemplate: Partial<WorkflowTemplate>; // 폼에 선반영할 워크플로우 데이터 초안
   diagnostics: WorkflowImportDiagnostics;      // 정합성 및 충돌 진단 결과
