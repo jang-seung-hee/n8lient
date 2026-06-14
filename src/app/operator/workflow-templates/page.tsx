@@ -19,7 +19,12 @@ import { WorkflowList } from "./WorkflowList";
 import { WorkflowDetail } from "./WorkflowDetail";
 import { WorkflowForm } from "./WorkflowForm";
 import { WorkflowImportPanel } from "./components/WorkflowImportPanel";
-import { mapImportJsonToWorkflowTemplate, type WorkflowTemplateImportDraft } from "@/features/operator/workflowTemplateImport";
+import {
+  mapImportJsonToWorkflowTemplate,
+  validateWorkflowTemplateImport,
+  type WorkflowTemplateImportDraft,
+  type WorkflowImportDiagnostics,
+} from "@/features/operator/workflowTemplateImport";
 
 export default function OperatorTemplates() {
   // 1. 핵심 상태 제어 변수
@@ -29,6 +34,8 @@ export default function OperatorTemplates() {
 
   // 3단계 신규 분석 드래프트 진단 및 경고 확인 상태
   const [activeImportDraft, setActiveImportDraft] = useState<WorkflowTemplateImportDraft | null>(null);
+  /** Import 등록 모드에서 폼 수정 시 실시간 재검증된 diagnostics (null이면 activeImportDraft.diagnostics 기준으로 표시) */
+  const [liveImportDiagnostics, setLiveImportDiagnostics] = useState<WorkflowImportDiagnostics | null>(null);
   const [warningConfirmed, setWarningConfirmed] = useState(false);
   const [showFullDiagnostics, setShowFullDiagnostics] = useState(false);
 
@@ -102,6 +109,8 @@ export default function OperatorTemplates() {
     setSelectedTemplate(mapped);
     setIsEditMode(false);
     setActiveImportDraft(draft);
+    // Import 적용 직후에는 live diagnostics를 초기화하여 activeImportDraft.diagnostics 기준으로 표시합니다.
+    setLiveImportDiagnostics(null);
     setWarningConfirmed(false);
     setViewMode("form");
   };
@@ -111,6 +120,8 @@ export default function OperatorTemplates() {
     if (!selectedTemplate) return;
     setIsEditMode(true);
     setActiveImportDraft(null);
+    // 수정 모드에서는 live diagnostics가 없어야 합니다.
+    setLiveImportDiagnostics(null);
     setWarningConfirmed(false);
     setViewMode("form");
   };
@@ -120,6 +131,8 @@ export default function OperatorTemplates() {
     if (!selectedTemplate) return;
     setIsEditMode(false);
     setActiveImportDraft(null);
+    // 복제는 Import 드래프트 없이 진행되므로 live diagnostics도 초기화합니다.
+    setLiveImportDiagnostics(null);
     setWarningConfirmed(false);
     // 복제 시에는 새 workflowKey를 사용자가 새로 입력해야 하므로 key를 비움
     const cloneTarget: WorkflowTemplate = {
@@ -139,13 +152,32 @@ export default function OperatorTemplates() {
     playAppSound("click");
     setSelectedTemplate(null);
     setActiveImportDraft(null);
+    setLiveImportDiagnostics(null);
     setWarningConfirmed(false);
     setViewMode("list");
   };
 
+  // Import 등록 모드에서 폼 값이 바뀔 때마다 호출되는 실시간 재검증 핸들러
+  const handleImportDraftChange = (currentTemplate: WorkflowTemplate) => {
+    if (!activeImportDraft || isEditMode) return;
+    // 현재 폼 값을 기준으로 드래프트를 구성한 뒤 재검증을 수행합니다.
+    const nextDraft: WorkflowTemplateImportDraft = {
+      ...activeImportDraft,
+      workflowTemplate: {
+        ...activeImportDraft.workflowTemplate,
+        ...currentTemplate,
+      },
+    };
+    const revalidated = validateWorkflowTemplateImport(nextDraft, templates);
+    // live diagnostics를 갱신하여 폼 필드 색상과 안내문이 즉시 반영되도록 합니다.
+    setLiveImportDiagnostics(revalidated.diagnostics);
+    // 값이 변경되면 경고 확인 체크를 해제하여 다시 동의하도록 유도합니다.
+    setWarningConfirmed(false);
+  };
+
   // 4. 폼 등록/수정 서브밋 처리 (DB 연동 로직 완벽 보존)
   const handleFormSubmit = async (template: WorkflowTemplate) => {
-    // 3단계: 신규 등록 분석 진행 시 저장 직전 재검증 처리
+    // Import 등록 모드에서 저장 직전 최종 재검증 수행 (실시간 재검증과 동일한 validator 사용)
     if (!isEditMode && activeImportDraft) {
       const draftCopy: WorkflowTemplateImportDraft = {
         ...activeImportDraft,
@@ -155,10 +187,9 @@ export default function OperatorTemplates() {
         }
       };
 
-      const { validateWorkflowTemplateImport } = require("@/features/operator/workflowTemplateImport");
       const revalidatedDraft = validateWorkflowTemplateImport(draftCopy, templates);
-
-      setActiveImportDraft(revalidatedDraft);
+      // 저장 직전 최종 재검증 결과를 live diagnostics에 반영합니다.
+      setLiveImportDiagnostics(revalidatedDraft.diagnostics);
 
       const hasError = revalidatedDraft.diagnostics.severity === "error" || 
                        revalidatedDraft.diagnostics.items.some((item: any) => item.level === "error");
@@ -410,22 +441,26 @@ export default function OperatorTemplates() {
         />
       )}
 
-      {viewMode === "form" && (
+      {viewMode === "form" && (() => {
+        // live diagnostics를 우선 표시하고, 없으면 Import 최초 diagnostics를 표시합니다.
+        // 직접 등록/수정 모드에서는 activeImportDraft가 null이므로 displayDiagnostics도 null이 됩니다.
+        const displayDiagnostics = liveImportDiagnostics ?? activeImportDraft?.diagnostics ?? null;
+        return (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
-          {activeImportDraft && (() => {
-            const errorCount = activeImportDraft.diagnostics.items.filter((item: any) => item.level === "error").length;
-            const warningCount = activeImportDraft.diagnostics.items.filter((item: any) => item.level === "warning").length;
-            const okCount = activeImportDraft.diagnostics.items.filter((item: any) => item.level === "ok").length;
+          {activeImportDraft && displayDiagnostics && (() => {
+            const errorCount = displayDiagnostics.items.filter((item: any) => item.level === "error").length;
+            const warningCount = displayDiagnostics.items.filter((item: any) => item.level === "warning").length;
+            const okCount = displayDiagnostics.items.filter((item: any) => item.level === "ok").length;
 
             return (
               <div
                 style={{
-                  backgroundColor: activeImportDraft.diagnostics.severity === "error" ? "#fee2e2" : "#ffedd5",
-                  border: activeImportDraft.diagnostics.severity === "error" ? "1px solid #fca5a5" : "1px solid #fed7aa",
+                  backgroundColor: displayDiagnostics.severity === "error" ? "#fee2e2" : "#ffedd5",
+                  border: displayDiagnostics.severity === "error" ? "1px solid #fca5a5" : "1px solid #fed7aa",
                   borderRadius: "8px",
                   padding: "16px",
                   fontSize: "13px",
-                  color: activeImportDraft.diagnostics.severity === "error" ? "#991b1b" : "#9a3412",
+                  color: displayDiagnostics.severity === "error" ? "#991b1b" : "#9a3412",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
@@ -434,7 +469,7 @@ export default function OperatorTemplates() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <span style={{ fontSize: "16px" }}>
-                      {activeImportDraft.diagnostics.severity === "error" ? "⚠️" : "💡"}
+                      {displayDiagnostics.severity === "error" ? "⚠️" : "💡"}
                     </span>
                     <span style={{ fontWeight: 700, fontSize: "14px" }}>
                       분석 결과 요약 (오류 {errorCount}건 / 확인 필요 {warningCount}건 / 정상 {okCount}건)
@@ -476,7 +511,7 @@ export default function OperatorTemplates() {
                     }}
                   >
                     <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.5 }}>
-                      {activeImportDraft.diagnostics.items.map((item: any, idx: number) => (
+                      {displayDiagnostics.items.map((item: any, idx: number) => (
                         <li key={idx} style={{ color: item.level === "error" ? "#b91c1c" : item.level === "warning" ? "#c2410c" : "#1d4ed8", marginBottom: "4px" }}>
                           <strong>[{item.field}]</strong> ({item.level.toUpperCase()}): {item.message}
                         </li>
@@ -485,7 +520,7 @@ export default function OperatorTemplates() {
                   </div>
                 )}
 
-                {activeImportDraft.diagnostics.severity !== "error" && (
+                {displayDiagnostics.severity !== "error" && (
                   <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }}>
                     <input
                       type="checkbox"
@@ -506,10 +541,12 @@ export default function OperatorTemplates() {
             onSubmit={handleFormSubmit}
             onCancel={handleBackToList}
             loading={loading}
-            diagnostics={activeImportDraft?.diagnostics}
+            diagnostics={activeImportDraft && !isEditMode ? displayDiagnostics : null}
+            onDraftChange={activeImportDraft && !isEditMode ? handleImportDraftChange : undefined}
           />
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

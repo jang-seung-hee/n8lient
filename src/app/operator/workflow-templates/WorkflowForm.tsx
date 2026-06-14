@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
 import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import { playAppSound } from "@/lib/appSound";
@@ -19,6 +19,8 @@ interface WorkflowFormProps {
   onCancel: () => void;
   loading: boolean;
   diagnostics?: WorkflowImportDiagnostics | null;
+  /** Import 등록 모드에서만 전달: 현재 폼 상태가 바뀔 때마다 호출되어 부모에서 실시간 재검증을 수행할 수 있습니다. */
+  onDraftChange?: (currentTemplate: WorkflowTemplate) => void;
 }
 
 export function WorkflowForm({
@@ -28,13 +30,17 @@ export function WorkflowForm({
   onCancel,
   loading,
   diagnostics = null,
+  onDraftChange,
 }: WorkflowFormProps) {
   // alert 지연 호출용 타이머 ID 보존 목록
   const timeoutIdsRef = useRef<number[]>([]);
+  // 300ms debounce 용 타이머 ID
+  const draftDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
     };
   }, []);
 
@@ -179,7 +185,104 @@ export function WorkflowForm({
     }
   }, [initialData, isEditMode]);
 
-  // 3. 로컬 이벤트 핸들러
+  // 3. 실시간 폼 상태 조립 및 부모 통보 (onDraftChange가 있을 때만 실행)
+  //    현재 폼의 모든 state를 WorkflowTemplate 형태로 조립한 뒤 300ms debounce 후 전달합니다.
+  const notifyDraftChange = useCallback(() => {
+    if (!onDraftChange) return;
+    if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
+    draftDebounceRef.current = setTimeout(() => {
+      const { getDefaultRetentionPolicy } = require("@/types/n8lient");
+      const allowedFileTypes = allowedFileTypesStr
+        .split(",")
+        .map((x: string) => x.trim().toLowerCase())
+        .filter(Boolean);
+      const currentTemplate: WorkflowTemplate = {
+        workflowKey,
+        name,
+        shortName,
+        description: description || undefined,
+        version,
+        status,
+        webhookSecretId: webhookSecretId.trim() || workflowKey,
+        n8nServerKey: n8nServerKey.trim() || "main",
+        configSchemaVersion: 1,
+        inputSchema: {
+          acceptedInputTypes: acceptedTypes as Array<"text" | "file" | "audio" | "image">,
+          allowedFileTypes,
+          maxFileSizeMB,
+          titleRequired,
+        },
+        configSchema: schemaFields.map((f) => {
+          const copy = { ...f } as any;
+          if (copy.type === "select") {
+            const src = copy.tempOptionsStr !== undefined ? copy.tempOptionsStr : (copy.options?.join(", ") || "");
+            copy.options = src.split(",").map((x: string) => x.trim()).filter(Boolean);
+          }
+          delete copy.tempOptionsStr;
+          return copy;
+        }),
+        retentionPolicy: getDefaultRetentionPolicy(opDefaultLevel),
+        retentionCapabilities: {
+          maxLevel,
+          supportedLevels,
+          defaultLevel: capsDefaultLevel,
+          supportsProcessorResult,
+          supportsOriginalFileRefs,
+          supportsResultRefs,
+          supportsEmailNotification,
+          supportsResultPolicyRouter,
+        },
+        operatorRetentionPolicy: {
+          allowedLevels: opAllowedLevels,
+          defaultLevel: opDefaultLevel,
+          allowCompanyOverride,
+          allowUserOverride,
+        },
+        createdAt: initialData?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      onDraftChange(currentTemplate);
+    }, 300);
+  }, [
+    onDraftChange,
+    workflowKey, name, shortName, description, version, status,
+    webhookSecretId, n8nServerKey,
+    acceptedTypes, allowedFileTypesStr, maxFileSizeMB, titleRequired,
+    schemaFields,
+    maxLevel, supportedLevels, capsDefaultLevel,
+    supportsProcessorResult, supportsOriginalFileRefs, supportsResultRefs,
+    supportsEmailNotification, supportsResultPolicyRouter,
+    opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
+    initialData,
+  ]);
+
+  // onDraftChange가 제공된 경우에만 폼 상태가 변경될 때 부모에게 통보합니다.
+  // 초기 데이터 주입(initialData 변경) 시에는 호출하지 않도록 별도 마운트 플래그를 사용합니다.
+  const isFirstRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    notifyDraftChange();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    workflowKey, name, shortName, description, version, status,
+    webhookSecretId, n8nServerKey,
+    acceptedTypes, allowedFileTypesStr, maxFileSizeMB, titleRequired,
+    schemaFields,
+    maxLevel, supportedLevels, capsDefaultLevel,
+    supportsProcessorResult, supportsOriginalFileRefs, supportsResultRefs,
+    supportsEmailNotification, supportsResultPolicyRouter,
+    opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
+  ]);
+
+  // initialData가 바뀔 때(Import 적용 직후 포함)마다 isFirstRender를 리셋합니다.
+  useEffect(() => {
+    isFirstRenderRef.current = true;
+  }, [initialData]);
+
+  // 4. 로컬 이벤트 핸들러
 
 
 
