@@ -1,7 +1,5 @@
-// n8n 워크플로우 JSON 내부에 작성된 N8Lient 등록 주석 메타데이터를 파싱하는 서비스 모듈입니다.
+// n8n JSON 내부의 Sticky Note와 노드별 설명 주석에서 N8Lient 명세 메타데이터를 정밀 파싱하는 모듈입니다.
 // 한국어 주석 표준을 준수합니다.
-
-import type { ConfigSchemaField } from "@/types/n8lient";
 
 export interface ParsedAnnotations {
   workflowMeta?: {
@@ -14,7 +12,16 @@ export interface ParsedAnnotations {
     maxFileSizeMB?: number;
     [key: string]: any;
   };
-  configFields: Array<ConfigSchemaField & { [key: string]: any }>;
+  configFields: Array<{
+    key: string;
+    label?: string;
+    inputType?: string;
+    required?: boolean;
+    placeholder?: string;
+    description?: string;
+    options?: string[];
+    [key: string]: any;
+  }>;
   retentionPolicy?: {
     supportedLevels?: string[];
     maxLevel?: string;
@@ -29,66 +36,12 @@ export interface ParsedAnnotations {
     allowUserOverride?: boolean;
     [key: string]: any;
   };
-  unknownFields: string[];
+  unknownFields: string[]; // 파싱 과정에서 인지하지 못한 형식 오류나 키 기록
 }
 
-const SENSITIVE_KEYWORDS = [
-  "token",
-  "secret",
-  "credential",
-  "credentialid",
-  "accesstoken",
-  "refreshtoken",
-  "privatekey",
-  "apikey",
-  "api_key",
-  "password",
-  "serviceaccount",
-  "clientsecret",
-  "authorization",
-  "bearer",
-  "cookie",
-  "firebaseadmin",
-];
-
-const VALID_WORKFLOW_META_KEYS = [
-  "name",
-  "shortname",
-  "description",
-  "titlerequired",
-  "acceptedinputtypes",
-  "allowedextensions",
-  "maxfilesizemb",
-];
-
-const VALID_CONFIG_FIELD_KEYS = [
-  "key",
-  "label",
-  "inputtype",
-  "type",
-  "required",
-  "placeholder",
-  "description",
-  "options",
-];
-
-const VALID_RETENTION_POLICY_KEYS = [
-  "supportedlevels",
-  "maxlevel",
-  "defaultlevel",
-  "supportsprocessorresult",
-  "supportsoriginalfilerefs",
-  "supportsresultrefs",
-  "supportsresultpolicyrouter",
-  "allowedlevels",
-  "operatordefaultlevel",
-  "allowcompanyoverride",
-  "allowuseroverride",
-];
-
 /**
- * n8n JSON에서 Sticky Note 또는 텍스트 주석 블록들을 찾아 파싱합니다.
- * @param workflowJson n8n 워크플로우 JSON 객체
+ * n8n 워크플로우 JSON 데이터를 통째로 스캔하여 포함된 N8Lient 주석 텍스트를 추출하고 객체 구조로 파싱합니다.
+ * @param workflowJson n8n 워크플로우 JSON
  */
 export function parseN8lientAnnotations(workflowJson: unknown): ParsedAnnotations {
   const result: ParsedAnnotations = {
@@ -100,177 +53,162 @@ export function parseN8lientAnnotations(workflowJson: unknown): ParsedAnnotation
     return result;
   }
 
+  // 1. 모든 텍스트 포함 가능성이 있는 속성 스캔 및 병합
   const rawObj = workflowJson as any;
-  const textsToScan: string[] = [];
+  const rawTexts: string[] = [];
 
-  // 1. 최상위 notes 및 description 검사
-  if (typeof rawObj.notes === "string" && rawObj.notes) textsToScan.push(rawObj.notes);
-  if (typeof rawObj.description === "string" && rawObj.description) textsToScan.push(rawObj.description);
+  // 최상위 정보 수집
+  if (typeof rawObj.description === "string") rawTexts.push(rawObj.description);
+  if (Array.isArray(rawObj.notes)) {
+    rawObj.notes.forEach((n: any) => {
+      if (typeof n === "string") rawTexts.push(n);
+      else if (n && typeof n.content === "string") rawTexts.push(n.content);
+    });
+  }
 
-  // 2. nodes 루프 돌며 텍스트 수집
+  // 노드 단위 정보 수집
   const nodes = Array.isArray(rawObj.nodes) ? rawObj.nodes : [];
   for (const node of nodes) {
-    if (node.notes && typeof node.notes === "string") {
-      textsToScan.push(node.notes);
+    if (!node || typeof node !== "object") continue;
+
+    // notes 속성
+    if (typeof node.notes === "string") {
+      rawTexts.push(node.notes);
     }
+    
+    // parameters 내의 note, content, text 등
     const params = node.parameters;
-    if (params) {
-      if (typeof params.content === "string" && params.content) textsToScan.push(params.content);
-      if (typeof params.note === "string" && params.note) textsToScan.push(params.note);
-      if (typeof params.text === "string" && params.text) textsToScan.push(params.text);
+    if (params && typeof params === "object") {
+      if (typeof params.content === "string") rawTexts.push(params.content);
+      if (typeof params.note === "string") rawTexts.push(params.note);
+      if (typeof params.text === "string") rawTexts.push(params.text);
+    }
+
+    // stickyNote 노드 감지
+    const isSticky = node.type === "n8n-nodes-base.stickyNote" || String(node.type).includes("stickyNote");
+    if (isSticky && params && typeof params === "object") {
+      if (typeof params.content === "string") rawTexts.push(params.content);
     }
   }
 
-  // 병합된 단일 텍스트
-  const mergedText = textsToScan.join("\n\n");
+  // 텍스트 하나로 병합
+  const fullText = rawTexts.join("\n");
 
-  // 3. 주석 블록 정규식 매칭 (대소문자 무관)
-  const metaRegex = /\[N8LIENT_WORKFLOW_META\]([\s\S]*?)\[\/N8LIENT_WORKFLOW_META\]/gi;
-  const configRegex = /\[N8LIENT_CONFIG_FIELD\]([\s\S]*?)\[\/N8LIENT_CONFIG_FIELD\]/gi;
-  const retentionRegex = /\[N8LIENT_RETENTION_POLICY\]([\s\S]*?)\[\/N8LIENT_RETENTION_POLICY\]/gi;
+  // 2. 블록 단위 추출 정규식
+  const workflowMetaRegex = /\[N8LIENT_WORKFLOW_META\]([\s\S]*?)\[\/N8LIENT_WORKFLOW_META\]/gi;
+  const configFieldRegex = /\[N8LIENT_CONFIG_FIELD\]([\s\S]*?)\[\/N8LIENT_CONFIG_FIELD\]/gi;
+  const retentionPolicyRegex = /\[N8LIENT_RETENTION_POLICY\]([\s\S]*?)\[\/N8LIENT_RETENTION_POLICY\]/gi;
 
-  // 3.1 WORKFLOW_META 파싱
+  // 헬퍼: key=value 라인 파싱
+  const parseBlockLines = (blockText: string): Record<string, string> => {
+    const lines = blockText.split("\n");
+    const data: Record<string, string> = {};
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine || trimmedLine.startsWith("#") || trimmedLine.startsWith("//")) continue;
+
+      const equalIdx = trimmedLine.indexOf("=");
+      if (equalIdx === -1) continue;
+
+      const key = trimmedLine.substring(0, equalIdx).trim();
+      const val = trimmedLine.substring(equalIdx + 1).trim();
+      if (key) {
+        data[key] = val;
+      }
+    }
+    return data;
+  };
+
+  // 3. WORKFLOW_META 파싱
   let metaMatch;
-  while ((metaMatch = metaRegex.exec(mergedText)) !== null) {
+  while ((metaMatch = workflowMetaRegex.exec(fullText)) !== null) {
     if (metaMatch[1]) {
-      const parsed = parseKeyValuePairBlock(metaMatch[1]);
-      const workflowMeta: Record<string, any> = {};
+      const kv = parseBlockLines(metaMatch[1]);
+      const meta: ParsedAnnotations["workflowMeta"] = {};
 
-      for (const [k, v] of Object.entries(parsed)) {
-        const lowerK = k.toLowerCase();
-        if (!VALID_WORKFLOW_META_KEYS.includes(lowerK)) {
-          result.unknownFields.push(`workflowMeta.${k}`);
-        }
-
-        // 특정 타입 변환
-        if (lowerK === "titlerequired") {
-          workflowMeta.titleRequired = parseBoolean(v);
-        } else if (lowerK === "maxfilesizemb") {
-          workflowMeta.maxFileSizeMB = parseInt(v, 10) || 50;
-        } else if (lowerK === "acceptedinputtypes") {
-          workflowMeta.acceptedInputTypes = parseArray(v);
-        } else if (lowerK === "allowedextensions") {
-          workflowMeta.allowedExtensions = parseArray(v);
+      for (const [k, v] of Object.entries(kv)) {
+        if (k === "name" || k === "shortName" || k === "description") {
+          meta[k] = v;
+        } else if (k === "titleRequired") {
+          meta[k] = v.toLowerCase() === "true";
+        } else if (k === "maxFileSizeMB") {
+          const num = parseInt(v, 10);
+          meta[k] = isNaN(num) ? 50 : num;
+        } else if (k === "acceptedInputTypes" || k === "allowedExtensions") {
+          meta[k] = v.split(",").map((x) => x.trim()).filter(Boolean);
         } else {
-          // name, shortName, description 등
-          // 캐멀케이스 매핑
-          const targetKey = k === "shortName" ? "shortName" : k;
-          workflowMeta[targetKey] = v;
+          meta[k] = v;
+          result.unknownFields.push(`[WORKFLOW_META] 정의되지 않은 설정 키 발견: ${k}=${v}`);
         }
       }
-
-      result.workflowMeta = workflowMeta;
+      result.workflowMeta = meta;
     }
   }
 
-  // 3.2 CONFIG_FIELD 파싱
-  let configMatch;
-  while ((configMatch = configRegex.exec(mergedText)) !== null) {
-    if (configMatch[1]) {
-      const parsed = parseKeyValuePairBlock(configMatch[1]);
-      const configField: Record<string, any> = {};
-
-      for (const [k, v] of Object.entries(parsed)) {
-        const lowerK = k.toLowerCase();
-        if (!VALID_CONFIG_FIELD_KEYS.includes(lowerK)) {
-          result.unknownFields.push(`configSchema[].${k}`);
-        }
-
-        if (lowerK === "required") {
-          configField.required = parseBoolean(v);
-        } else if (lowerK === "options") {
-          configField.options = parseArray(v);
-        } else if (lowerK === "inputtype" || lowerK === "type") {
-          configField.type = v; // inputType도 type으로 바인딩
-        } else {
-          configField[k] = v;
-        }
-      }
-
-      // 민감 키워드가 key에 포함된 경우 보안상 configSchema 반영 배제 (차단)
-      const fieldKey = configField.key?.trim() || "";
-      const isSensitive = SENSITIVE_KEYWORDS.some((kw) => fieldKey.toLowerCase().includes(kw));
-      if (isSensitive && fieldKey) {
-        result.unknownFields.push(`[Security-Blocked] configSchema.${fieldKey} (민감 정보 차단)`);
+  // 4. CONFIG_FIELD 파싱 (다중 블록)
+  let fieldMatch;
+  while ((fieldMatch = configFieldRegex.exec(fullText)) !== null) {
+    if (fieldMatch[1]) {
+      const kv = parseBlockLines(fieldMatch[1]);
+      const key = kv.key || "";
+      if (!key) {
+        result.unknownFields.push("[CONFIG_FIELD] 'key' 식별자가 없는 설정 주석 블록이 무시되었습니다.");
         continue;
       }
 
-      if (fieldKey) {
-        result.configFields.push(configField as ConfigSchemaField);
+      const field: any = { key };
+      for (const [k, v] of Object.entries(kv)) {
+        if (k === "key") continue;
+
+        if (k === "label" || k === "inputType" || k === "placeholder" || k === "description") {
+          field[k] = v;
+        } else if (k === "required") {
+          field[k] = v.toLowerCase() === "true";
+        } else if (k === "options") {
+          field[k] = v.split(",").map((x) => x.trim()).filter(Boolean);
+        } else {
+          field[k] = v;
+          result.unknownFields.push(`[CONFIG_FIELD:${key}] 정의되지 않은 필드 속성 키 발견: ${k}=${v}`);
+        }
       }
+      result.configFields.push(field);
     }
   }
 
-  // 3.3 RETENTION_POLICY 파싱
-  let retentionMatch;
-  while ((retentionMatch = retentionRegex.exec(mergedText)) !== null) {
-    if (retentionMatch[1]) {
-      const parsed = parseKeyValuePairBlock(retentionMatch[1]);
-      const policy: Record<string, any> = {};
+  // 5. RETENTION_POLICY 파싱
+  let policyMatch;
+  while ((policyMatch = retentionPolicyRegex.exec(fullText)) !== null) {
+    if (policyMatch[1]) {
+      const kv = parseBlockLines(policyMatch[1]);
+      const policy: ParsedAnnotations["retentionPolicy"] = {};
 
-      for (const [k, v] of Object.entries(parsed)) {
-        const lowerK = k.toLowerCase();
-        if (!VALID_RETENTION_POLICY_KEYS.includes(lowerK)) {
-          result.unknownFields.push(`retentionPolicy.${k}`);
-        }
-
-        // boolean 변환
+      for (const [k, v] of Object.entries(kv)) {
         if (
-          lowerK === "supportsprocessorresult" ||
-          lowerK === "supportsoriginalfilerefs" ||
-          lowerK === "supportsresultrefs" ||
-          lowerK === "supportsresultpolicyrouter" ||
-          lowerK === "allowcompanyoverride" ||
-          lowerK === "allowuseroverride"
+          k === "maxLevel" ||
+          k === "defaultLevel" ||
+          k === "operatorDefaultLevel"
         ) {
-          policy[k] = parseBoolean(v);
-        } else if (lowerK === "supportedlevels" || lowerK === "allowedlevels") {
-          policy[k] = parseArray(v);
+          policy[k] = v as any;
+        } else if (
+          k === "supportsProcessorResult" ||
+          k === "supportsOriginalFileRefs" ||
+          k === "supportsResultRefs" ||
+          k === "supportsResultPolicyRouter" ||
+          k === "allowCompanyOverride" ||
+          k === "allowUserOverride"
+        ) {
+          policy[k] = v.toLowerCase() === "true";
+        } else if (k === "supportedLevels" || k === "allowedLevels") {
+          policy[k] = v.split(",").map((x) => x.trim()) as any[];
         } else {
           policy[k] = v;
+          result.unknownFields.push(`[RETENTION_POLICY] 정의되지 않은 설정 키 발견: ${k}=${v}`);
         }
       }
-
       result.retentionPolicy = policy;
     }
   }
 
   return result;
-}
-
-/**
- * 줄 단위 key=value 텍스트 블록을 파싱하여 객체로 반환합니다.
- */
-function parseKeyValuePairBlock(blockText: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  const lines = blockText.split("\n");
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) {
-      continue;
-    }
-
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx > 0) {
-      const key = trimmed.slice(0, eqIdx).trim();
-      const val = trimmed.slice(eqIdx + 1).trim();
-      if (key) {
-        result[key] = val;
-      }
-    }
-  }
-
-  return result;
-}
-
-function parseBoolean(valStr: string): boolean {
-  return valStr.trim().toLowerCase() === "true";
-}
-
-function parseArray(valStr: string): string[] {
-  return valStr
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
 }

@@ -4,6 +4,7 @@
 import type { WorkflowTemplate, ConfigSchemaField, RetentionLevel } from "@/types/n8lient";
 import type { WorkflowTemplateImportDraft, WorkflowImportDiagnosticItem, DiagnosticLevel } from "./workflowImportTypes";
 import { parseN8lientAnnotations } from "./parseN8lientAnnotations";
+import { validateWorkflowImport } from "./validateWorkflowImport";
 
 /**
  * n8n 워크플로우 JSON을 분석하여 WorkflowTemplateImportDraft DTO를 생성합니다.
@@ -118,6 +119,7 @@ export function analyzeN8nWorkflow(
   const jsonStrLower = jsonStr.toLowerCase();
 
   // 입력 미디어 타입 독립 감지
+  // - audio 감지: 노드 타입이나 파라미터, 노드명에 음성 인식 키워드가 있는 경우
   const hasAudioNode = nodes.some((n: any) => 
     n.type === "n8n-nodes-base.openAi" && n.parameters?.operation === "speechToText" ||
     n.type === "n8n-nodes-base.awsTranscribe" ||
@@ -127,10 +129,12 @@ export function analyzeN8nWorkflow(
     String(n.name).toLowerCase().includes("speech")
   ) || jsonStrLower.includes(".mp3") || jsonStrLower.includes(".wav") || jsonStrLower.includes(".m4a");
 
+  // - image 감지: 노드 타입이나 파일 파라미터에 이미지 확장자가 포함되거나 vision 키워드가 있는 경우
   const hasImageNode = jsonStrLower.includes(".png") || jsonStrLower.includes(".jpg") || 
                        jsonStrLower.includes(".jpeg") || jsonStrLower.includes(".gif") ||
                        jsonStrLower.includes("vision") || jsonStrLower.includes("image");
 
+  // - file 감지: readBinaryFile, writeBinaryFile이 있거나 attachment, file, pdf, xlsx 등이 언급될 때
   const hasFileNode = nodes.some((n: any) => 
     n.type === "n8n-nodes-base.readBinaryFile" ||
     n.type === "n8n-nodes-base.writeBinaryFile"
@@ -153,7 +157,9 @@ export function analyzeN8nWorkflow(
     allowedExtensions.push("pdf", "xlsx", "docx", "pptx", "zip");
   }
 
+  // 중복 제거 및 소문자 정제
   const uniqueExtensions = Array.from(new Set(allowedExtensions));
+
   const hasMediaInput = hasAudioNode || hasImageNode || hasFileNode;
   const maxFileSizeMB = hasMediaInput ? 50 : 10;
 
@@ -171,6 +177,8 @@ export function analyzeN8nWorkflow(
     });
   }
 
+  // titleRequired 감지 보완
+  // 음성 입력 중심 워크플로우로 강하게 추정될 때 titleRequired=false 권장
   let titleRequired = true;
   if (hasAudioNode && !hasFileNode && !hasImageNode) {
     titleRequired = false;
@@ -188,12 +196,13 @@ export function analyzeN8nWorkflow(
   }
 
   // 4. retentionCapabilities 및 operatorRetentionPolicy 추정
+  // n8n JSON 내부에 Google Drive 업로드나 결과 생성 노드가 감지되는 경우 지원 여부 활성화
   const hasDriveUpload = nodes.some((n: any) => 
     n.type === "n8n-nodes-base.googleDrive" && n.parameters?.operation === "upload"
   );
   
   const supportsOriginalFileRefs = hasMediaInput;
-  const supportsResultRefs = hasDriveUpload;
+  const supportsResultRefs = hasDriveUpload; // 구글 드라이브 업로드가 있으면 결과 파일 참조가 발생할 것으로 추정
 
   const maxLevel: RetentionLevel = "full_archive";
   const defaultLevel: RetentionLevel = "full_archive";
@@ -203,7 +212,7 @@ export function analyzeN8nWorkflow(
     maxLevel,
     supportedLevels,
     defaultLevel,
-    supportsProcessorResult: true,
+    supportsProcessorResult: true, // 기본 탑재로 가정
     supportsOriginalFileRefs,
     supportsResultRefs,
     supportsEmailNotification: false,
@@ -220,6 +229,7 @@ export function analyzeN8nWorkflow(
   // 5. configSchema 후보 추출 (정규식 기반)
   const schemaFieldsMap = new Map<string, ConfigSchemaField>();
 
+  // n8n 표현식 내 설정 키 추출용 정규식 목록
   const regexes = [
     /settings\.([a-zA-Z0-9_]+)/g,
     /payload\.settings\.([a-zA-Z0-9_]+)/g,
@@ -233,8 +243,10 @@ export function analyzeN8nWorkflow(
   ];
 
   const detectedKeys: string[] = [];
+
   for (const regex of regexes) {
     let match;
+    // 정규식 실행 시 상태 보존을 위한 global flag 리셋 방지용 루프
     while ((match = regex.exec(jsonStr)) !== null) {
       if (match[1]) {
         detectedKeys.push(match[1]);
@@ -242,14 +254,19 @@ export function analyzeN8nWorkflow(
     }
   }
 
+  // 중복 제거
   const uniqueDetectedKeys = Array.from(new Set(detectedKeys));
+
+  // 민감정보 키워드 블랙리스트 정의 (대소문자 무관 비교용)
   const sensitiveKeywords = [
     "token", "secret", "credential", "credentialid", "accesstoken",
     "refreshtoken", "privatekey", "apikey", "api_key", "password",
     "serviceaccount"
   ];
 
+  // 구형 Google Drive 폴더 ID 감지 여부
   const hasLegacyDriveFolderId = uniqueDetectedKeys.includes("googleDriveExportFolderId") || jsonStr.includes("googleDriveExportFolderId");
+
   if (hasLegacyDriveFolderId) {
     diagnostics.push({
       field: "configSchema",
@@ -258,8 +275,11 @@ export function analyzeN8nWorkflow(
     });
   }
 
+  // 감지된 키들 중 검증 및 맵핑 수행
   for (const key of uniqueDetectedKeys) {
     const lowerKey = key.toLowerCase();
+    
+    // 민감정보 키는 configSchema에 수동 노출하지 않고 경고 남김
     const isSensitive = sensitiveKeywords.some(keyword => lowerKey.includes(keyword));
     if (isSensitive) {
       diagnostics.push({
@@ -270,21 +290,25 @@ export function analyzeN8nWorkflow(
       continue;
     }
 
+    // 구형 구글드라이브 폴더 ID는 등록 대상에서 생략 (최신 표준으로 대체 권장하기 때문)
     if (key === "googleDriveExportFolderId") {
       continue;
     }
 
+    // 표준 필드와 겹치지 않는 동적 필드 정의
     const field: ConfigSchemaField = {
       key,
-      label: key,
+      label: key, // 오퍼레이터가 직접 편집할 수 있도록 키명을 라벨로 임시 설정
       type: lowerKey.includes("email") ? "email" : lowerKey.includes("url") || lowerKey.includes("id") ? "text" : "text",
       required: true,
       defaultValue: "",
       description: `${key} 설정 항목입니다.`
     };
+
     schemaFieldsMap.set(key, field);
   }
 
+  // Google Drive 노드가 존재하거나 구형 폴더 ID가 감지되면 최신 표준 5대 필드를 후보에 강제 추가
   const hasGoogleDriveNode = nodes.some((n: any) => n.type === "n8n-nodes-base.googleDrive");
   if (hasGoogleDriveNode || hasLegacyDriveFolderId) {
     const driveFields: ConfigSchemaField[] = [
@@ -336,6 +360,8 @@ export function analyzeN8nWorkflow(
     }
   }
 
+  // 6. configSchema 순서 정렬 규칙 적용 (알파벳 정렬 미사용)
+  // 표준 권장 필드 순서 목록
   const standardOrder = [
     "reportEmailTo",
     "emailEnabled",
@@ -353,6 +379,8 @@ export function analyzeN8nWorkflow(
   ];
 
   const sortedFields: ConfigSchemaField[] = [];
+
+  // 1순위: 표준 권장 필드 순서대로 존재하는 것들 먼저 추가
   for (const stdKey of standardOrder) {
     if (schemaFieldsMap.has(stdKey)) {
       sortedFields.push(schemaFieldsMap.get(stdKey)!);
@@ -360,6 +388,7 @@ export function analyzeN8nWorkflow(
     }
   }
 
+  // 2순위: 그 외 실제 감지된 순서대로 남은 필드 추가 (uniqueDetectedKeys 순서 유지)
   for (const detKey of uniqueDetectedKeys) {
     if (schemaFieldsMap.has(detKey)) {
       sortedFields.push(schemaFieldsMap.get(detKey)!);
@@ -367,199 +396,38 @@ export function analyzeN8nWorkflow(
     }
   }
 
+  // 3순위: 기타 맵에 남은 필드 추가 (방어용 코드)
   for (const remainingField of schemaFieldsMap.values()) {
     sortedFields.push(remainingField);
   }
 
-  // 6. N8Lient 주석 메타 파싱 연동 및 우선순위 병합
-  const annotations = parseN8lientAnnotations(rawObj);
-  const annotationDetected = !!(annotations.workflowMeta || annotations.configFields.length > 0 || annotations.retentionPolicy);
-  const annotationBlocks = {
-    workflowMeta: !!annotations.workflowMeta,
-    configFieldCount: annotations.configFields.length,
-    retentionPolicy: !!annotations.retentionPolicy,
-  };
-
-  // 주석 오버라이드 변수 선언
-  let finalWorkflowKey = workflowKey;
-  let finalName = name;
-  let finalShortName = shortName;
-  let finalDescription = description;
-  let finalInputSchema = {
-    acceptedInputTypes: acceptedInputTypes as Array<"text" | "file" | "audio" | "image">,
-    allowedFileTypes: uniqueExtensions,
-    maxFileSizeMB,
-    titleRequired
-  };
-  let finalRetentionCapabilities = { ...retentionCapabilities };
-  let finalOperatorRetentionPolicy = { ...operatorRetentionPolicy };
-
-  let isShortNameFromMeta = false;
-  let isDescFromMeta = false;
-  let isMaxFileSizeFromMeta = false;
-  let isTitleRequiredFromMeta = false;
-
-  if (annotations.workflowMeta) {
-    const wm = annotations.workflowMeta;
-    if (wm.workflowKey) finalWorkflowKey = wm.workflowKey;
-    if (wm.name) finalName = wm.name;
-    if (wm.shortName) {
-      finalShortName = wm.shortName;
-      isShortNameFromMeta = true;
-    }
-    if (wm.description) {
-      finalDescription = wm.description;
-      isDescFromMeta = true;
-    }
-    if (wm.maxFileSizeMB !== undefined) {
-      finalInputSchema.maxFileSizeMB = wm.maxFileSizeMB;
-      isMaxFileSizeFromMeta = true;
-    }
-    if (wm.titleRequired !== undefined) {
-      finalInputSchema.titleRequired = wm.titleRequired;
-      isTitleRequiredFromMeta = true;
-    }
-    if (wm.acceptedInputTypes) {
-      finalInputSchema.acceptedInputTypes = wm.acceptedInputTypes as any;
-    }
-    if (wm.allowedExtensions) {
-      finalInputSchema.allowedFileTypes = wm.allowedExtensions;
-    }
-  }
-
-  if (annotations.retentionPolicy) {
-    const rp = annotations.retentionPolicy;
-    if (rp.supportedLevels) finalRetentionCapabilities.supportedLevels = rp.supportedLevels as any;
-    if (rp.maxLevel) finalRetentionCapabilities.maxLevel = rp.maxLevel as any;
-    if (rp.defaultLevel) finalRetentionCapabilities.defaultLevel = rp.defaultLevel as any;
-    if (rp.supportsProcessorResult !== undefined) finalRetentionCapabilities.supportsProcessorResult = rp.supportsProcessorResult;
-    if (rp.supportsOriginalFileRefs !== undefined) finalRetentionCapabilities.supportsOriginalFileRefs = rp.supportsOriginalFileRefs;
-    if (rp.supportsResultRefs !== undefined) finalRetentionCapabilities.supportsResultRefs = rp.supportsResultRefs;
-    if (rp.supportsResultPolicyRouter !== undefined) finalRetentionCapabilities.supportsResultPolicyRouter = rp.supportsResultPolicyRouter;
-
-    if (rp.allowedLevels) finalOperatorRetentionPolicy.allowedLevels = rp.allowedLevels as any;
-    if (rp.operatorDefaultLevel) finalOperatorRetentionPolicy.defaultLevel = rp.operatorDefaultLevel as any;
-    if (rp.allowCompanyOverride !== undefined) finalOperatorRetentionPolicy.allowCompanyOverride = rp.allowCompanyOverride;
-    if (rp.allowUserOverride !== undefined) finalOperatorRetentionPolicy.allowUserOverride = rp.allowUserOverride;
-  }
-
-  // configSchema 병합 (주석설정 우선적용 및 정렬 순서 보정)
-  const finalConfigFields: ConfigSchemaField[] = [];
-  const addedKeys = new Set<string>();
-
-  // 1순위: 주석 선언 필드 순서대로 추가
-  for (const field of annotations.configFields) {
-    if (field.key) {
-      finalConfigFields.push(field);
-      addedKeys.add(field.key);
-    }
-  }
-
-  // 2순위: 그 외 정규식 감지 sortedFields 중 주석에 없는 것 뒤에 유지
-  for (const field of sortedFields) {
-    if (field.key && !addedKeys.has(field.key)) {
-      finalConfigFields.push(field);
-      addedKeys.add(field.key);
-    }
-  }
-
-  // WorkflowTemplate 최종 조립
+  // 7. WorkflowTemplate 객체 구조화
   const workflowTemplate: Partial<WorkflowTemplate> = {
-    workflowKey: finalWorkflowKey,
-    name: finalName,
-    shortName: finalShortName,
-    description: finalDescription,
+    workflowKey,
+    name,
+    shortName,
+    description,
     version,
     status,
-    webhookSecretId: webhookSecretId === workflowKey ? finalWorkflowKey : webhookSecretId,
+    webhookSecretId,
     n8nServerKey,
     configSchemaVersion: 1,
-    inputSchema: finalInputSchema,
-    configSchema: finalConfigFields,
-    retentionCapabilities: finalRetentionCapabilities,
-    operatorRetentionPolicy: finalOperatorRetentionPolicy
+    inputSchema: {
+      acceptedInputTypes: acceptedInputTypes as Array<"text" | "file" | "audio" | "image">,
+      allowedFileTypes: uniqueExtensions,
+      maxFileSizeMB,
+      titleRequired
+    },
+    configSchema: sortedFields,
+    retentionCapabilities,
+    operatorRetentionPolicy
   };
-
-  // diagnostics 완화 및 ok 등급 보정 추가
-  const finalDiagnostics: WorkflowImportDiagnosticItem[] = [];
-
-  for (const diag of diagnostics) {
-    if (diag.field === "shortName" && isShortNameFromMeta) {
-      continue; // 자동추정 경고 제거
-    }
-    if (diag.field === "description" && isDescFromMeta) {
-      continue; // 자동추정 경고 제거
-    }
-    if (diag.field === "inputSchema.maxFileSizeMB" && isMaxFileSizeFromMeta) {
-      continue; // 용량 경고 제거
-    }
-    if (diag.field === "inputSchema.titleRequired" && isTitleRequiredFromMeta) {
-      continue;
-    }
-    
-    // configSchema 개별 key/description/placeholder 경고 완화
-    let isConfigWarningMasked = false;
-    for (const af of annotations.configFields) {
-      if (diag.field.startsWith(`configSchema`) && diag.field.includes(af.key)) {
-        isConfigWarningMasked = true;
-      }
-    }
-    if (isConfigWarningMasked && diag.level === "warning") {
-      continue;
-    }
-
-    finalDiagnostics.push(diag);
-  }
-
-  // ok 진단 결과 주입
-  if (isShortNameFromMeta) {
-    finalDiagnostics.push({
-      field: "shortName",
-      level: "ok",
-      message: "n8n 주석 메타에서 줄임말을 가져왔습니다."
-    });
-  }
-  if (isDescFromMeta) {
-    finalDiagnostics.push({
-      field: "description",
-      level: "ok",
-      message: "n8n 주석 메타에서 설명글을 가져왔습니다."
-    });
-  }
-  if (isMaxFileSizeFromMeta) {
-    finalDiagnostics.push({
-      field: "inputSchema.maxFileSizeMB",
-      level: "ok",
-      message: "n8n 주석 메타에서 허용 파일 용량을 가져왔습니다."
-    });
-  }
-  if (isTitleRequiredFromMeta) {
-    finalDiagnostics.push({
-      field: "inputSchema.titleRequired",
-      level: "ok",
-      message: "n8n 주석 메타에서 실행 제목 필수 여부를 가져왔습니다."
-    });
-  }
-  if (annotations.configFields.length > 0) {
-    finalDiagnostics.push({
-      field: "configSchema",
-      level: "ok",
-      message: `n8n 주석 메타에서 ${annotations.configFields.length}개의 설정 필드 명세를 파싱하여 반영했습니다.`
-    });
-  }
-  if (annotations.retentionPolicy) {
-    finalDiagnostics.push({
-      field: "operatorRetentionPolicy.allowedLevels",
-      level: "ok",
-      message: "n8n 주석 메타에서 보관 정책 계약 수준을 적용했습니다."
-    });
-  }
 
   // 진단 목록을 맵으로 구성
   const fieldDiagnostics: Record<string, WorkflowImportDiagnosticItem> = {};
   let maxSeverity: DiagnosticLevel = "ok";
 
-  for (const diag of finalDiagnostics) {
+  for (const diag of diagnostics) {
     fieldDiagnostics[diag.field] = diag;
     if (diag.level === "error") {
       maxSeverity = "error";
@@ -579,17 +447,14 @@ export function analyzeN8nWorkflow(
       sourceFileName,
       n8nWorkflowName,
       n8nActive,
-      detectedWebhookPath,
-      annotationDetected,
-      annotationBlocks,
-      unknownFields: annotations.unknownFields
+      detectedWebhookPath
     },
     workflowTemplate,
     diagnostics: {
       severity: maxSeverity,
-      canSave: !hasError,
-      requiresWarningConfirmation: hasWarning,
-      items: finalDiagnostics,
+      canSave: !hasError, // error가 없을 때만 true
+      requiresWarningConfirmation: hasWarning, // warning이 있는 경우 동의 확인 체크 필요
+      items: diagnostics,
       fieldDiagnostics
     }
   };
