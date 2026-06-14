@@ -2,13 +2,13 @@
 
 import React from "react";
 import type { RetentionLevel } from "@/types/n8lient";
-import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import {
   getDiagnosticStyles,
   getFieldDiagnosticLevel,
   getFieldDiagnosticMessage,
   getDiagnosticMessageStyle
-} from "@/features/operator/workflowAnalyzer";
+} from "@/features/operator/workflowTemplateImport";
 
 export interface WorkflowRetentionPolicyFormProps {
   maxLevel: RetentionLevel;

@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import {
   getDiagnosticStyles,
   getFieldDiagnosticLevel,
   getFieldDiagnosticMessage,
   getDiagnosticMessageStyle
-} from "@/features/operator/workflowAnalyzer";
+} from "@/features/operator/workflowTemplateImport";
 
 export interface WorkflowInputSchemaFormProps {
   titleRequired: boolean;

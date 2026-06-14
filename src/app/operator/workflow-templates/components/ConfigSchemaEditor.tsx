@@ -1,17 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import type { ConfigSchemaField, WorkflowTemplate } from "@/types/n8lient";
-import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import type { ConfigSchemaField } from "@/types/n8lient";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import {
   getDiagnosticStyles,
   getFieldDiagnosticLevel,
   getFieldDiagnosticMessage,
   getDiagnosticMessageStyle,
   getConfigSchemaCardStyles
-} from "@/features/operator/workflowAnalyzer";
-import { requestAiAssist } from "@/features/aiAssist";
-import { playAppSound } from "@/lib/appSound";
+} from "@/features/operator/workflowTemplateImport";
 
 interface ConfigSchemaEditorProps {
   schemaFields: ConfigSchemaField[];
@@ -24,10 +22,6 @@ interface ConfigSchemaEditorProps {
   onMoveField: (fromIdx: number, toIdx: number) => void;
   onSelectOptionsChange: (index: number, options: string[], tempOptionsStr: string) => void;
   diagnostics?: WorkflowImportDiagnostics | null;
-  workflowKey: string;
-  workflowName: string;
-  workflowDescription: string;
-  inputSchema?: WorkflowTemplate["inputSchema"];
 }
 
 export default function ConfigSchemaEditor({
@@ -41,13 +35,8 @@ export default function ConfigSchemaEditor({
   onMoveField,
   onSelectOptionsChange,
   diagnostics = null,
-  workflowKey,
-  workflowName,
-  workflowDescription,
-  inputSchema,
 }: ConfigSchemaEditorProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
-  const [loadingFieldIdx, setLoadingFieldIdx] = useState<number | null>(null);
 
   const handleDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
@@ -57,68 +46,6 @@ export default function ConfigSchemaEditor({
     }
   };
 
-  const handleAiFieldAssist = async (idx: number, field: ConfigSchemaField) => {
-    if (loadingFieldIdx !== null) return;
-    setLoadingFieldIdx(idx);
-    playAppSound("click");
-
-    try {
-      const response = await requestAiAssist({
-        purpose: "config_field_copy",
-        instruction: "동적 설정 필드의 label, placeholder, description을 이 필드 정보와 전체 자동화 맥락에 어울리게 한글로 적절히 보완 생성해 주십시오.",
-        context: {
-          key: field.key,
-          label: field.label,
-          type: field.type,
-          required: field.required,
-          defaultValueSource: field.defaultValueSource,
-          placeholder: field.placeholder,
-          description: field.description,
-          options: field.options,
-          workflow: {
-            workflowKey,
-            name: workflowName,
-            description: workflowDescription,
-            inputSchema,
-            configSchemaKeys: schemaFields.map((f) => f.key),
-          },
-        },
-        outputFormat: "json",
-      });
-
-      if (response.ok && response.result?.json) {
-        const aiJson = response.result.json;
-
-        // 덮어쓰기 조건 검사
-        const hasExistingLabel = field.label && !field.label.includes("확인 필요") && !field.label.includes("임시") && field.label.trim() !== "";
-        const hasExistingPlaceholder = field.placeholder && !field.placeholder.includes("확인 필요") && field.placeholder.trim() !== "";
-        const hasExistingDesc = field.description && !field.description.includes("확인 필요") && field.description.trim() !== "";
-
-        if (hasExistingLabel || hasExistingPlaceholder || hasExistingDesc) {
-          const proceed = confirm("기존 작성 중이던 설정 문구가 존재합니다. AI 추천 값으로 덮어쓰시겠습니까?");
-          if (!proceed) {
-            setLoadingFieldIdx(null);
-            return;
-          }
-        }
-
-        if (aiJson.label) onFieldChange(idx, "label", aiJson.label);
-        if (aiJson.placeholder) onFieldChange(idx, "placeholder", aiJson.placeholder);
-        if (aiJson.description) onFieldChange(idx, "description", aiJson.description);
-      } else if (response.locked) {
-        alert(
-          "AI API 키 값이 등록되어 있지 않아 AI 지원 기능은 잠겨 있습니다.\n현재는 n8n JSON 주석과 기본 분석 규칙을 기준으로 권장값을 제안합니다."
-        );
-      } else {
-        alert("AI 문구 생성에 실패했습니다. 현재 입력값은 변경되지 않았습니다.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("AI 호출 도중 오류가 발생했습니다. 현재 입력값은 변경되지 않았습니다.");
-    } finally {
-      setLoadingFieldIdx(null);
-    }
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -192,26 +119,6 @@ export default function ConfigSchemaEditor({
                     )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    {field.key && (
-                      <button
-                        type="button"
-                        onClick={() => handleAiFieldAssist(idx, field)}
-                        disabled={loadingFieldIdx !== null}
-                        style={{
-                          fontSize: "10px",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          border: "1px solid #3b82f6",
-                          backgroundColor: "#eff6ff",
-                          color: "#1d4ed8",
-                          cursor: loadingFieldIdx !== null ? "not-allowed" : "pointer",
-                          fontWeight: 600,
-                          marginRight: "6px"
-                        }}
-                      >
-                        {loadingFieldIdx === idx ? "생성 중..." : "✨ AI 추천"}
-                      </button>
-                    )}
                     {/* 순서 조정 보조 버튼 */}
                     <button
                       type="button"

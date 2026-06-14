@@ -19,7 +19,7 @@ import { WorkflowList } from "./WorkflowList";
 import { WorkflowDetail } from "./WorkflowDetail";
 import { WorkflowForm } from "./WorkflowForm";
 import { WorkflowImportPanel } from "./components/WorkflowImportPanel";
-import { mapAnalysisToWorkflowTemplate, type WorkflowTemplateImportDraft } from "@/features/operator/workflowAnalyzer";
+import { mapImportJsonToWorkflowTemplate, type WorkflowTemplateImportDraft } from "@/features/operator/workflowTemplateImport";
 
 export default function OperatorTemplates() {
   // 1. 핵심 상태 제어 변수
@@ -98,7 +98,7 @@ export default function OperatorTemplates() {
 
   const handleApplyDraft = (draft: WorkflowTemplateImportDraft) => {
     playAppSound("click");
-    const mapped = mapAnalysisToWorkflowTemplate(draft);
+    const mapped = mapImportJsonToWorkflowTemplate(draft);
     setSelectedTemplate(mapped);
     setIsEditMode(false);
     setActiveImportDraft(draft);
@@ -155,8 +155,8 @@ export default function OperatorTemplates() {
         }
       };
 
-      const { validateWorkflowImport } = require("@/features/operator/workflowAnalyzer");
-      const revalidatedDraft = validateWorkflowImport(draftCopy, templates);
+      const { validateWorkflowTemplateImport } = require("@/features/operator/workflowTemplateImport");
+      const revalidatedDraft = validateWorkflowTemplateImport(draftCopy, templates);
 
       setActiveImportDraft(revalidatedDraft);
 
@@ -167,13 +167,13 @@ export default function OperatorTemplates() {
 
       if (hasError) {
         playAppSound("error");
-        addDelayedAlert("분석 결과에 오류 항목(중복 키 또는 명칭 등)이 존재하여 저장할 수 없습니다. 폼 상단 리스트의 빨간색 오류 사항을 수정해 주십시오.");
+        addDelayedAlert("명세 검증 결과에 오류 항목(중복 키 또는 형식 등)이 존재하여 저장할 수 없습니다. 폼 상단 리스트의 빨간색 오류 사항을 수정해 주십시오.");
         return;
       }
 
       if (hasWarning && !warningConfirmed) {
         playAppSound("notify");
-        addDelayedAlert("분석 결과에 검토 경고 항목이 잔존해 있습니다. 폼 상단 배너의 '경고 항목 확인'에 동의 체크박스를 체크한 후 저장해 주십시오.");
+        addDelayedAlert("명세 검증 결과에 검토 경고 항목이 잔존해 있습니다. 폼 상단 배너의 '경고 항목 확인'에 동의 체크박스를 체크한 후 저장해 주십시오.");
         return;
       }
     }

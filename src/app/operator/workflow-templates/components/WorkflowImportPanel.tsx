@@ -1,4 +1,4 @@
-// 이 파일은 n8n 워크플로우 JSON 파일을 업로드하여 사전 분석 결과를 출력하고 정합성을 진단해 주는 컴포넌트입니다.
+// 이 파일은 N8Lient 표준 Import JSON 파일을 업로드하여 저장 정합성을 진단해 주는 컴포넌트입니다.
 // 한국어 주석 표준을 준수합니다.
 
 "use client";
@@ -6,10 +6,10 @@
 import { useState, useRef } from "react";
 import type { WorkflowTemplate } from "@/types/n8lient";
 import {
-  analyzeN8nWorkflow,
-  validateWorkflowImport,
+  parseWorkflowTemplateImportJson,
+  validateWorkflowTemplateImport,
   type WorkflowTemplateImportDraft
-} from "@/features/operator/workflowAnalyzer";
+} from "@/features/operator/workflowTemplateImport";
 import { playAppSound } from "@/lib/appSound";
 
 interface WorkflowImportPanelProps {
@@ -42,31 +42,29 @@ export function WorkflowImportPanel({
     }
   };
 
-  // 파일 파싱 및 분석 메인 로직
+  // 파일 파싱 및 정합성 검증 메인 로직
   const processFile = async (file: File) => {
     try {
       setError(null);
       setFileName(file.name);
 
       const fileText = await file.text();
-      let parsedJson: unknown;
-      
-      try {
-        parsedJson = JSON.parse(fileText);
-      } catch (err) {
-        throw new Error("JSON 파싱에 실패했습니다. 올바른 워크플로우 JSON 형식인지 확인해 주십시오.");
-      }
 
-      // 1. JSON 분석 및 초안 생성
-      const initialDraft = analyzeN8nWorkflow(parsedJson, {
-        sourceFileName: file.name
-      });
+      // 1. JSON 유효성 1차 파싱 및 구조 유효성 검사
+      const initialDraft = parseWorkflowTemplateImportJson(fileText, file.name);
 
-      // 2. 기존 템플릿과 충돌 검사
-      const validatedDraft = validateWorkflowImport(initialDraft, existingTemplates);
+      // 2. 저장 스키마 정합성 및 중복 검증
+      const validatedDraft = validateWorkflowTemplateImport(initialDraft, existingTemplates);
 
       setDraft(validatedDraft);
-      playAppSound("success");
+      
+      if (validatedDraft.diagnostics.severity === "error") {
+        const firstError = validatedDraft.diagnostics.items.find(x => x.level === "error");
+        setError(firstError ? firstError.message : "명세서 형식이 올바르지 않습니다.");
+        playAppSound("error");
+      } else {
+        playAppSound("success");
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || "파일 처리 중 에러가 발생했습니다.");
@@ -114,10 +112,10 @@ export function WorkflowImportPanel({
       {/* 타이틀 및 가이드 영역 */}
       <div>
         <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
-          📂 n8n JSON 워크플로우 분석 및 등록
+          📂 N8Lient 표준 Import JSON 불러오기
         </h2>
         <p style={{ fontSize: "12.5px", color: "#6b7280", margin: 0 }}>
-          n8n에서 내보내기(Export)한 JSON 파일을 업로드하면, 플랫폼에 최적화된 마스터 스키마 권장값을 자동으로 분석하여 폼에 반영해 줍니다.
+          n8n 원본 JSON은 이 화면에서 직접 분석하지 않습니다. LLM 프롬프트 또는 외부 도구로 생성한 N8Lient 표준 Import JSON 파일을 업로드해 주세요.
         </p>
       </div>
 
@@ -147,10 +145,10 @@ export function WorkflowImportPanel({
         />
         <div style={{ fontSize: "28px", marginBottom: "12px" }}>📄</div>
         <p style={{ fontSize: "14px", fontWeight: 600, color: "#374151", margin: "0 0 6px 0" }}>
-          {fileName ? `선택된 파일: ${fileName}` : "n8n JSON 파일을 드래그하여 여기에 놓거나 클릭하여 업로드하세요"}
+          {fileName ? `선택된 파일: ${fileName}` : "표준 Import JSON 파일을 드래그하여 여기에 놓거나 클릭하여 업로드하세요"}
         </p>
         <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
-          n8n 워크플로우 편집기에서 Export한 *.json 명세 파일만 지원합니다.
+          N8Lient 표준 Import JSON 규격(*.json) 명세 파일만 지원합니다.
         </p>
       </div>
 
@@ -158,7 +156,7 @@ export function WorkflowImportPanel({
       {!draft && (
         <div style={{ textAlign: "center", padding: "10px 0" }}>
           <span style={{ fontSize: "13px", color: "#6b7280", marginRight: "12px" }}>
-            분석 파일이 없으신가요?
+            Import 파일이 없으신가요?
           </span>
           <button
             onClick={onDirectCreate}
@@ -194,7 +192,7 @@ export function WorkflowImportPanel({
         </div>
       )}
 
-      {/* 분석 결과 진단 표시 보드 */}
+      {/* 가져오기 검증 표시 보드 */}
       {draft && (
         <div
           style={{
@@ -208,18 +206,18 @@ export function WorkflowImportPanel({
             padding: "20px",
           }}
         >
-          {/* 1. 분석 결과 요약 요약박스 */}
+          {/* 1. 가져오기 명세 요약 */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #f3f4f6", paddingBottom: "16px" }}>
             <div style={{ flex: 1, minWidth: "150px" }}>
               <div style={{ fontSize: "12px", color: "#6b7280" }}>워크플로우 명칭</div>
               <div style={{ fontSize: "14px", fontWeight: 700, color: "#111111", marginTop: "2px" }}>
-                {draft.source.n8nWorkflowName || "지정되지 않음"}
+                {draft.workflowTemplate.name || "지정되지 않음"}
               </div>
             </div>
             <div style={{ flex: 1, minWidth: "120px" }}>
-              <div style={{ fontSize: "12px", color: "#6b7280" }}>권장 식별 Key</div>
+              <div style={{ fontSize: "12px", color: "#6b7280" }}>가져올 식별 Key</div>
               <div style={{ fontSize: "13px", fontFamily: "monospace", fontWeight: 700, color: "#2563eb", marginTop: "2px" }}>
-                {draft.workflowTemplate.workflowKey || "imported-workflow"}
+                {draft.workflowTemplate.workflowKey || "지정되지 않음"}
               </div>
             </div>
             <div style={{ flex: 1, minWidth: "100px" }}>
@@ -244,11 +242,11 @@ export function WorkflowImportPanel({
           {/* 2. 경고 고지 안내 문구 */}
           {draft.diagnostics.severity === "error" ? (
             <div style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "12px", borderRadius: "6px", fontSize: "12.5px" }}>
-              <strong>⚠️ 안내:</strong> 현재 분석 결과에 수정이 필요한 오류가 존재합니다. 폼에 반영하여 이동한 뒤 빨간색 표시 항목을 정상적으로 수정해야 최종 저장이 활성화됩니다.
+              <strong>⚠️ 안내:</strong> 현재 명세서 검증 결과에 수정이 필요한 오류가 존재합니다. 폼에 반영하여 이동한 뒤 빨간색 표시 항목을 정상적으로 수정해야 최종 저장이 활성화됩니다.
             </div>
           ) : draft.diagnostics.requiresWarningConfirmation ? (
             <div style={{ backgroundColor: "#ffedd5", color: "#9a3412", padding: "12px", borderRadius: "6px", fontSize: "12.5px" }}>
-              <strong>💡 안내:</strong> 일부 권장 사항 및 검토 경고(주황색) 항목이 있습니다. 폼으로 이동하여 설정값을 확인하고 필요에 따라 다듬어 주십시오.
+              <strong>💡 안내:</strong> 일부 검토 경고(주황색) 항목이 있습니다. 폼으로 이동하여 설정값을 확인하고 필요에 따라 다듬어 주십시오.
             </div>
           ) : (
             <div style={{ backgroundColor: "#ecfdf5", color: "#065f46", padding: "12px", borderRadius: "6px", fontSize: "12.5px" }}>
@@ -259,7 +257,7 @@ export function WorkflowImportPanel({
           {/* 3. 진단 세부 항목 목록 */}
           <div>
             <h3 style={{ fontSize: "13px", fontWeight: 700, color: "#374151", marginBottom: "8px" }}>
-              🔍 정합성 검사 진단 상세 내역 ({draft.diagnostics.items.length}건)
+              🔍 저장 스키마 정합성 검증 상세 내역 ({draft.diagnostics.items.length}건)
             </h3>
             {draft.diagnostics.items.length === 0 ? (
               <div style={{ fontSize: "13px", color: "#6b7280", padding: "12px", textAlign: "center", border: "1px solid #f3f4f6", borderRadius: "6px" }}>

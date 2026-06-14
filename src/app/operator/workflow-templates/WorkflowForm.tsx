@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
-import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
+import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import { playAppSound } from "@/lib/appSound";
 import ConfigSchemaEditor from "./components/ConfigSchemaEditor";
 import WorkflowRetentionPolicyForm from "./components/WorkflowRetentionPolicyForm";
@@ -413,29 +413,6 @@ export function WorkflowForm({
           setDescription={setDescription}
           isEditMode={isEditMode}
           diagnostics={diagnostics}
-          configSchema={schemaFields}
-          inputSchema={{
-            acceptedInputTypes: acceptedTypes as any,
-            allowedFileTypes: allowedFileTypesStr.split(",").map(x => x.trim()).filter(Boolean),
-            maxFileSizeMB,
-            titleRequired
-          }}
-          retentionCapabilities={{
-            maxLevel,
-            supportedLevels,
-            defaultLevel: capsDefaultLevel,
-            supportsProcessorResult,
-            supportsOriginalFileRefs,
-            supportsResultRefs,
-            supportsResultPolicyRouter,
-            supportsEmailNotification
-          }}
-          operatorRetentionPolicy={{
-            allowedLevels: opAllowedLevels,
-            defaultLevel: opDefaultLevel,
-            allowCompanyOverride,
-            allowUserOverride
-          }}
         />
 
         <WorkflowRetentionPolicyForm
@@ -488,15 +465,6 @@ export function WorkflowForm({
           onMoveField={handleMoveField}
           onSelectOptionsChange={handleSelectOptionsChange}
           diagnostics={diagnostics}
-          workflowKey={workflowKey}
-          workflowName={name}
-          workflowDescription={description}
-          inputSchema={{
-            acceptedInputTypes: acceptedTypes as any,
-            allowedFileTypes: allowedFileTypesStr.split(",").map(x => x.trim()).filter(Boolean),
-            maxFileSizeMB,
-            titleRequired
-          }}
         />
 
         <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
