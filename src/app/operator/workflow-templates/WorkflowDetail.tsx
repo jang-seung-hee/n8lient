@@ -3,6 +3,11 @@
 "use client";
 
 import type { WorkflowTemplate } from "@/types/n8lient";
+import {
+  buildWorkflowTemplateImportJson,
+  buildWorkflowTemplateExportFileName,
+  downloadJsonAsFile,
+} from "@/features/operator/workflowTemplateImport";
 
 interface WorkflowDetailProps {
   template: WorkflowTemplate;
@@ -17,6 +22,17 @@ export function WorkflowDetail({
   onCloneClick,
   onBackClick,
 }: WorkflowDetailProps) {
+  /**
+   * 현재 상세보기 중인 워크플로우를 N8Lient 표준 Import JSON으로 다운로드합니다.
+   * - diagnostics, UI 임시 상태값, 실제 Secret/Token/API Key는 포함되지 않습니다.
+   * - 다운로드한 파일은 표준 Import JSON 불러오기 기능에서 바로 재업로드 가능합니다.
+   */
+  const handleDownloadJson = () => {
+    const payload = buildWorkflowTemplateImportJson(template);
+    const fileName = buildWorkflowTemplateExportFileName(template);
+    downloadJsonAsFile(payload, fileName);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* 뒤로가기 및 액션 바 */}
@@ -61,6 +77,23 @@ export function WorkflowDetail({
             }}
           >
             📋 워크플로우 복제
+          </button>
+          {/* JSON 다운로드 버튼: 현재 명세를 N8Lient 표준 Import JSON으로 내보냅니다 */}
+          <button
+            onClick={handleDownloadJson}
+            style={{
+              backgroundColor: "#f0fdf4",
+              color: "#15803d",
+              border: "1px solid #bbf7d0",
+              borderRadius: "6px",
+              padding: "6px 14px",
+              fontSize: "12.5px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+            title="현재 워크플로우 명세를 N8Lient 표준 Import JSON 파일로 다운로드합니다."
+          >
+            ⬇️ JSON 다운로드
           </button>
           <button
             onClick={onEditClick}

@@ -6,3 +6,4 @@ export * from "./parseWorkflowTemplateImportJson";
 export * from "./validateWorkflowTemplateImport";
 export * from "./mapImportJsonToWorkflowTemplate";
 export * from "./diagnosticFieldHelpers";
+export * from "./exportWorkflowTemplateJson";
