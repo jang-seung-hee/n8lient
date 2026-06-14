@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import type { WorkflowTemplateStatus } from "@/types/n8lient";
+import React, { useState } from "react";
+import type { WorkflowTemplateStatus, ConfigSchemaField, WorkflowTemplate } from "@/types/n8lient";
 import type { WorkflowImportDiagnostics } from "@/features/operator/workflowAnalyzer";
 import {
   getDiagnosticStyles,
@@ -9,6 +9,7 @@ import {
   getFieldDiagnosticMessage,
   getDiagnosticMessageStyle
 } from "@/features/operator/workflowAnalyzer";
+import { requestAiAssist } from "@/features/aiAssist";
 
 export interface WorkflowBasicInfoFormProps {
   workflowKey: string;
@@ -29,6 +30,10 @@ export interface WorkflowBasicInfoFormProps {
   setDescription: (val: string) => void;
   isEditMode: boolean;
   diagnostics?: WorkflowImportDiagnostics | null;
+  configSchema?: ConfigSchemaField[];
+  inputSchema?: WorkflowTemplate["inputSchema"];
+  retentionCapabilities?: WorkflowTemplate["retentionCapabilities"];
+  operatorRetentionPolicy?: WorkflowTemplate["operatorRetentionPolicy"];
 }
 
 export default function WorkflowBasicInfoForm({
@@ -50,12 +55,107 @@ export default function WorkflowBasicInfoForm({
   setDescription,
   isEditMode,
   diagnostics = null,
+  configSchema = [],
+  inputSchema,
+  retentionCapabilities,
+  operatorRetentionPolicy,
 }: WorkflowBasicInfoFormProps) {
+  const [isDescriptionLoading, setIsDescriptionLoading] = useState(false);
+  const [isShortNameLoading, setIsShortNameLoading] = useState(false);
 
   const handleWorkflowKeyChange = (val: string) => {
     setWorkflowKey(val);
     if (!isEditMode) {
       setWebhookSecretId(val);
+    }
+  };
+
+  const handleAiDescriptionAssist = async () => {
+    if (isDescriptionLoading) return;
+    setIsDescriptionLoading(true);
+    try {
+      const response = await requestAiAssist({
+        purpose: "workflow_template_copy",
+        instruction: "워크플로우 마스터 등록을 위해 설명글과 줄임말을 최적의 품질로 추천 및 생성해 주십시오.",
+        context: {
+          workflowKey,
+          name,
+          shortName,
+          version,
+          status,
+          description,
+          webhookSecretId,
+          n8nServerKey,
+          inputSchema,
+          retentionCapabilities,
+          operatorRetentionPolicy,
+          configSchema: configSchema.map((f) => ({
+            key: f.key,
+            label: f.label,
+            type: f.type,
+            description: f.description,
+          })),
+        },
+        outputFormat: "json",
+      });
+
+      if (response.ok && response.result?.json) {
+        const resultJson = response.result.json;
+        if (resultJson.description) {
+          setDescription(resultJson.description);
+        }
+        if (resultJson.shortName) {
+          setShortName(resultJson.shortName);
+        }
+      } else if (response.locked) {
+        alert(
+          "AI API 키 값이 등록되어 있지 않아 AI 지원 기능은 잠겨 있습니다.\n현재는 n8n JSON 주석과 기본 분석 규칙을 기준으로 권장값을 제안합니다."
+        );
+      } else {
+        alert("AI 설명 보완에 실패했습니다. 현재 입력값은 변경되지 않았습니다.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("AI 호출 도중 오류가 발생했습니다. 현재 입력값은 변경되지 않았습니다.");
+    } finally {
+      setIsDescriptionLoading(false);
+    }
+  };
+
+  const handleAiShortNameAssist = async () => {
+    if (isShortNameLoading) return;
+    setIsShortNameLoading(true);
+    try {
+      const response = await requestAiAssist({
+        purpose: "workflow_template_copy",
+        instruction: "워크플로우 이름에 알맞은 직관적인 줄임말(2~4자 이내)을 한글로 제안해 주십시오.",
+        context: {
+          workflowKey,
+          name,
+          shortName,
+          version,
+          description,
+        },
+        outputFormat: "json",
+      });
+
+      if (response.ok && response.result?.json) {
+        const resultJson = response.result.json;
+        if (resultJson.shortName) {
+          setShortName(resultJson.shortName);
+        }
+      } else if (response.locked) {
+        alert(
+          "AI API 키 값이 등록되어 있지 않아 AI 지원 기능은 잠겨 있습니다.\n현재는 n8n JSON 주석과 기본 분석 규칙을 기준으로 권장값을 제안합니다."
+        );
+      } else {
+        alert("AI 줄임말 추천에 실패했습니다. 현재 입력값은 변경되지 않았습니다.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("AI 호출 도중 오류가 발생했습니다. 현재 입력값은 변경되지 않았습니다.");
+    } finally {
+      setIsShortNameLoading(false);
     }
   };
 
@@ -121,7 +221,26 @@ export default function WorkflowBasicInfoForm({
 
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1fr", gap: "12px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>줄임말 *</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>줄임말 *</label>
+            <button
+              type="button"
+              onClick={handleAiShortNameAssist}
+              disabled={isShortNameLoading}
+              style={{
+                fontSize: "10px",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                border: "1px solid #3b82f6",
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8",
+                cursor: isShortNameLoading ? "not-allowed" : "pointer",
+                fontWeight: 600
+              }}
+            >
+              {isShortNameLoading ? "생성 중..." : "✨ AI 추천"}
+            </button>
+          </div>
           <input
             type="text"
             value={shortName}
@@ -257,7 +376,26 @@ export default function WorkflowBasicInfoForm({
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>설명</label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>설명</label>
+          <button
+            type="button"
+            onClick={handleAiDescriptionAssist}
+            disabled={isDescriptionLoading}
+            style={{
+              fontSize: "10px",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              border: "1px solid #3b82f6",
+              backgroundColor: "#eff6ff",
+              color: "#1d4ed8",
+              cursor: isDescriptionLoading ? "not-allowed" : "pointer",
+              fontWeight: 600
+            }}
+          >
+            {isDescriptionLoading ? "AI 생성 중..." : "✨ AI 설명 보완"}
+          </button>
+        </div>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -284,3 +422,4 @@ export default function WorkflowBasicInfoForm({
     </>
   );
 }
+
