@@ -189,7 +189,7 @@ service cloud.firestore {
         resource.data.uid == request.auth.uid ||
         (
           getMyUser().role == 'operator' &&
-          resource.data.get('isTestSetting', true) == true &&
+          resource.data.isTestSetting == true &&
           exists(/databases/$(database)/documents/workflowTemplates/$(resource.data.workflowKey)) &&
           get(/databases/$(database)/documents/workflowTemplates/$(resource.data.workflowKey)).data.status == 'draft'
         )
@@ -209,7 +209,7 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if isAuthenticated() && 
         getMyUser().role == 'operator' &&
-        resource.data.get('isTestExecution', true) == true &&
+        resource.data.isTestExecution == true &&
         exists(/databases/$(database)/documents/workflowTemplates/$(resource.data.workflowKey)) &&
         get(/databases/$(database)/documents/workflowTemplates/$(resource.data.workflowKey)).data.status == 'draft';
     }

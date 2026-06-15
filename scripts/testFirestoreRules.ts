@@ -174,19 +174,27 @@ async function runRulesTestSuite() {
   }
 
   // ────────────────────────────────────────────────────────
-  // [TC 5] Draft 템플릿에 연결된 레거시 하위 문서(isTest* 필드 없음) 일괄 삭제 (성공 예상)
+  // [TC 5] isTestExecution 필드가 없는 submissions 삭제 시도 차단
   // ────────────────────────────────────────────────────────
   try {
-    const batch = operatorDb.batch();
-    batch.delete(operatorDb.doc("submissions/sub_legacy_draft"));
-    batch.delete(operatorDb.doc("userAutomationSettings/setting_legacy_draft"));
-    batch.delete(operatorDb.doc("workflowTemplates/tpl_draft_legacy_key"));
-    await batch.commit();
-    console.log("✅ [Test #5 SUCCESS] Draft 템플릿 및 관련 레거시 테스트 데이터 batch 일괄 삭제 허용");
-    passCount++;
-  } catch (err: any) {
-    console.error("❌ [Test #5 FAILED] Draft 레거시 데이터 CASCADE 삭제 거부 에러:", err.message);
+    await operatorDb.doc("submissions/sub_legacy_draft").delete();
+    console.error("❌ [Test #5 FAILED] isTestExecution 필드가 없는 submissions 삭제 허용됨 (오류)");
     failCount++;
+  } catch (err: any) {
+    console.log("✅ [Test #5 SUCCESS] isTestExecution 필드가 없는 submissions 삭제 차단 성공");
+    passCount++;
+  }
+
+  // ────────────────────────────────────────────────────────
+  // [TC 6] isTestSetting 필드가 없는 userAutomationSettings 삭제 시도 차단
+  // ────────────────────────────────────────────────────────
+  try {
+    await operatorDb.doc("userAutomationSettings/setting_legacy_draft").delete();
+    console.error("❌ [Test #6 FAILED] isTestSetting 필드가 없는 userAutomationSettings 삭제 허용됨 (오류)");
+    failCount++;
+  } catch (err: any) {
+    console.log("✅ [Test #6 SUCCESS] isTestSetting 필드가 없는 userAutomationSettings 삭제 차단 성공");
+    passCount++;
   }
 
   console.log("==================================================");
