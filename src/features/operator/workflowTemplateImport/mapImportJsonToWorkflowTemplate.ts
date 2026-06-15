@@ -38,32 +38,75 @@ export function mapImportJsonToWorkflowTemplate(
       const normalizedType = (field as any).type || (field as any).inputType || "";
 
       // select 타입에 options가 없으면 crash 위험이 있어 안전 기본값 주입
-      if (normalizedType === "select" && (!field.options || field.options.length === 0)) {
-        return {
-          ...field,
-          type: normalizedType,
-          options: ["none"]
-        } as any;
+      const fieldData: any = {
+        key: field.key,
+        label: field.label || "",
+        type: normalizedType,
+        required: field.required === true,
+        placeholder: field.placeholder || "",
+        description: field.description || "",
+        options: normalizedType === "select" ? (field.options && field.options.length > 0 ? field.options : ["none"]) : undefined,
+        defaultValue: field.defaultValue !== undefined ? field.defaultValue : undefined,
+        defaultValueSource: field.defaultValueSource !== undefined ? field.defaultValueSource : undefined,
+        tempOptionsStr: field.tempOptionsStr !== undefined ? field.tempOptionsStr : undefined
+      };
+
+      // conditionalRequired 보존 및 Google Drive 자동 보완 적용
+      const gdFolderKeys = ["googleDriveMdFolderName", "googleDriveMdFolderId", "googleDriveAttachmentFolderName", "googleDriveAttachmentFolderId"];
+      const isGdFolderKey = gdFolderKeys.includes(field.key);
+      const hasOptionalExportProvider = (t.configSchema || []).some(f => f.key === "optionalExportProvider");
+
+      if (field.conditionalRequired) {
+        fieldData.conditionalRequired = {
+          field: field.conditionalRequired.field,
+          equals: field.conditionalRequired.equals
+        };
+      } else if (isGdFolderKey && hasOptionalExportProvider) {
+        fieldData.conditionalRequired = {
+          field: "optionalExportProvider",
+          equals: "google_drive"
+        };
+      } else {
+        fieldData.conditionalRequired = null;
       }
-      return {
-        ...field,
-        type: normalizedType,  // canonical 필드로 통일
-      } as any;
+
+      // undefined 필드 소거
+      Object.keys(fieldData).forEach(key => {
+        if (fieldData[key] === undefined) {
+          delete fieldData[key];
+        }
+      });
+
+      return fieldData;
     });
 
-  // 2. inputSchema 조립 및 디폴트 값 바인딩
-  const sourceInputSchema = t.inputSchema || {
-    acceptedInputTypes: ["text"],
-    allowedFileTypes: [],
-    maxFileSizeMB: 10,
-    titleRequired: true
-  };
+  // 2. inputSchema 조립 및 디폴트 값 바인딩 (v2.3 하위 호환성 확보)
+  const sourceInputSchema = t.inputSchema || ({} as any);
+  
+  const acceptedInputTypes = sourceInputSchema.acceptedInputTypes || ["text"];
+  const allowedFileTypes = sourceInputSchema.allowedFileTypes || [];
+  const maxFileSizeMB = sourceInputSchema.maxFileSizeMB ?? 20;
+  const titleRequired = sourceInputSchema.titleRequired === true; // 기본값 false
+
+  // requiredInputMode 기본값 보완: "at_least_one"
+  const requiredInputMode = sourceInputSchema.requiredInputMode || "at_least_one";
+
+  // requiredInputTypes 기본값 보완: acceptedInputTypes
+  const requiredInputTypes = sourceInputSchema.requiredInputTypes || acceptedInputTypes;
+
+  // maxFiles 기본값 보완: 미디어 존재 시 1, 미존재 시 0
+  const hasMedia = acceptedInputTypes.includes("file") || acceptedInputTypes.includes("image") || acceptedInputTypes.includes("audio");
+  const defaultMaxFiles = hasMedia ? 1 : 0;
+  const maxFiles = sourceInputSchema.maxFiles !== undefined ? sourceInputSchema.maxFiles : defaultMaxFiles;
 
   const inputSchema = {
-    acceptedInputTypes: sourceInputSchema.acceptedInputTypes || ["text"],
-    allowedFileTypes: sourceInputSchema.allowedFileTypes || [],
-    maxFileSizeMB: sourceInputSchema.maxFileSizeMB ?? 10,
-    titleRequired: sourceInputSchema.titleRequired !== false // 기본값 true
+    acceptedInputTypes,
+    allowedFileTypes,
+    maxFileSizeMB,
+    titleRequired,
+    requiredInputMode,
+    requiredInputTypes,
+    maxFiles
   };
 
   // 3. 보관/보존 정책 조립 (누락 필드가 있을 경우 기본값과 안전하게 병합)

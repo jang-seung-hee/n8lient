@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "tsx scripts/syncGatewayValidation.ts",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:gateway-validation": "tsx scripts/syncGatewayValidation.ts"
   },
   "dependencies": {
     "firebase": "^12.14.0",

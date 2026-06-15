@@ -93,26 +93,83 @@ export function validateWorkflowTemplateImport(
     }
   }
 
+  // titleRequired 검증 및 안내
   if (inputSchema.titleRequired !== undefined && typeof inputSchema.titleRequired !== "boolean") {
     addDiag("inputSchema.titleRequired", "error", "titleRequired 속성은 boolean 타입이어야 합니다.");
+  } else if (inputSchema.titleRequired === false) {
+    addDiag("inputSchema.titleRequired", "warning", "제목은 선택 입력입니다. 제목이 비어 있으면 워크플로우 또는 AI가 결과 제목을 생성해야 합니다.");
   }
 
-  if (inputSchema.maxFileSizeMB !== undefined && typeof inputSchema.maxFileSizeMB !== "number") {
-    addDiag("inputSchema.maxFileSizeMB", "error", "maxFileSizeMB 속성은 숫자 타입이어야 합니다.");
+  // requiredInputMode 검증
+  if (inputSchema.requiredInputMode === undefined || inputSchema.requiredInputMode === null) {
+    addDiag("inputSchema.requiredInputMode", "warning", "필수 입력 조건 방식(requiredInputMode)이 생략되었습니다. 가져오기 완료 후 기본값('at_least_one')이 주입됩니다.");
+  } else if (!["none", "at_least_one", "all"].includes(inputSchema.requiredInputMode)) {
+    addDiag("inputSchema.requiredInputMode", "error", "requiredInputMode는 'none', 'at_least_one', 'all' 중 하나여야 합니다.");
+  }
+
+  // requiredInputTypes 검증
+  const requiredTypes = inputSchema.requiredInputTypes || [];
+  if (inputSchema.requiredInputTypes === undefined || inputSchema.requiredInputTypes === null) {
+    addDiag("inputSchema.requiredInputTypes", "warning", "필수 입력 타입 목록(requiredInputTypes)이 생략되었습니다. 가져오기 완료 후 acceptedInputTypes 전체 목록이 주입됩니다.");
+  } else if (!Array.isArray(inputSchema.requiredInputTypes)) {
+    addDiag("inputSchema.requiredInputTypes", "error", "requiredInputTypes는 배열 형태여야 합니다.");
+  } else {
+    const invalidReqTypes = requiredTypes.filter((type: string) => !["text", "file", "image", "audio"].includes(type));
+    if (invalidReqTypes.length > 0) {
+      addDiag("inputSchema.requiredInputTypes", "error", `requiredInputTypes에 지원하지 않는 입력 형태(${invalidReqTypes.join(", ")})가 포함되어 있습니다.`);
+    }
+    // 부분집합 확인
+    const notSubset = requiredTypes.filter((type: string) => !acceptedTypes.includes(type));
+    if (notSubset.length > 0) {
+      addDiag("inputSchema.requiredInputTypes", "error", `필수 입력 타입 목록(${notSubset.join(", ")})은 허용 입력 형태(acceptedInputTypes)의 부분집합이어야 합니다.`);
+    }
+
+    // requiredInputMode가 at_least_one 또는 all인데 requiredInputTypes가 빈 배열이면 error
+    const mode = inputSchema.requiredInputMode || "at_least_one";
+    if (["at_least_one", "all"].includes(mode) && requiredTypes.length === 0) {
+      addDiag("inputSchema.requiredInputTypes", "error", `requiredInputMode가 '${mode}'인 경우, requiredInputTypes는 최소 1개 이상 지정되어야 합니다.`);
+    }
+  }
+
+  // maxFiles 검증
+  const maxFiles = inputSchema.maxFiles;
+  if (maxFiles === undefined || maxFiles === null) {
+    addDiag("inputSchema.maxFiles", "warning", "최대 업로드 파일 수(maxFiles)가 지정되지 않았습니다. 가져오기 완료 후 자동 계산(미디어 존재 시 1, 미존재 시 0)되어 대입됩니다.");
+  } else if (typeof maxFiles !== "number" || maxFiles < 0) {
+    addDiag("inputSchema.maxFiles", "error", "maxFiles는 0 이상의 숫자 형식이어야 합니다.");
+  }
+
+  // maxFileSizeMB 검증
+  if (inputSchema.maxFileSizeMB === undefined || inputSchema.maxFileSizeMB === null) {
+    addDiag("inputSchema.maxFileSizeMB", "warning", "최대 파일 크기(maxFileSizeMB)가 지정되지 않았습니다. 기본값인 20MB가 대입됩니다.");
+  } else if (typeof inputSchema.maxFileSizeMB !== "number" || inputSchema.maxFileSizeMB <= 0) {
+    addDiag("inputSchema.maxFileSizeMB", "error", "maxFileSizeMB 속성은 0보다 큰 숫자 타입이어야 합니다.");
   } else if (inputSchema.maxFileSizeMB && inputSchema.maxFileSizeMB > 200) {
     addDiag("inputSchema.maxFileSizeMB", "warning", "허용 최대 파일 용량(maxFileSizeMB)이 200MB를 초과하여 과도하게 큽니다.");
   }
 
   const hasMediaInput = acceptedTypes.includes("file") || acceptedTypes.includes("image") || acceptedTypes.includes("audio");
-  if (hasMediaInput && allowedExtensions.length === 0) {
-    addDiag("inputSchema.allowedFileTypes", "warning", "미디어 입력을 허용했으나 allowedExtensions(allowedFileTypes) 확장자 목록이 비어 있습니다.");
+  
+  if (hasMediaInput && maxFiles === 0) {
+    addDiag("inputSchema.maxFiles", "warning", "미디어 입력을 허용했으나 maxFiles가 0개로 지정되어 있어 파일 전송이 불가능합니다.");
   }
 
-  // 3. configSchema 검증 (6.4 기준)
+  if (hasMediaInput && allowedExtensions.length === 0) {
+    addDiag("inputSchema.allowedFileTypes", "warning", "미디어 입력을 허용했으나 allowedFileTypes 확장자 목록이 비어 있습니다.");
+  }
+  
+  const requiredTypesArray = requiredTypes || [];
+  const hasRequiredMediaInput = requiredTypesArray.includes("file") || requiredTypesArray.includes("image") || requiredTypesArray.includes("audio");
+  if (hasRequiredMediaInput && allowedExtensions.length === 0) {
+    addDiag("inputSchema.allowedFileTypes", "warning", "필수 미디어 입력(requiredInputTypes)이 존재하나 allowedFileTypes 목록이 비어있어 파일이 차단될 수 있습니다.");
+  }
+
+  // 3. configSchema 검증 (6.4 및 conditionalRequired 기준)
   const configSchema = t.configSchema;
   if (configSchema !== undefined && !Array.isArray(configSchema)) {
     addDiag("configSchema", "error", "configSchema는 배열 형태여야 합니다.");
   } else if (Array.isArray(configSchema)) {
+    const allKeys = new Set(configSchema.map(f => (f?.key || "").trim()).filter(Boolean));
     const schemaKeys = new Set<string>();
     const keyPattern = /^[a-zA-Z0-9]+$/;
     const allowedFieldTypes = ["text", "textarea", "email", "number", "boolean", "select", "password", "url", "secret"];
@@ -124,11 +181,12 @@ export function validateWorkflowTemplateImport(
       "serviceaccount", "clientsecret", "authorization", "bearer", "cookie", "firebaseadmin"
     ];
 
+    // Google Drive Optional Export 자동 보완 경고 대상 체크용
+    let hasGoogleDriveExportFolderId = false;
+
     configSchema.forEach((field, index) => {
       const fieldPath = `configSchema[${index}]`;
       const fKey = (field.key || "").trim();
-      // [버그 수정] Import JSON은 type 또는 inputType 중 하나만 제공할 수 있으므로
-      // 두 필드를 모두 수용하여 canonical 필드인 type 기준으로 검증합니다.
       const fType = (field as any).type || (field as any).inputType || "";
 
       if (!fKey) {
@@ -149,7 +207,7 @@ export function validateWorkflowTemplateImport(
         }
       }
 
-      // type 누락 검사: type과 inputType 둘 다 없을 때만 오류로 판단합니다.
+      // type 누락 검사
       if (!fType) {
         addDiag(`${fieldPath}.type`, "error", `${index + 1}번째 설정 필드 '${fKey}'의 인풋 타입이 누락되었습니다. (type 또는 inputType 중 하나를 지정하세요.)`);
       } else if (!allowedFieldTypes.includes(fType)) {
@@ -171,11 +229,54 @@ export function validateWorkflowTemplateImport(
         addDiag(`${fieldPath}.description`, "warning", `${index + 1}번째 설정 필드 '${fKey}'의 가이드 설명(description)이 비어 있습니다.`);
       }
 
+      // conditionalRequired 조건부 필수 검사
+      const condReq = field.conditionalRequired;
+      if (condReq !== undefined && condReq !== null) {
+        if (typeof condReq !== "object" || Array.isArray(condReq)) {
+          addDiag(`${fieldPath}.conditionalRequired`, "error", `'${fKey}' 필드의 conditionalRequired는 객체 형태여야 합니다.`);
+        } else {
+          const reqField = condReq.field;
+          const reqEquals = condReq.equals;
+
+          if (!reqField || typeof reqField !== "string" || reqField.trim() === "") {
+            addDiag(`${fieldPath}.conditionalRequired.field`, "error", `'${fKey}' 필드의 conditionalRequired.field 대상 설정 키가 누락되었거나 유효하지 않습니다.`);
+          } else {
+            const trimmedReqField = reqField.trim();
+            if (trimmedReqField === fKey) {
+              addDiag(`${fieldPath}.conditionalRequired.field`, "warning", `'${fKey}' 필드가 자기 자신을 조건부 필수 대상으로 지정하고 있습니다.`);
+            } else if (!allKeys.has(trimmedReqField)) {
+              addDiag(`${fieldPath}.conditionalRequired.field`, "warning", `'${fKey}' 필드의 조건부 필수 대상 필드 '${trimmedReqField}'가 configSchema 내에 존재하지 않습니다.`);
+            }
+          }
+
+          if (reqEquals === undefined || reqEquals === null || (typeof reqEquals === "string" && reqEquals.trim() === "")) {
+            addDiag(`${fieldPath}.conditionalRequired.equals`, "error", `'${fKey}' 필드의 conditionalRequired.equals 매칭 비교 값이 누락되었습니다.`);
+          }
+        }
+      }
+
       // 구형 드라이브 키 감지 경고
       if (fKey === "googleDriveExportFolderId") {
-        addDiag("configSchema", "warning", "구형 googleDriveExportFolderId 사용이 감지되었습니다. 최신 기준은 마크다운 보관함과 첨부파일 보관함 분리를 권장합니다.");
+        hasGoogleDriveExportFolderId = true;
       }
     });
+
+    // Google Drive md / attachment 폴더 ID 들에 대한 조건부 필수 보완 진단 경고
+    const gdFolderKeys = ["googleDriveMdFolderName", "googleDriveMdFolderId", "googleDriveAttachmentFolderName", "googleDriveAttachmentFolderId"];
+    const hasOptionalExportProvider = configSchema.some(f => f.key === "optionalExportProvider");
+    
+    if (hasOptionalExportProvider) {
+      const gdBareKeys = configSchema.filter(f => gdFolderKeys.includes(f.key));
+      const needsGdWarning = gdBareKeys.some(f => !f.conditionalRequired);
+      
+      if (needsGdWarning) {
+        addDiag("configSchema", "warning", "Google Drive Optional Export 조건부 필수 규칙이 자동 보완되었습니다.");
+      }
+    }
+
+    if (hasGoogleDriveExportFolderId) {
+      addDiag("configSchema", "warning", "구형 googleDriveExportFolderId 사용이 감지되었습니다. 최신 기준은 마크다운 보관함과 첨부파일 보관함 분리를 권장하며 자동 변환되지 않으므로 n8n 워크플로우에 맞춰 MD/첨부 파일용 키를 직접 재등록해주십시오.");
+    }
   }
 
   // 4. 보관/보존 정책 정합성 검증 (6.5 및 지시서 기준)

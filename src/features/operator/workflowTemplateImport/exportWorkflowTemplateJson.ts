@@ -18,25 +18,75 @@ export const N8LIENT_IMPORT_SCHEMA_VERSION = "n8lient.workflowTemplateImport.v1"
  * @returns 표준 Import JSON 페이로드 (파일 저장 가능)
  */
 export function buildWorkflowTemplateImportJson(template: WorkflowTemplate): object {
+  // inputSchema에서 undefined 필드 안전하게 필터링
+  const cleanInputSchema = {
+    titleRequired: template.inputSchema.titleRequired === true,
+    acceptedInputTypes: template.inputSchema.acceptedInputTypes || [],
+    allowedFileTypes: template.inputSchema.allowedFileTypes || [],
+    maxFileSizeMB: template.inputSchema.maxFileSizeMB !== undefined ? template.inputSchema.maxFileSizeMB : 20,
+    requiredInputMode: template.inputSchema.requiredInputMode || "at_least_one",
+    requiredInputTypes: template.inputSchema.requiredInputTypes || template.inputSchema.acceptedInputTypes || [],
+    maxFiles: template.inputSchema.maxFiles !== undefined ? template.inputSchema.maxFiles : (template.inputSchema.acceptedInputTypes?.some((t: string) => ["file", "image", "audio"].includes(t)) ? 1 : 0)
+  };
+
+  // configSchema에서 undefined 소거 및 conditionalRequired 보존
+  const cleanConfigSchema = (template.configSchema || []).map(field => {
+    const cleanField: any = {
+      key: field.key,
+      label: field.label || "",
+      type: field.type,
+      required: field.required === true,
+      placeholder: field.placeholder || "",
+      description: field.description || "",
+    };
+
+    if (field.options && field.options.length > 0) {
+      cleanField.options = field.options;
+    }
+    if (field.defaultValue !== undefined) {
+      cleanField.defaultValue = field.defaultValue;
+    }
+    if (field.defaultValueSource !== undefined) {
+      cleanField.defaultValueSource = field.defaultValueSource;
+    }
+    if (field.conditionalRequired !== undefined && field.conditionalRequired !== null) {
+      cleanField.conditionalRequired = {
+        field: field.conditionalRequired.field,
+        equals: field.conditionalRequired.equals
+      };
+    } else {
+      cleanField.conditionalRequired = null;
+    }
+
+    return cleanField;
+  });
+
   // UI 전용 임시 필드 및 민감값을 제외한 안전한 데이터만 추출합니다.
-  const safeTemplate: Partial<WorkflowTemplate> = {
+  const safeTemplate: any = {
     workflowKey: template.workflowKey,
     name: template.name,
     shortName: template.shortName,
-    description: template.description,
-    version: template.version,
-    status: template.status,
+    description: template.description || "",
+    version: template.version || "1.0.0",
+    status: template.status || "draft",
     webhookSecretId: template.webhookSecretId,  // 실제 Secret이 아닌 참조 ID
-    n8nServerKey: template.n8nServerKey,
-    configSchemaVersion: template.configSchemaVersion,
-    inputSchema: template.inputSchema,
-    configSchema: template.configSchema,
-    retentionPolicy: template.retentionPolicy,
-    retentionCapabilities: template.retentionCapabilities,
-    operatorRetentionPolicy: template.operatorRetentionPolicy,
+    n8nServerKey: template.n8nServerKey || "main",
+    configSchemaVersion: template.configSchemaVersion || 1,
+    inputSchema: cleanInputSchema,
+    configSchema: cleanConfigSchema,
+    retentionPolicy: template.retentionPolicy || null,
+    retentionCapabilities: template.retentionCapabilities || null,
+    operatorRetentionPolicy: template.operatorRetentionPolicy || null,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
   };
+
+  // undefined 필드 최종 소거
+  Object.keys(safeTemplate).forEach(key => {
+    if (safeTemplate[key] === undefined) {
+      delete safeTemplate[key];
+    }
+  });
 
   return {
     schemaVersion: N8LIENT_IMPORT_SCHEMA_VERSION,

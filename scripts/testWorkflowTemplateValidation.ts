@@ -21,7 +21,10 @@ const getBaseTemplate = (): Partial<WorkflowTemplate> => ({
     acceptedInputTypes: ["text"],
     allowedFileTypes: [],
     maxFileSizeMB: 10,
-    titleRequired: true
+    titleRequired: true,
+    requiredInputMode: "at_least_one",
+    requiredInputTypes: ["text"],
+    maxFiles: 0
   },
   configSchema: [],
   retentionCapabilities: {
@@ -247,6 +250,226 @@ async function runTests() {
     }
   } catch (err: any) {
     console.error("  => ❌ FAIL: 매퍼 동작 중 예기치 못한 크래시 발생:", err.message);
+  }
+  console.log("-----------------------------------------");
+
+  // 8. v2.3 스타일 JSON 테스트
+  console.log("[Test #8] v2.3 스타일 JSON 수동 테스트");
+  testCount++;
+  try {
+    const v23JsonDraft: WorkflowTemplateImportDraft = {
+      schemaVersion: "n8lient.workflowTemplateImport.v1",
+      source: { analyzerVersion: "1.0.0", analyzedAt: new Date().toISOString(), sourceFileName: "legacy.json" },
+      workflowTemplate: {
+        workflowKey: "legacy-test",
+        name: "레거시 테스트",
+        shortName: "레거",
+        version: "1.0.0",
+        status: "draft",
+        description: "v2.3 호환 테스트",
+        webhookSecretId: "legacy-test",
+        n8nServerKey: "main",
+        inputSchema: {
+          titleRequired: false,
+          acceptedInputTypes: ["audio"],
+          allowedFileTypes: ["webm", "mp3"],
+          maxFileSizeMB: 20
+        },
+        retentionCapabilities: {
+          maxLevel: "processed_result",
+          defaultLevel: "processed_result",
+          supportedLevels: ["notify_only", "processed_result"],
+          supportsProcessorResult: true,
+          supportsOriginalFileRefs: false,
+          supportsResultRefs: false,
+          supportsResultPolicyRouter: false,
+          supportsEmailNotification: false
+        },
+        operatorRetentionPolicy: {
+          allowedLevels: ["notify_only", "processed_result"],
+          defaultLevel: "processed_result",
+          allowCompanyOverride: true,
+          allowUserOverride: true
+        },
+        configSchema: []
+      },
+      diagnostics: { severity: "ok", canSave: true, requiresWarningConfirmation: false, items: [], fieldDiagnostics: {} }
+    };
+
+    const validated = validateWorkflowTemplateImport(v23JsonDraft, existingTemplates);
+    const mapped = mapImportJsonToWorkflowTemplate(validated);
+
+    const isWarning = validated.diagnostics.severity === "warning";
+    const hasDefaultValues =
+      mapped.inputSchema.requiredInputMode === "at_least_one" &&
+      JSON.stringify(mapped.inputSchema.requiredInputTypes) === JSON.stringify(["audio"]) &&
+      mapped.inputSchema.maxFiles === 1;
+
+    if (isWarning && hasDefaultValues) {
+      console.log("  => ✅ PASS (warning 표시 및 requiredInputMode/requiredInputTypes/maxFiles 기본값 보완 완료)");
+      successCount++;
+    } else {
+      console.error("  => ❌ FAIL: v2.3 호환 검증 실패. Warning:", isWarning, "Defaults:", hasDefaultValues);
+      console.error("     Mapped inputSchema:", mapped.inputSchema);
+      console.error("     Diagnostics:", validated.diagnostics.items);
+    }
+  } catch (err: any) {
+    console.error("  => ❌ FAIL: v2.3 테스트 중 예기치 못한 크래시 발생:", err.message);
+  }
+  console.log("-----------------------------------------");
+
+  // 9. v2.4 스타일 JSON 테스트
+  console.log("[Test #9] v2.4 스타일 JSON 수동 테스트");
+  testCount++;
+  try {
+    const v24JsonDraft: WorkflowTemplateImportDraft = {
+      schemaVersion: "n8lient.workflowTemplateImport.v1",
+      source: { analyzerVersion: "1.0.0", analyzedAt: new Date().toISOString(), sourceFileName: "v24.json" },
+      workflowTemplate: {
+        workflowKey: "v24-test",
+        name: "v2.4 테스트",
+        shortName: "V24",
+        version: "1.0.0",
+        status: "draft",
+        description: "v2.4 입력 검증 테스트",
+        webhookSecretId: "v24-test",
+        n8nServerKey: "main",
+        inputSchema: {
+          titleRequired: false,
+          acceptedInputTypes: ["text", "audio"],
+          requiredInputMode: "at_least_one",
+          requiredInputTypes: ["text", "audio"],
+          allowedFileTypes: ["webm", "mp3", "m4a", "wav"],
+          maxFileSizeMB: 20,
+          maxFiles: 1
+        },
+        retentionCapabilities: {
+          maxLevel: "processed_result",
+          defaultLevel: "processed_result",
+          supportedLevels: ["notify_only", "processed_result"],
+          supportsProcessorResult: true,
+          supportsOriginalFileRefs: false,
+          supportsResultRefs: false,
+          supportsResultPolicyRouter: false,
+          supportsEmailNotification: false
+        },
+        operatorRetentionPolicy: {
+          allowedLevels: ["notify_only", "processed_result"],
+          defaultLevel: "processed_result",
+          allowCompanyOverride: true,
+          allowUserOverride: true
+        },
+        configSchema: [
+          {
+            key: "optionalExportProvider",
+            label: "외부 내보내기 방식",
+            type: "select",
+            defaultSource: "none",
+            required: false,
+            placeholder: "none",
+            description: "결과 파일을 외부 저장소로 내보낼지 선택합니다.",
+            options: ["none", "google_drive"]
+          } as any,
+          {
+            key: "googleDriveMdFolderId",
+            label: "MD 파일 보관 폴더 ID",
+            type: "text",
+            defaultSource: "직접 입력",
+            required: false,
+            placeholder: "Google Drive 폴더 ID",
+            description: "MD 결과 파일을 저장할 Google Drive 폴더 ID입니다.",
+            options: [],
+            conditionalRequired: {
+              field: "optionalExportProvider",
+              equals: "google_drive"
+            }
+          } as any
+        ]
+      },
+      diagnostics: { severity: "ok", canSave: true, requiresWarningConfirmation: false, items: [], fieldDiagnostics: {} }
+    };
+
+    const validated = validateWorkflowTemplateImport(v24JsonDraft, existingTemplates);
+    const mapped = mapImportJsonToWorkflowTemplate(validated);
+
+    const canSave = validated.diagnostics.canSave;
+    const condReqPreserved = mapped.configSchema.find(f => f.key === "googleDriveMdFolderId")?.conditionalRequired?.field === "optionalExportProvider";
+
+    if (canSave && condReqPreserved) {
+      console.log("  => ✅ PASS (canSave=true 및 conditionalRequired 보존 완료)");
+      successCount++;
+    } else {
+      console.error("  => ❌ FAIL: v2.4 검증 실패. CanSave:", canSave, "Preserved:", condReqPreserved);
+      console.error("     Mapped configSchema:", mapped.configSchema);
+    }
+  } catch (err: any) {
+    console.error("  => ❌ FAIL: v2.4 테스트 중 예기치 못한 크래시 발생:", err.message);
+  }
+  console.log("-----------------------------------------");
+
+  // 10. 오류 JSON 테스트
+  console.log("[Test #10] 오류 JSON 수동 테스트");
+  testCount++;
+  try {
+    const badJsonDraft: WorkflowTemplateImportDraft = {
+      schemaVersion: "n8lient.workflowTemplateImport.v1",
+      source: { analyzerVersion: "1.0.0", analyzedAt: new Date().toISOString(), sourceFileName: "bad.json" },
+      workflowTemplate: {
+        workflowKey: "bad-test",
+        name: "오류 테스트",
+        shortName: "BAD",
+        version: "1.0.0",
+        status: "draft",
+        description: "잘못된 입력 검증 테스트",
+        webhookSecretId: "bad-test",
+        n8nServerKey: "main",
+        inputSchema: {
+          titleRequired: false,
+          acceptedInputTypes: ["audio"],
+          requiredInputMode: "all",
+          requiredInputTypes: ["text"],
+          allowedFileTypes: ["webm"],
+          maxFileSizeMB: 20,
+          maxFiles: 1
+        },
+        retentionCapabilities: {
+          maxLevel: "processed_result",
+          defaultLevel: "processed_result",
+          supportedLevels: ["notify_only", "processed_result"],
+          supportsProcessorResult: true,
+          supportsOriginalFileRefs: false,
+          supportsResultRefs: false,
+          supportsResultPolicyRouter: false,
+          supportsEmailNotification: false
+        },
+        operatorRetentionPolicy: {
+          allowedLevels: ["notify_only", "processed_result"],
+          defaultLevel: "processed_result",
+          allowCompanyOverride: true,
+          allowUserOverride: true
+        },
+        configSchema: []
+      },
+      diagnostics: { severity: "ok", canSave: true, requiresWarningConfirmation: false, items: [], fieldDiagnostics: {} }
+    };
+
+    const validated = validateWorkflowTemplateImport(badJsonDraft, existingTemplates);
+
+    const isError = validated.diagnostics.severity === "error";
+    const hasSubsetError = validated.diagnostics.items.some(item =>
+      item.field === "inputSchema.requiredInputTypes" &&
+      item.message.includes("부분집합")
+    );
+
+    if (isError && hasSubsetError) {
+      console.log("  => ✅ PASS (Import error 발생 및 부분집합 불일치 진단 표시 확인)");
+      successCount++;
+    } else {
+      console.error("  => ❌ FAIL: 오류 JSON 검증 실패. Error:", isError, "SubsetError:", hasSubsetError);
+      console.error("     Diagnostics:", validated.diagnostics.items);
+    }
+  } catch (err: any) {
+    console.error("  => ❌ FAIL: 오류 테스트 중 예기치 못한 크래시 발생:", err.message);
   }
   console.log("-----------------------------------------");
 

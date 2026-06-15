@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebaseAdmin";
+import { validateExecution } from "@/common/validation/validateExecution";
 
 // n8n Webhook URL/Token 조회 헬퍼 (Base URL + Path 조합)
 function getWebhookConfig(
@@ -187,25 +188,62 @@ export async function POST(req: NextRequest) {
     const n8nServerKey: string = templateDoc.n8nServerKey || "main";
     const webhookSecretId: string = templateDoc.webhookSecretId || workflowKey;
 
-    // ── 5.5. 실행 제목(titleRequired) 검증 및 자동 생성 ──────────────────
-    const titleRequired = templateDoc.inputSchema?.titleRequired !== false;
-    let finalTitle = (input.title || "").trim();
+    // ── 5.5. 실행 제목 및 데이터 검증 ──────────────────
+    const titleProvided = typeof input.title === "string" && input.title.trim() !== "";
+    const titleSource = input.titleSource || (titleProvided ? "user" : "empty");
+    let finalTitle = titleProvided ? input.title.trim() : undefined;
 
-    if (titleRequired && !finalTitle) {
+    // ── 5.6. 공통 validation 헬퍼 구동 ──────────────────
+    const validationResult = validateExecution({
+      automationId,
+      input: {
+        title: finalTitle,
+        text: input.text || undefined,
+        inputType: input.inputType || undefined
+      },
+      files: file ? [{
+        name: file.name,
+        size: file.size,
+        type: file.type
+      }] : [],
+      inputSchema: templateDoc.inputSchema || {},
+      configSchema: templateDoc.configSchema || [],
+      settings: finalSettings
+    });
+
+    if (!validationResult.isValid) {
+      const dateStr = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const errRequestId = `req_err_${dateStr}_${randomStr}`;
+
       return NextResponse.json(
-        { success: false, error: "실행 제목(input.title)이 누락되었습니다." },
+        {
+          success: false,
+          code: "EXECUTION_VALIDATION_FAILED",
+          error: "실행에 필요한 입력값이 부족합니다.",
+          source: "api_route_execution_validation",
+          missingFields: validationResult.missingFields,
+          received: {
+            hasAutomationId: validationResult.received.hasAutomationId,
+            hasTitle: validationResult.received.hasTitle,
+            hasText: validationResult.received.hasText,
+            fileCount: validationResult.received.fileCount,
+            providedInputTypes: validationResult.received.providedInputTypes
+          },
+          requestId: errRequestId,
+          submissionId: null
+        },
         { status: 400 }
       );
     }
 
-    if (!finalTitle) {
-      // 자동 제목 생성 규칙
-      const nowFormatted = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })
-        .replace(/\. /g, "-").replace(/\./g, "").slice(0, 16); // YYYY-MM-DD HH:mm 형태 근접 매핑
-      
-      const workflowName = templateDoc.name || workflowKey;
-      finalTitle = `[${workflowName}] ${nowFormatted} 실행`;
-    }
+    const resolvedInputType = validationResult.received.providedInputTypes[0] || "unknown";
+
+    // 내부 시스템 관리 및 정렬용 submissionTitle 별도 생성
+    const nowFormatted = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })
+      .replace(/\. /g, "-").replace(/\./g, "").slice(0, 16);
+    const workflowName = templateDoc.name || workflowKey;
+    const submissionTitle = finalTitle || `[${workflowName}] ${nowFormatted} 실행`;
 
     // ── 6. 환경변수에서 Webhook URL 조회 (서버 공통 Base URL + 자동화별 Path) ────
     const webhookConfig = getWebhookConfig(n8nServerKey, webhookSecretId);
@@ -224,13 +262,16 @@ export async function POST(req: NextRequest) {
       automationId,
       status: "queued",
       input: {
-        title: finalTitle,
+        title: finalTitle || null,
+        submissionTitle,
+        titleProvided,
+        titleSource,
         text: input.text || null,
         fileUrl: input.fileUrl || null,
         fileName: file ? file.name : (input.fileName || null),
         mimeType: file ? (file.type || "application/octet-stream") : (input.mimeType || null),
         sizeBytes: file ? file.size : (input.sizeBytes || null),
-        inputType: file ? (input.files?.[0]?.inputType || "file") : null,
+        inputType: resolvedInputType,
       },
       result: {
         resultUrl: null,

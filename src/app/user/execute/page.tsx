@@ -14,8 +14,12 @@ import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsM
 import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
 import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
+import { useSearchParams } from "next/navigation";
+import { validateExecution } from "@/common/validation/validateExecution";
 
 export default function UserExecute() {
+  const searchParams = useSearchParams();
+  const isDebugMode = searchParams.get("debug") === "1";
   const { user, userDoc, loading: authLoading } = useAuthUser();
   const [automations, setAutomations] = useState<ClientAutomation[]>([]);
   const [templates, setTemplates] = useState<Record<string, WorkflowTemplate>>({});
@@ -31,6 +35,7 @@ export default function UserExecute() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [validationDebug, setValidationDebug] = useState<any>(null);
   
   // 녹음 오작동 방지용 상태 및 ref
   const [isRecording, setIsRecording] = useState(false);
@@ -154,10 +159,38 @@ export default function UserExecute() {
 
     playAppSound("click");
 
-    const isTitleRequired = currentTemplate?.inputSchema?.titleRequired !== false;
-    if (isTitleRequired && !title.trim()) {
+    const titleProvided = title.trim() !== "";
+    const titleSource = titleProvided ? "user" : "empty";
+    const resolvedInputType = inputType || "text";
+    const currentSettings = userSettings?.settings || currentAuto.settings || {};
+
+    const validationResult = validateExecution({
+      automationId: currentAuto.automationId,
+      input: {
+        title: titleProvided ? title.trim() : undefined,
+        text: inputText || undefined,
+        inputType: resolvedInputType
+      },
+      files: selectedFile ? [{
+        name: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type
+      }] : [],
+      inputSchema: currentTemplate?.inputSchema || {},
+      configSchema: currentTemplate?.configSchema || [],
+      settings: currentSettings
+    });
+
+    console.warn("[N8Lient execute validation]", {
+      isValid: validationResult.isValid,
+      missingFields: validationResult.missingFields,
+      received: validationResult.received
+    });
+    setValidationDebug(validationResult);
+
+    if (!validationResult.isValid) {
       playAppSound("notify");
-      addDelayedAlert("실행 제목을 입력해 주십시오.");
+      setError("실행에 필요한 입력값이 부족합니다. 입력 항목을 확인해 주세요.");
       return;
     }
 
@@ -174,19 +207,17 @@ export default function UserExecute() {
       const payload = {
         automationId: currentAuto.automationId,
         input: {
-          title,
+          title: titleProvided ? title.trim() : undefined,
+          titleProvided,
+          titleSource,
           text: inputText || undefined,
-          inputType: inputType || "file"
+          inputType: resolvedInputType
         }
       };
       
       formData.append("payload", JSON.stringify(payload));
       
       if (selectedFile) {
-        const maxFileSizeMB = currentTemplate?.inputSchema?.maxFileSizeMB || 10;
-        if (selectedFile.size > maxFileSizeMB * 1024 * 1024) {
-          throw new Error(`파일 크기가 제한 용량(${maxFileSizeMB}MB)을 초과했습니다.`);
-        }
         formData.append("file_0", selectedFile);
       }
 
@@ -205,10 +236,20 @@ export default function UserExecute() {
         setInputText("");
         setSelectedFile(null);
         setInputType(null);
+        setValidationDebug(null);
         playAppSound("success");
         addDelayedAlert(`실행 요청이 성공적으로 전달되었습니다.\n요청 ID: ${data.submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
       } else {
         playAppSound("error");
+        if (data.missingFields || data.source) {
+          setValidationDebug({
+            code: data.code,
+            source: data.source,
+            missingFields: data.missingFields,
+            received: data.received,
+            requestId: data.requestId
+          });
+        }
         setError(data.error || "실행 요청 처리 중 오류가 발생했습니다.");
       }
     } catch (err: any) {
@@ -441,6 +482,35 @@ export default function UserExecute() {
             </button>
           )}
         </form>
+      )}
+
+      {isDebugMode && validationDebug && (
+        <div style={{ marginTop: "16px", backgroundColor: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "10px", fontSize: "12px", color: "#374151" }}>
+          <details>
+            <summary style={{ cursor: "pointer", fontWeight: 600, outline: "none" }}>🔍 개발자 디버그 정보 (클릭하여 열기)</summary>
+            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px", fontFamily: "monospace" }}>
+              <div>누락 필드: {validationDebug.missingFields?.join(", ") || "(없음)"}</div>
+              {validationDebug.received ? (
+                <>
+                  <div>자동화 ID 존재 여부: {String(validationDebug.received.hasAutomationId ?? "")}</div>
+                  <div>제목 존재 여부: {String(validationDebug.received.hasTitle ?? "")}</div>
+                  <div>본문 존재 여부: {String(validationDebug.received.hasText ?? "")}</div>
+                  <div>첨부 파일 개수: {validationDebug.received.fileCount ?? 0}</div>
+                  <div>인식된 입력 타입: {validationDebug.received.providedInputTypes?.join(", ") || "없음"}</div>
+                </>
+              ) : (
+                <>
+                  <div>자동화 ID 존재 여부: {String(validationDebug.hasAutomationId ?? "")}</div>
+                  <div>제목 존재 여부: {String(validationDebug.hasTitle ?? "")}</div>
+                  <div>입력 유형: {validationDebug.inputType || ""}</div>
+                  <div>파일 첨부 여부: {validationDebug.hasFile ? "있음" : "없음"}</div>
+                </>
+              )}
+              {validationDebug.source && <div>요청 단계: {validationDebug.source}</div>}
+              {validationDebug.requestId && <div>요청 ID: {validationDebug.requestId}</div>}
+            </div>
+          </details>
+        </div>
       )}
 
       {showModal && currentAuto && currentTemplate && user && userDoc?.clientId && (

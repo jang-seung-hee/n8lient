@@ -230,6 +230,11 @@ export interface ConfigSchemaField {
   description?: string;
   /** UI 폼 입력 시 쉼표 포함 실시간 편집용 임시 필드 */
   tempOptionsStr?: string;
+  /** 특정 선택값에 따라 필수가 되는 조건부 필수 설정 */
+  conditionalRequired?: {
+    field: string;
+    equals: string;
+  } | null;
 }
 
 /**
@@ -250,6 +255,9 @@ export interface WorkflowTemplate {
     allowedFileTypes?: string[];
     maxFileSizeMB?: number;
     titleRequired?: boolean;
+    requiredInputMode?: "none" | "at_least_one" | "all";
+    requiredInputTypes?: Array<"text" | "file" | "audio" | "image">;
+    maxFiles?: number;
   };
   /** settings의 key 이름과 반드시 일치해야 하는 설정 스키마 */
   configSchema: ConfigSchemaField[];

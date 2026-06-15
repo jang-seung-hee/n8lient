@@ -15,6 +15,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const firebase_1 = require("./lib/firebase");
 const auth_1 = require("./middleware/auth");
 const storage_1 = require("./lib/storage");
+const validateExecution_1 = require("./shared/validateExecution");
 // .env 파일 로드 (로컬 개발용)
 dotenv_1.default.config();
 /**
@@ -139,8 +140,28 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             payloadData = req.body;
         }
         const { automationId, input } = payloadData;
-        if (!automationId || !input || !input.title) {
-            return res.status(400).json({ success: false, error: "필수 파라미터(automationId, input.title)가 누락되었습니다." });
+        // 최소 파라미터 구조 검사
+        if (!automationId || !input) {
+            const dateStr = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
+            const randomStr = Math.random().toString(36).substring(2, 8);
+            const errRequestId = `req_err_${dateStr}_${randomStr}`;
+            return res.status(400).json({
+                success: false,
+                code: "REQUIRED_INPUT_MISSING",
+                error: "필수 파라미터(automationId, input)가 누락되었습니다.",
+                source: "gateway_request_validation",
+                missingFields: !automationId ? ["automationId"] : ["input"],
+                received: {
+                    hasAutomationId: Boolean(automationId),
+                    hasInput: Boolean(input),
+                    hasTitle: Boolean(input?.title),
+                    inputType: input?.inputType || null,
+                    hasFile: Boolean(file),
+                    fileCount: file ? 1 : 0
+                },
+                requestId: errRequestId,
+                submissionId: null
+            });
         }
         const db = (0, firebase_1.getAdminFirestore)();
         // 1. 사용자 정보 및 승인 상태 검증
@@ -211,6 +232,59 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
         if (!webhookConfig) {
             return res.status(500).json({ success: false, error: "n8n Webhook 연동 정보가 서버에 설정되지 않았습니다." });
         }
+        // ── 4.2. 공통 validation 헬퍼 구동 ──────────────────
+        const titleProvided = typeof input.title === "string" && input.title.trim() !== "";
+        const titleSource = input.titleSource || (titleProvided ? "user" : "empty");
+        let finalTitle = titleProvided ? input.title.trim() : undefined;
+        const fileList = file ? [{
+                name: file.originalname,
+                size: file.size,
+                type: file.mimetype
+            }] : [];
+        const validationResult = (0, validateExecution_1.validateExecution)({
+            automationId,
+            input: {
+                title: finalTitle,
+                text: input.text || undefined,
+                inputType: input.inputType || undefined
+            },
+            files: fileList,
+            inputSchema: templateDoc.inputSchema || {},
+            configSchema: templateDoc.configSchema || [],
+            settings: finalSettings
+        });
+        if (!validationResult.isValid) {
+            const dateStr = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
+            const randomStr = Math.random().toString(36).substring(2, 8);
+            const errRequestId = `req_err_${dateStr}_${randomStr}`;
+            // 임시 업로드 파일 삭제 (메모리 누수 방지)
+            if (file && fs_1.default.existsSync(file.path)) {
+                fs_1.default.promises.unlink(file.path).catch(err => {
+                    console.error(`[execute] 임시 파일 제거 실패: path=${file.path}`, err);
+                });
+            }
+            return res.status(400).json({
+                success: false,
+                code: "EXECUTION_VALIDATION_FAILED",
+                error: "실행에 필요한 입력값이 부족합니다.",
+                source: "gateway_execution_validation",
+                missingFields: validationResult.missingFields,
+                received: {
+                    hasAutomationId: validationResult.received.hasAutomationId,
+                    hasTitle: validationResult.received.hasTitle,
+                    hasText: validationResult.received.hasText,
+                    fileCount: validationResult.received.fileCount,
+                    providedInputTypes: validationResult.received.providedInputTypes
+                },
+                requestId: errRequestId,
+                submissionId: null
+            });
+        }
+        // 내부 시스템 관리 및 정렬용 submissionTitle 별도 생성
+        const nowFormatted = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })
+            .replace(/\. /g, "-").replace(/\./g, "").slice(0, 16);
+        const workflowName = templateDoc.name || workflowKey;
+        const submissionTitle = finalTitle || `[${workflowName}] ${nowFormatted} 실행`;
         // [v2.7] 결과/보관 정책 계층 구조 합성 알고리즘 (v1.1 정책 재정의)
         // 1. 레벨 가중치 오더 정의
         const RETENTION_LEVEL_ORDER = {
@@ -390,7 +464,10 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             trigger: input.trigger || "manual",
             status: "queued",
             input: {
-                title: input.title,
+                title: finalTitle || null,
+                submissionTitle,
+                titleProvided,
+                titleSource,
                 text: input.text || null,
                 fileUrl: null,
                 fileName: fileMetadata?.fileName || null,
