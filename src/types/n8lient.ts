@@ -534,13 +534,21 @@ export interface Submission {
   automationId: AutomationId;
   status: SubmissionStatus;
   input: {
-    title: string;
-    text?: string;
-    fileUrl?: string;
-    fileName?: string;
-    mimeType?: string;
-    sizeBytes?: number; // 하위 호환용 크기
+    /** 사용자가 직접 입력한 제목만. 없으면 null */
+    title: string | null;
+    /** 실행 목록/내부 관리용 임시 제목 (시스템 생성) */
+    submissionTitle?: string;
+    titleProvided?: boolean;
+    titleSource?: "user" | "empty";
+    text?: string | null;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    mimeType?: string | null;
+    sizeBytes?: number | null; // 하위 호환용 크기
+    inputType?: string | null;
   };
+  /** UI 표시용 제목 (callback 후 processorResult.title로 갱신) */
+  displayTitle?: string | null;
   result: {
     resultUrl?: string | null;
     summary?: string | null;

@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebaseAdmin";
 import { validateExecution } from "@/common/validation/validateExecution";
+import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 
 // n8n Webhook URL/Token 조회 헬퍼 (Base URL + Path 조합)
 function getWebhookConfig(
@@ -188,16 +189,20 @@ export async function POST(req: NextRequest) {
     const n8nServerKey: string = templateDoc.n8nServerKey || "main";
     const webhookSecretId: string = templateDoc.webhookSecretId || workflowKey;
 
-    // ── 5.5. 실행 제목 및 데이터 검증 ──────────────────
-    const titleProvided = typeof input.title === "string" && input.title.trim() !== "";
-    const titleSource = input.titleSource || (titleProvided ? "user" : "empty");
-    let finalTitle = titleProvided ? input.title.trim() : undefined;
+    // ── 5.5. 실행 제목 계약 정규화 ──────────────────
+    const workflowName = templateDoc.name || workflowKey;
+    const titleContract = buildExecutionTitleContract({
+      inputTitle: input.title,
+      titleProvided: input.titleProvided,
+      titleSource: input.titleSource,
+      workflowName,
+    });
 
     // ── 5.6. 공통 validation 헬퍼 구동 ──────────────────
     const validationResult = validateExecution({
       automationId,
       input: {
-        title: finalTitle,
+        title: titleContract.title,
         text: input.text || undefined,
         inputType: input.inputType || undefined
       },
@@ -211,39 +216,63 @@ export async function POST(req: NextRequest) {
       settings: finalSettings
     });
 
+    const isDebug = req.nextUrl.searchParams.get("debug") === "1";
+    if (isDebug) {
+      console.log("=== [DEBUG] /api/automation/execute ===");
+      console.log("- automationId 존재 여부:", Boolean(automationId));
+      console.log("- input 존재 여부:", Boolean(input));
+      console.log("- input.title 존재 여부:", typeof input?.title === "string" ? Boolean(input.title.trim()) : false);
+      console.log("- input.titleProvided:", titleContract.titleProvided);
+      console.log("- input.titleSource:", titleContract.titleSource);
+      console.log("- input.submissionTitle:", titleContract.submissionTitle);
+      console.log("- workflowTemplate.inputSchema.titleRequired:", templateDoc.inputSchema?.titleRequired);
+      console.log("- workflowTemplate.inputSchema.requiredInputMode:", templateDoc.inputSchema?.requiredInputMode);
+      console.log("- workflowTemplate.inputSchema.requiredInputTypes:", templateDoc.inputSchema?.requiredInputTypes);
+      console.log("- received.providedInputTypes:", validationResult.received.providedInputTypes);
+      console.log("========================================");
+    }
+
     if (!validationResult.isValid) {
       const dateStr = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
       const randomStr = Math.random().toString(36).substring(2, 8);
       const errRequestId = `req_err_${dateStr}_${randomStr}`;
 
-      return NextResponse.json(
-        {
-          success: false,
-          code: "EXECUTION_VALIDATION_FAILED",
-          error: "실행에 필요한 입력값이 부족합니다.",
-          source: "api_route_execution_validation",
-          missingFields: validationResult.missingFields,
-          received: {
-            hasAutomationId: validationResult.received.hasAutomationId,
-            hasTitle: validationResult.received.hasTitle,
-            hasText: validationResult.received.hasText,
-            fileCount: validationResult.received.fileCount,
-            providedInputTypes: validationResult.received.providedInputTypes
-          },
-          requestId: errRequestId,
-          submissionId: null
+      const errorPayload: any = {
+        success: false,
+        code: "EXECUTION_VALIDATION_FAILED",
+        error: "실행에 필요한 입력값이 부족합니다.",
+        source: "api_route_execution_validation",
+        missingFields: validationResult.missingFields,
+        received: {
+          hasAutomationId: validationResult.received.hasAutomationId,
+          hasTitle: validationResult.received.hasTitle,
+          hasText: validationResult.received.hasText,
+          fileCount: validationResult.received.fileCount,
+          providedInputTypes: validationResult.received.providedInputTypes
         },
-        { status: 400 }
-      );
+        requestId: errRequestId,
+        submissionId: null
+      };
+
+      if (isDebug) {
+        errorPayload.debugInfo = {
+          automationIdExists: Boolean(automationId),
+          inputExists: Boolean(input),
+          titleExists: typeof input?.title === "string" ? Boolean(input.title.trim()) : false,
+          titleProvided: titleContract.titleProvided,
+          titleSource: titleContract.titleSource,
+          submissionTitle: titleContract.submissionTitle,
+          titleRequired: templateDoc.inputSchema?.titleRequired,
+          requiredInputMode: templateDoc.inputSchema?.requiredInputMode,
+          requiredInputTypes: templateDoc.inputSchema?.requiredInputTypes,
+          providedInputTypes: validationResult.received.providedInputTypes
+        };
+      }
+
+      return NextResponse.json(errorPayload, { status: 400 });
     }
 
     const resolvedInputType = validationResult.received.providedInputTypes[0] || "unknown";
-
-    // 내부 시스템 관리 및 정렬용 submissionTitle 별도 생성
-    const nowFormatted = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })
-      .replace(/\. /g, "-").replace(/\./g, "").slice(0, 16);
-    const workflowName = templateDoc.name || workflowKey;
-    const submissionTitle = finalTitle || `[${workflowName}] ${nowFormatted} 실행`;
 
     // ── 6. 환경변수에서 Webhook URL 조회 (서버 공통 Base URL + 자동화별 Path) ────
     const webhookConfig = getWebhookConfig(n8nServerKey, webhookSecretId);
@@ -261,11 +290,12 @@ export async function POST(req: NextRequest) {
       workflowKey,
       automationId,
       status: "queued",
+      displayTitle: titleContract.displayTitle,
       input: {
-        title: finalTitle || null,
-        submissionTitle,
-        titleProvided,
-        titleSource,
+        title: titleContract.title,
+        submissionTitle: titleContract.submissionTitle,
+        titleProvided: titleContract.titleProvided,
+        titleSource: titleContract.titleSource,
         text: input.text || null,
         fileUrl: input.fileUrl || null,
         fileName: file ? file.name : (input.fileName || null),

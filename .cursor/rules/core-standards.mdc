@@ -1,0 +1,24 @@
+---
+description: AI 개발 표준 요약 (전체 원문은 standart-rule.mdc 필수 준수)
+globs: **/*
+alwaysApply: true
+---
+
+# 개발 표준 적용 안내
+
+**모든 개발 작업은 `.cursor/rules/standart-rule.mdc`(AI 개발 표준 및 바이브 코딩 규정 v1.0 전체)를 반드시 준수한다.**
+
+충돌 시 우선순위는 다음과 같다.
+
+1. `standart-rule.mdc` (전체 v1.0 원문)
+2. `project-conventions.mdc` (TypeScript/React 구조·스타일)
+3. 본 파일 (요약 참조용)
+
+## 핵심 요약 (상세는 standart-rule.mdc)
+
+- 한국어로 설명·주석·보고한다.
+- 요청 범위만 최소 변경한다.
+- 수정 후 `npx tsc --noEmit` 또는 빌드로 검증한다.
+- Secret/Token 하드코딩 금지, 보안 규칙 완화 금지.
+- 비자명한 작업은 `docs/dev-checklist.md`, `docs/context-notes.md`에 기록한다.
+- `git commit`은 사용자 허용 시에만 실행한다.

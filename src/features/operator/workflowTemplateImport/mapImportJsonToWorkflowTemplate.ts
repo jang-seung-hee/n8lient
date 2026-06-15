@@ -86,7 +86,7 @@ export function mapImportJsonToWorkflowTemplate(
   const acceptedInputTypes = sourceInputSchema.acceptedInputTypes || ["text"];
   const allowedFileTypes = sourceInputSchema.allowedFileTypes || [];
   const maxFileSizeMB = sourceInputSchema.maxFileSizeMB ?? 20;
-  const titleRequired = sourceInputSchema.titleRequired === true; // 기본값 false
+  const titleRequired = sourceInputSchema.titleRequired !== false; // 기본값 true (undefined 시 필수 처리)
 
   // requiredInputMode 기본값 보완: "at_least_one"
   const requiredInputMode = sourceInputSchema.requiredInputMode || "at_least_one";

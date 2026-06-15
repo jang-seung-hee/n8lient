@@ -1,4 +1,5 @@
 import type { Submission } from "@/types/n8lient";
+import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 
 /**
  * Windows 파일명 금지 문자(\ / : * ? " < > |) 제거 및 공백 트림 헬퍼
@@ -101,7 +102,7 @@ export function buildSubmissionMarkdownExport(params: {
     : "\ntags: []";
 
   // 6. 결과 타이틀 결정
-  const displayTitle = procRes?.title || submission.result?.summary || submission.input.title || submission.submissionId;
+  const displayTitle = getSubmissionDisplayTitle(submission);
 
   // 7. 보관 정책 텍스트화
   const level = submission.retentionPolicySnapshot?.level || "full_archive";

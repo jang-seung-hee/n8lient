@@ -65,6 +65,11 @@ export function useWorkflowForm({
   const [schemaFields, setSchemaFields] = useState<ConfigSchemaField[]>([]);
   const [titleRequired, setTitleRequired] = useState(true);
 
+  // v2.4 신규 inputSchema 필드 상태 추가
+  const [requiredInputMode, setRequiredInputMode] = useState<"none" | "at_least_one" | "all">("at_least_one");
+  const [requiredInputTypes, setRequiredInputTypes] = useState<string[]>(["text"]);
+  const [maxFiles, setMaxFiles] = useState<number>(1);
+
   // ── [v2.6] retentionCapabilities 상태 ────────────────────────────────────
   const [maxLevel, setMaxLevel] = useState<RetentionLevel>("full_archive");
   const [supportedLevels, setSupportedLevels] = useState<RetentionLevel[]>([
@@ -146,6 +151,11 @@ export function useWorkflowForm({
       setTitleRequired(initialData.inputSchema.titleRequired !== false);
       setSchemaFields(initialData.configSchema || []);
 
+      // v2.4 신규 필드 데이터 주입
+      setRequiredInputMode(initialData.inputSchema.requiredInputMode || "at_least_one");
+      setRequiredInputTypes(initialData.inputSchema.requiredInputTypes || initialData.inputSchema.acceptedInputTypes || ["text"]);
+      setMaxFiles(initialData.inputSchema.maxFiles !== undefined ? initialData.inputSchema.maxFiles : (initialData.inputSchema.acceptedInputTypes.some(t => ["file", "audio", "image"].includes(t)) ? 1 : 0));
+
       const caps = initialData.retentionCapabilities || {
         maxLevel: "full_archive" as RetentionLevel,
         supportedLevels: ["notify_only", "processed_result", "full_archive"] as RetentionLevel[],
@@ -185,6 +195,9 @@ export function useWorkflowForm({
       setVersion("1.0.0"); setStatus("published"); setWebhookSecretId(""); setN8nServerKey("main");
       setAcceptedTypes(["text"]); setAllowedFileTypesStr("pdf, jpg, png, xlsx");
       setMaxFileSizeMB(50); setSchemaFields([]); setTitleRequired(true);
+      setRequiredInputMode("at_least_one");
+      setRequiredInputTypes(["text"]);
+      setMaxFiles(1);
       setMaxLevel("full_archive");
       setSupportedLevels(["notify_only", "processed_result", "full_archive"]);
       setCapsDefaultLevel("full_archive");
@@ -207,6 +220,7 @@ export function useWorkflowForm({
     supportsProcessorResult, supportsOriginalFileRefs, supportsResultRefs,
     supportsEmailNotification, supportsResultPolicyRouter,
     opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
+    requiredInputMode, requiredInputTypes, maxFiles,
     initialData, getMaybeUndefined,
   });
 
@@ -229,6 +243,7 @@ export function useWorkflowForm({
     supportsProcessorResult, supportsOriginalFileRefs, supportsResultRefs,
     supportsEmailNotification, supportsResultPolicyRouter,
     opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
+    requiredInputMode, requiredInputTypes, maxFiles,
     initialData, missingImportFields, touchedImportFields,
   ]);
 
@@ -246,6 +261,7 @@ export function useWorkflowForm({
     supportsProcessorResult, supportsOriginalFileRefs, supportsResultRefs,
     supportsEmailNotification, supportsResultPolicyRouter,
     opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
+    requiredInputMode, requiredInputTypes, maxFiles,
   ]);
 
   // initialData가 바뀔 때마다 isFirstRender를 리셋합니다.
@@ -356,6 +372,9 @@ export function useWorkflowForm({
     opAllowedLevels, setOpAllowedLevels, opDefaultLevel, setOpDefaultLevel,
     allowCompanyOverride, setAllowCompanyOverride,
     allowUserOverride, setAllowUserOverride,
+    requiredInputMode, setRequiredInputMode,
+    requiredInputTypes, setRequiredInputTypes,
+    maxFiles, setMaxFiles,
     originalSchemaKeys, originalStatus,
     missingImportFields, touchedImportFields, markTouched,
     handleMoveField, handleSelectOptionsChange, handleAddField,

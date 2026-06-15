@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { subscribeMySubmissions } from "@/features/user/userService";
 import type { Submission } from "@/types/n8lient";
+import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 import { siteConfig } from "@/config/siteConfig";
 import SubmissionDetailModal from "@/components/custom/SubmissionDetailModal";
 
@@ -180,7 +181,7 @@ export default function UserResults() {
                         flex: 1,
                       }}
                     >
-                      {sub.input.title}
+                      {getSubmissionDisplayTitle(sub)}
                     </span>
                   </div>
                   <span style={{ fontSize: "11px", color: "#9ca3af", flexShrink: 0, marginLeft: "8px" }}>

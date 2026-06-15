@@ -600,3 +600,22 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 - company_admin은 operator/company_admin 권한을 부여할 수 없음.
 - 회사 관리자는 현재 정책상 회사당 1명.
 - production contract는 test로 자동 다운그레이드 금지.
+
+---
+
+## 17. 최근 변경 이력 (v2.4 inputSchema 및 Rules 강화)
+
+### 17.1 inputSchema 신규 필드 추가 (v2.4 표준 규격)
+- `inputSchema`에 `requiredInputMode` ("none" | "at_least_one" | "all"), `requiredInputTypes` (acceptedInputTypes의 부분집합 배열), `maxFiles` (0 이상의 숫자) 필드가 추가되었습니다.
+- **Hook & Assembler 연동**: `useWorkflowForm.ts` 및 `workflowTemplateAssembler.ts`에 해당 상태들을 안전하게 초기화 및 조립하도록 바인딩하고, Firestore 저장 전 undefined 유실을 방지하였습니다.
+- **UI 입력 요소 배치**: `WorkflowInputSchemaForm.tsx`에 requiredInputMode 선택 select, requiredInputTypes 다중 선택 체크박스, maxFiles 숫자 인풋을 연동하고 Diagnostics의 실시간 재검증 및 스타일 처리를 연동하였습니다.
+
+### 17.2 Import JSON 검증 규칙 및 UX 보완 (v2.4)
+- **`titleRequired === false` 정책 완화**: titleRequired 속성이 명시적으로 `false`인 경우, 이제는 정상 정책(제목 선택 입력)으로 취급되어 `warning`이 아닌 **`ok`**(정상 안내 정보) 등급으로 표시됩니다. `undefined` 또는 `null`인 경우에만 누락 안내 `warning`이 뜹니다.
+- **placeholder 타입별 조건부 경고**: 기존에는 모든 설정 필드에서 placeholder가 비어 있으면 warning 경고를 띄웠으나, UX 개선을 위해 `text`, `textarea`, `email`, `number`, `url`, `password` 타입에서만 필수 검토하도록 변경하였습니다 (`boolean`, `select` 등 placeholder가 필요하지 않은 필드는 비어 있어도 warning을 띄우지 않습니다).
+
+### 17.3 Firestore Rules 테스트 및 백필 실행
+- `scripts/backfillTestSettingsAndSubmissions.ts`를 실행하여 Firestore의 submissions 및 userAutomationSettings 레거시 문서 중 누락된 `isTestExecution: true/false`, `isTestSetting: true/false` 필드를 백필 완료하였습니다.
+- 백필 완료 후 `firestore.rules`에서 레거시 fallback 완화 규칙(`resource.data.get(..., true) == true`)을 완전히 제거하고, 명시적으로 `resource.data.isTestExecution == true` 및 `resource.data.isTestSetting == true` 조건만 draft 템플릿에 연결된 테스트 데이터 삭제를 허용하도록 엄격하게 규칙을 원복하였습니다.
+- `scripts/testFirestoreRules.ts`를 통해 이를 검증하기 위한 자동화 규칙 테스트 케이스들을 유지 및 보존하고 있습니다.
+

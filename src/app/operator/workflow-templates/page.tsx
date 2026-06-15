@@ -217,6 +217,14 @@ export default function OperatorTemplates() {
 
   // 4. 폼 등록/수정 서브밋 처리 (DB 연동 로직 완벽 보존)
   const handleFormSubmit = async (template: WorkflowTemplate) => {
+    // [디버그] 저장 직전 payload와 원본 import draft의 inputSchema 비교 출력 (개발 환경에서만 출력)
+    if (process.env.NODE_ENV === "development") {
+      console.log("=== [DEBUG] WorkflowTemplate inputSchema 비교 ===");
+      console.log("1) 원본 Import Draft inputSchema:", activeImportDraft?.workflowTemplate?.inputSchema);
+      console.log("2) 저장할 최종 Payload inputSchema:", template.inputSchema);
+      console.log("==================================================");
+    }
+
     // Import 등록 모드에서 저장 직전 최종 재검증 수행 (실시간 재검증과 동일한 validator 사용)
     if (!isEditMode && activeImportDraft) {
       const draftCopy: WorkflowTemplateImportDraft = {

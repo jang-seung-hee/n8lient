@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { Submission } from "@/types/n8lient";
+import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 
 interface CompanyResultDetailModalProps {
   isOpen: boolean;
@@ -220,7 +221,7 @@ export function CompanyResultDetailModal({ isOpen, onClose, submission }: Compan
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div>
                   <span style={{ color: "#6b7280", marginRight: "6px" }}>제목:</span>
-                  <span style={{ fontWeight: 500, color: "#111111" }}>{submission.input.title}</span>
+                  <span style={{ fontWeight: 500, color: "#111111" }}>{getSubmissionDisplayTitle(submission)}</span>
                 </div>
                 {submission.input.text && (
                   <div>

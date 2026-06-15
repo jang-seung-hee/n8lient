@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import type { Submission } from "@/types/n8lient";
+import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 import { downloadSubmissionFile } from "@/features/user/userService";
 import { auth } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
@@ -117,7 +118,7 @@ export default function SubmissionDetailModal({
               <span style={{ fontSize: "11px", color: "#9ca3af" }}>{submission.submissionId}</span>
             </div>
             <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111111", margin: 0 }}>
-              {submission.input.title}
+              {getSubmissionDisplayTitle(submission)}
             </h3>
           </div>
           <button
@@ -231,11 +232,7 @@ export default function SubmissionDetailModal({
                     onClick={() => {
                       playAppSound("click");
                       try {
-                        const rawTitle =
-                          submission.processorResult?.title ||
-                          (submission as any).result?.title ||
-                          submission.input.title ||
-                          submission.submissionId;
+                        const rawTitle = getSubmissionDisplayTitle(submission);
                         
                         const cleanTitle = sanitizeMarkdownFileName(rawTitle);
                         const fileName = `${cleanTitle}.md`;

@@ -48,7 +48,7 @@ async function runExecutionTests() {
     "titleRequired=false + 제목 없음 + audio 있음",
     {
       automationId: "test-auto",
-      input: { text: undefined, title: undefined },
+      input: { text: undefined, title: null },
       files: [{ name: "voice.webm", size: 1024, type: "audio/webm" }],
       inputSchema: {
         titleRequired: false,

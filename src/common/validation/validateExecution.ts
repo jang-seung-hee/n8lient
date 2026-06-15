@@ -12,7 +12,7 @@ export type ExecutionFileLike = {
 };
 
 export type ExecutionInputLike = {
-  title?: string;
+  title?: string | null;
   text?: string;
   inputType?: AcceptedInputType | string;
 };
@@ -110,8 +110,8 @@ export function validateExecution(params: ExecutionValidationParams): ExecutionV
     });
   }
 
-  // 2. title 검증 (titleRequired === true일 때만 필수)
-  const titleRequired = inputSchema.titleRequired === true;
+  // 2. title 검증 (titleRequired !== false일 때 필수)
+  const titleRequired = inputSchema.titleRequired !== false;
   const hasTitle = typeof input.title === "string" && input.title.trim() !== "";
   if (titleRequired && !hasTitle) {
     missingFields.push("input.title");

@@ -18,6 +18,12 @@ export interface WorkflowInputSchemaFormProps {
   setAllowedFileTypesStr: (val: string) => void;
   maxFileSizeMB: number;
   setMaxFileSizeMB: (val: number) => void;
+  requiredInputMode: "none" | "at_least_one" | "all";
+  setRequiredInputMode: (val: "none" | "at_least_one" | "all") => void;
+  requiredInputTypes: string[];
+  setRequiredInputTypes: (val: string[]) => void;
+  maxFiles: number;
+  setMaxFiles: (val: number) => void;
   diagnostics?: WorkflowImportDiagnostics | null;
   isStructureLocked?: boolean;
 }
@@ -31,6 +37,12 @@ export default function WorkflowInputSchemaForm({
   setAllowedFileTypesStr,
   maxFileSizeMB,
   setMaxFileSizeMB,
+  requiredInputMode,
+  setRequiredInputMode,
+  requiredInputTypes,
+  setRequiredInputTypes,
+  maxFiles,
+  setMaxFiles,
   diagnostics = null,
   isStructureLocked = false,
 }: WorkflowInputSchemaFormProps) {
@@ -165,6 +177,119 @@ export default function WorkflowInputSchemaForm({
             </span>
           )}
         </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginTop: "4px" }}>
+        {/* requiredInputMode select */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+            필수 입력 조건 방식 (requiredInputMode)
+          </label>
+          <select
+            value={requiredInputMode}
+            onChange={(e) => setRequiredInputMode(e.target.value as any)}
+            disabled={isStructureLocked}
+            style={{
+              height: "36px",
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "0 8px",
+              fontSize: "13px",
+              outline: "none",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+              ...getDiagnosticStyles("inputSchema.requiredInputMode", diagnostics)
+            }}
+          >
+            <option value="none">none (선택 사항)</option>
+            <option value="at_least_one">at_least_one (최소 하나 이상)</option>
+            <option value="all">all (모두 필수)</option>
+          </select>
+          {getFieldDiagnosticMessage("inputSchema.requiredInputMode", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("inputSchema.requiredInputMode", diagnostics)!)}>
+              {getFieldDiagnosticMessage("inputSchema.requiredInputMode", diagnostics)}
+            </span>
+          )}
+        </div>
+
+        {/* maxFiles input */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+            최대 업로드 파일 수 (maxFiles)
+          </label>
+          <input
+            type="number"
+            value={maxFiles}
+            onChange={(e) => setMaxFiles(Number(e.target.value))}
+            min={0}
+            required
+            disabled={isStructureLocked}
+            style={{
+              height: "36px",
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "0 8px",
+              fontSize: "13px",
+              outline: "none",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+              ...getDiagnosticStyles("inputSchema.maxFiles", diagnostics)
+            }}
+          />
+          {getFieldDiagnosticMessage("inputSchema.maxFiles", diagnostics) && (
+            <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("inputSchema.maxFiles", diagnostics)!)}>
+              {getFieldDiagnosticMessage("inputSchema.maxFiles", diagnostics)}
+            </span>
+          )}
+        </div>
+
+        {/* dummy space / alignment helper */}
+        <div></div>
+      </div>
+
+      {/* requiredInputTypes checkboxes */}
+      <div 
+        style={{ 
+          display: "flex", 
+          flexDirection: "column", 
+          gap: "8px",
+          padding: "6px",
+          borderRadius: "6px",
+          marginTop: "4px",
+          ...getDiagnosticStyles("inputSchema.requiredInputTypes", diagnostics)
+        }}
+      >
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+          필수 입력 타입 목록 (requiredInputTypes)
+        </span>
+        <div style={{ display: "flex", gap: "16px", fontSize: "13px" }}>
+          {["text", "file", "audio", "image"].map((type) => (
+            <label
+              key={type}
+              style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#111111" }}
+            >
+              <input
+                type="checkbox"
+                checked={requiredInputTypes.includes(type)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setRequiredInputTypes([...requiredInputTypes, type]);
+                  } else {
+                    setRequiredInputTypes(requiredInputTypes.filter((t) => t !== type));
+                  }
+                }}
+                disabled={isStructureLocked}
+                style={{ cursor: isStructureLocked ? "not-allowed" : "pointer" }}
+              />
+              {type}
+            </label>
+          ))}
+        </div>
+        {getFieldDiagnosticMessage("inputSchema.requiredInputTypes", diagnostics) && (
+          <span style={getDiagnosticMessageStyle(getFieldDiagnosticLevel("inputSchema.requiredInputTypes", diagnostics)!)}>
+            {getFieldDiagnosticMessage("inputSchema.requiredInputTypes", diagnostics)}
+          </span>
+        )}
       </div>
     </>
   );

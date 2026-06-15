@@ -11,6 +11,7 @@ import { getActiveAutomations, subscribeMySubmissions } from "@/features/user/us
 import { getMyCompanyPublicProfile } from "@/features/user/companyProfileService";
 import { CompanyInfoModal } from "@/components/custom/CompanyInfoModal";
 import type { ClientAutomation, Submission, ClientPublicProfile } from "@/types/n8lient";
+import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 
 export default function UserHome() {
   const { user, userDoc } = useAuthUser();
@@ -272,7 +273,7 @@ export default function UserHome() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {sub.input.title}
+                        {getSubmissionDisplayTitle(sub)}
                       </p>
                       <p style={{ fontSize: "11px", color: "#9ca3af", margin: "2px 0 0 0" }}>
                         {sub.workflowKey} · {new Date(sub.createdAt).toLocaleTimeString()}

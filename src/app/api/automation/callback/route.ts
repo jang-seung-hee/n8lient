@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebaseAdmin";
+import { resolveDisplayTitleAfterCallback } from "@/common/execution/buildTitleContract";
+import type { ProcessorResult } from "@/types/n8lient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/automation/callback
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { submissionId, status, result, error } = body;
+  const { submissionId, status, result, error, processorResult, resultRefs } = body;
 
   // ── 3. 필수 파라미터 검증 ─────────────────────────────────────────────────
   if (!submissionId) {
@@ -77,6 +79,12 @@ export async function POST(req: NextRequest) {
   }
 
   const existingData = submissionSnap.data()!;
+  const policy = existingData.retentionPolicySnapshot || {
+    level: "full_archive",
+    storeProcessorResult: true,
+    storeOriginalFiles: true,
+  };
+  const level = policy.level || "full_archive";
 
   // 이미 처리 완료된 경우 중복 업데이트 방지
   if (existingData.status === "success" || existingData.status === "failed") {
@@ -97,11 +105,37 @@ export async function POST(req: NextRequest) {
   };
 
   if (status === "success") {
-    // 성공: result 필드 업데이트
     updateData["result.summary"] = result?.summary || null;
     updateData["result.resultUrl"] = result?.resultUrl || null;
     updateData["error.code"] = null;
     updateData["error.message"] = null;
+
+    const typedProcessorResult = processorResult as ProcessorResult | null | undefined;
+    if (level === "full_archive") {
+      if (typedProcessorResult !== undefined && typedProcessorResult !== null) {
+        updateData.processorResult = typedProcessorResult;
+      }
+      if (Array.isArray(resultRefs) && resultRefs.length > 0) {
+        updateData.resultRefs = resultRefs;
+      }
+    } else if (level === "processed_result") {
+      if (typedProcessorResult !== undefined && typedProcessorResult !== null) {
+        updateData.processorResult = typedProcessorResult;
+      }
+      updateData.resultRefs = [];
+    } else if (level === "notify_only") {
+      updateData.processorResult = null;
+      updateData.resultRefs = [];
+    }
+
+    const resolvedDisplayTitle = resolveDisplayTitleAfterCallback({
+      processorResultTitle: typedProcessorResult?.title,
+      existingDisplayTitle: existingData.displayTitle,
+      submissionTitle: existingData.input?.submissionTitle,
+    });
+    if (resolvedDisplayTitle) {
+      updateData.displayTitle = resolvedDisplayTitle;
+    }
   } else {
     // 실패: error 필드 업데이트
     updateData["error.code"] = error?.code || "N8N_EXECUTION_FAILED";

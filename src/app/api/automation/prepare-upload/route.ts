@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebaseAdmin";
 import crypto from "crypto";
+import { validateExecution } from "@/common/validation/validateExecution";
+import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 
 function getWebhookConfig(serverKey: string, webhookSecretId: string): { url: string } | null {
   const serverEnvKey = serverKey.toUpperCase().replace(/-/g, "_");
@@ -40,8 +42,8 @@ export async function POST(req: NextRequest) {
     // 2. 요청 body 파싱
     const body = await req.json();
     const { automationId, input } = body;
-    if (!automationId || !input || !input.title) {
-      return NextResponse.json({ success: false, error: "필수 파라미터가 누락되었습니다." }, { status: 400 });
+    if (!automationId || !input) {
+      return NextResponse.json({ success: false, error: "필수 파라미터(automationId, input)가 누락되었습니다." }, { status: 400 });
     }
 
     // 3. 사용자 승인 상태 및 clientId 검증
@@ -116,20 +118,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "n8n Webhook 연동 정보가 설정되지 않았습니다." }, { status: 500 });
     }
 
+    // 파일 메타데이터 정보 정제 및 validation 적용
+    const firstFile = input.files?.[0];
+    const fileMetadata = firstFile ? {
+      fileName: firstFile.fileName || firstFile.name || null,
+      mimeType: firstFile.mimeType || firstFile.type || null,
+      sizeBytes: firstFile.sizeBytes || firstFile.size || null,
+      inputType: firstFile.inputType || firstFile.type || "file"
+    } : null;
+
+    const fileList = fileMetadata ? [{
+      name: fileMetadata.fileName || undefined,
+      size: fileMetadata.sizeBytes || undefined,
+      type: fileMetadata.mimeType || undefined
+    }] : [];
+
+    const workflowName = templateDoc.name || workflowKey;
+    const titleContract = buildExecutionTitleContract({
+      inputTitle: input.title,
+      titleProvided: input.titleProvided,
+      titleSource: input.titleSource,
+      workflowName,
+    });
+
+    const validationResult = validateExecution({
+      automationId,
+      input: {
+        title: titleContract.title,
+        text: input.text || undefined,
+        inputType: input.inputType || undefined
+      },
+      files: fileList,
+      inputSchema: templateDoc.inputSchema || {},
+      configSchema: templateDoc.configSchema || [],
+      settings: finalSettings
+    });
+
+    if (!validationResult.isValid) {
+      return NextResponse.json({
+        success: false,
+        code: "EXECUTION_VALIDATION_FAILED",
+        error: "실행에 필요한 입력값이 부족합니다.",
+        source: "api_prepare_upload_validation",
+        missingFields: validationResult.missingFields,
+        received: {
+          hasAutomationId: validationResult.received.hasAutomationId,
+          hasTitle: validationResult.received.hasTitle,
+          hasText: validationResult.received.hasText,
+          fileCount: validationResult.received.fileCount,
+          providedInputTypes: validationResult.received.providedInputTypes
+        }
+      }, { status: 400 });
+    }
+
     // 6. submission 생성 (status: queued로 사전 등록)
     const now = new Date();
     const dateStr = now.toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
     const randomStr = Math.random().toString(36).substring(2, 8);
     const submissionId = `sub_${dateStr}_${randomStr}`;
-
-    // 파일 메타데이터 정보 정제
-    const firstFile = input.files?.[0];
-    const fileMetadata = firstFile ? {
-      fileName: firstFile.fileName || null,
-      mimeType: firstFile.mimeType || null,
-      sizeBytes: firstFile.sizeBytes || null,
-      inputType: firstFile.inputType || "file"
-    } : null;
 
     const submissionData = {
       submissionId,
@@ -138,8 +184,12 @@ export async function POST(req: NextRequest) {
       workflowKey,
       automationId,
       status: "queued",
+      displayTitle: titleContract.displayTitle,
       input: {
-        title: input.title,
+        title: titleContract.title,
+        submissionTitle: titleContract.submissionTitle,
+        titleProvided: titleContract.titleProvided,
+        titleSource: titleContract.titleSource,
         text: input.text || null,
         fileUrl: null,
         fileName: fileMetadata?.fileName || null,

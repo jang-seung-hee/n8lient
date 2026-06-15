@@ -45,8 +45,8 @@ function validateExecution(params) {
             message: "자동화 실행 대상 식별자(automationId)가 누락되었습니다."
         });
     }
-    // 2. title 검증 (titleRequired === true일 때만 필수)
-    const titleRequired = inputSchema.titleRequired === true;
+    // 2. title 검증 (titleRequired !== false일 때 필수)
+    const titleRequired = inputSchema.titleRequired !== false;
     const hasTitle = typeof input.title === "string" && input.title.trim() !== "";
     if (titleRequired && !hasTitle) {
         missingFields.push("input.title");

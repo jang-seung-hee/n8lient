@@ -16,6 +16,7 @@ import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 import { useSearchParams } from "next/navigation";
 import { validateExecution } from "@/common/validation/validateExecution";
+import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -159,15 +160,18 @@ export default function UserExecute() {
 
     playAppSound("click");
 
-    const titleProvided = title.trim() !== "";
-    const titleSource = titleProvided ? "user" : "empty";
+    const titleContract = buildExecutionTitleContract({
+      inputTitle: title,
+      workflowName: currentTemplate?.name || currentAuto.workflowKey,
+    });
+
     const resolvedInputType = inputType || "text";
     const currentSettings = userSettings?.settings || currentAuto.settings || {};
 
     const validationResult = validateExecution({
       automationId: currentAuto.automationId,
       input: {
-        title: titleProvided ? title.trim() : undefined,
+        title: titleContract.title,
         text: inputText || undefined,
         inputType: resolvedInputType
       },
@@ -207,9 +211,9 @@ export default function UserExecute() {
       const payload = {
         automationId: currentAuto.automationId,
         input: {
-          title: titleProvided ? title.trim() : undefined,
-          titleProvided,
-          titleSource,
+          title: titleContract.title,
+          titleProvided: titleContract.titleProvided,
+          titleSource: titleContract.titleSource,
           text: inputText || undefined,
           inputType: resolvedInputType
         }

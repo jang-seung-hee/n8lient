@@ -47,6 +47,7 @@ export default function WorkflowInputPanel({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingTimeRef = useRef<number>(0);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +62,7 @@ export default function WorkflowInputPanel({
     }
   }, []);
 
-  // 기본 활성 탭 설정
+  // 기본 활성 탭 설정 (내부 상태 변경으로만 처리하며 부모 onChange를 유발하지 않음)
   useEffect(() => {
     if (acceptedInputTypes.length > 0) {
       // 우선순위가 높은 탭부터 활성화
@@ -250,17 +251,15 @@ export default function WorkflowInputPanel({
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      recordingTimeRef.current = 0;
+
       if (onRecordingStateChange) {
         onRecordingStateChange(true, 0);
       }
+
       timerRef.current = setInterval(() => {
-        setRecordingTime((prev) => {
-          const nextTime = prev + 1;
-          if (onRecordingStateChange) {
-            onRecordingStateChange(true, nextTime);
-          }
-          return nextTime;
-        });
+        recordingTimeRef.current += 1;
+        setRecordingTime(recordingTimeRef.current);
       }, 1000);
     } catch (err: any) {
       console.error("마이크 사용 권한 획득 실패:", err);
@@ -275,7 +274,7 @@ export default function WorkflowInputPanel({
       setIsRecording(false);
       
       if (onRecordingStateChange) {
-        onRecordingStateChange(false, 0);
+        onRecordingStateChange(false, recordingTimeRef.current);
       }
       if (timerRef.current) {
         clearInterval(timerRef.current);

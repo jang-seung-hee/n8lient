@@ -11,6 +11,7 @@ import { getAdminFirestore, getAdminStorage } from "./lib/firebase";
 import { checkAuth, AuthenticatedRequest } from "./middleware/auth";
 import { uploadFileToStorage, FileRef } from "./lib/storage";
 import { validateExecution } from "./shared/validateExecution";
+import { buildExecutionTitleContract, resolveDisplayTitleAfterCallback } from "./shared/buildTitleContract";
 
 // .env 파일 로드 (로컬 개발용)
 dotenv.config();
@@ -256,9 +257,13 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
     }
 
     // ── 4.2. 공통 validation 헬퍼 구동 ──────────────────
-    const titleProvided = typeof input.title === "string" && input.title.trim() !== "";
-    const titleSource = input.titleSource || (titleProvided ? "user" : "empty");
-    let finalTitle = titleProvided ? input.title.trim() : undefined;
+    const workflowName = templateDoc.name || workflowKey;
+    const titleContract = buildExecutionTitleContract({
+      inputTitle: input.title,
+      titleProvided: input.titleProvided,
+      titleSource: input.titleSource,
+      workflowName,
+    });
 
     const fileList = file ? [{
       name: file.originalname,
@@ -269,7 +274,7 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
     const validationResult = validateExecution({
       automationId,
       input: {
-        title: finalTitle,
+        title: titleContract.title,
         text: input.text || undefined,
         inputType: input.inputType || undefined
       },
@@ -309,13 +314,7 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       });
     }
 
-    // 내부 시스템 관리 및 정렬용 submissionTitle 별도 생성
-    const nowFormatted = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false })
-      .replace(/\. /g, "-").replace(/\./g, "").slice(0, 16);
-    const workflowName = templateDoc.name || workflowKey;
-    const submissionTitle = finalTitle || `[${workflowName}] ${nowFormatted} 실행`;
-
-    // [v2.7] 결과/보관 정책 계층 구조 합성 알고리즘 (v1.1 정책 재정의)
+    // ── 5. submissions 문서 queued 상태로 생성 (사전 등록) ──
     // 1. 레벨 가중치 오더 정의
     const RETENTION_LEVEL_ORDER: Record<string, number> = {
       notify_only: 1,
@@ -454,7 +453,10 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
               trigger: input.trigger || "manual",
               status: "failed",
               input: {
-                title: input.title,
+                title: titleContract.title,
+                submissionTitle: titleContract.submissionTitle,
+                titleProvided: titleContract.titleProvided,
+                titleSource: titleContract.titleSource,
                 text: input.text || null,
                 fileUrl: null,
                 fileName: file.originalname || null,
@@ -507,11 +509,12 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       automationId,
       trigger: input.trigger || "manual",
       status: "queued",
+      displayTitle: titleContract.displayTitle,
       input: {
-        title: finalTitle || null,
-        submissionTitle,
-        titleProvided,
-        titleSource,
+        title: titleContract.title,
+        submissionTitle: titleContract.submissionTitle,
+        titleProvided: titleContract.titleProvided,
+        titleSource: titleContract.titleSource,
         text: input.text || null,
         fileUrl: null,
         fileName: fileMetadata?.fileName || null,
@@ -684,6 +687,15 @@ app.post("/api/automation/callback", async (req, res) => {
         // notify_only 에서는 processorResult와 결과 파일 참조 모두 비우거나 저장하지 않음
         updateData.processorResult = null;
         updateData.resultRefs = [];
+      }
+
+      const resolvedDisplayTitle = resolveDisplayTitleAfterCallback({
+        processorResultTitle: processorResult?.title,
+        existingDisplayTitle: subDoc.displayTitle,
+        submissionTitle: subDoc.input?.submissionTitle,
+      });
+      if (resolvedDisplayTitle) {
+        updateData.displayTitle = resolvedDisplayTitle;
       }
     } else {
       updateData.error = {

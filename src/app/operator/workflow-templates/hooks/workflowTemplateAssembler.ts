@@ -37,6 +37,9 @@ export interface AssembleTemplateParams {
   opDefaultLevel: RetentionLevel;
   allowCompanyOverride: boolean;
   allowUserOverride: boolean;
+  requiredInputMode: "none" | "at_least_one" | "all";
+  requiredInputTypes: string[];
+  maxFiles: number;
   initialData: WorkflowTemplate | null;
   /** [v2.9] getMaybeUndefined 헬퍼: 터치되지 않은 누락 필드는 undefined 반환 */
   getMaybeUndefined: <T>(fieldPath: string, currentVal: T) => T | undefined;
@@ -72,6 +75,7 @@ export function assembleWorkflowTemplate({
   supportsProcessorResult, supportsOriginalFileRefs, supportsResultRefs,
   supportsEmailNotification, supportsResultPolicyRouter,
   opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
+  requiredInputMode, requiredInputTypes, maxFiles,
   initialData,
   getMaybeUndefined,
   cleanSchema = false,
@@ -111,6 +115,9 @@ export function assembleWorkflowTemplate({
       allowedFileTypes,
       maxFileSizeMB,
       titleRequired,
+      requiredInputMode,
+      requiredInputTypes: requiredInputTypes as Array<"text" | "file" | "audio" | "image">,
+      maxFiles,
     },
     configSchema: processedSchemaFields,
     retentionPolicy: getDefaultRetentionPolicy(opDefaultLevel),

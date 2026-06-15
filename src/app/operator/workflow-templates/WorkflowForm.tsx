@@ -70,6 +70,9 @@ export function WorkflowForm({
     opDefaultLevel, setOpDefaultLevel,
     allowCompanyOverride, setAllowCompanyOverride,
     allowUserOverride, setAllowUserOverride,
+    requiredInputMode, setRequiredInputMode,
+    requiredInputTypes, setRequiredInputTypes,
+    maxFiles, setMaxFiles,
     originalSchemaKeys,
     originalStatus,
     markTouched,
@@ -175,6 +178,12 @@ export function WorkflowForm({
           setAllowedFileTypesStr={setAllowedFileTypesStr}
           maxFileSizeMB={maxFileSizeMB}
           setMaxFileSizeMB={setMaxFileSizeMB}
+          requiredInputMode={requiredInputMode}
+          setRequiredInputMode={setRequiredInputMode}
+          requiredInputTypes={requiredInputTypes}
+          setRequiredInputTypes={setRequiredInputTypes}
+          maxFiles={maxFiles}
+          setMaxFiles={setMaxFiles}
           diagnostics={diagnostics}
           isStructureLocked={isStructureLocked}
         />

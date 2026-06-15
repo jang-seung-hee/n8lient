@@ -94,10 +94,12 @@ export function validateWorkflowTemplateImport(
   }
 
   // titleRequired 검증 및 안내
-  if (inputSchema.titleRequired !== undefined && typeof inputSchema.titleRequired !== "boolean") {
+  if (inputSchema.titleRequired === undefined || inputSchema.titleRequired === null) {
+    addDiag("inputSchema.titleRequired", "warning", "titleRequired 속성이 생략되었습니다. 기본값(true)이 설정됩니다.");
+  } else if (typeof inputSchema.titleRequired !== "boolean") {
     addDiag("inputSchema.titleRequired", "error", "titleRequired 속성은 boolean 타입이어야 합니다.");
   } else if (inputSchema.titleRequired === false) {
-    addDiag("inputSchema.titleRequired", "warning", "제목은 선택 입력입니다. 제목이 비어 있으면 워크플로우 또는 AI가 결과 제목을 생성해야 합니다.");
+    addDiag("inputSchema.titleRequired", "ok", "제목은 선택 입력입니다. 제목이 비어 있으면 워크플로우 또는 AI가 결과 제목을 생성해야 합니다.");
   }
 
   // requiredInputMode 검증
@@ -223,7 +225,10 @@ export function validateWorkflowTemplateImport(
         addDiag(`${fieldPath}.label`, "warning", `${index + 1}번째 설정 필드 '${fKey}'의 라벨(label)이 비어 있습니다.`);
       }
       if (!(field.placeholder || "").trim()) {
-        addDiag(`${fieldPath}.placeholder`, "warning", `${index + 1}번째 설정 필드 '${fKey}'의 입력 힌트(placeholder)가 비어 있습니다.`);
+        const needsPlaceholder = ["text", "textarea", "email", "number", "url", "password"].includes(fType);
+        if (needsPlaceholder) {
+          addDiag(`${fieldPath}.placeholder`, "warning", `${index + 1}번째 설정 필드 '${fKey}'의 입력 힌트(placeholder)가 비어 있습니다.`);
+        }
       }
       if (!(field.description || "").trim()) {
         addDiag(`${fieldPath}.description`, "warning", `${index + 1}번째 설정 필드 '${fKey}'의 가이드 설명(description)이 비어 있습니다.`);
