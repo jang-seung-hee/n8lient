@@ -66,9 +66,15 @@ export function mapImportJsonToWorkflowTemplate(
     titleRequired: sourceInputSchema.titleRequired !== false // 기본값 true
   };
 
-  // 3. 보관/보존 정책 조립
-  const retentionCapabilities = t.retentionCapabilities || { ...DEFAULT_RETENTION_CAPABILITIES };
-  const operatorRetentionPolicy = t.operatorRetentionPolicy || { ...DEFAULT_OPERATOR_RETENTION_POLICY };
+  // 3. 보관/보존 정책 조립 (누락 필드가 있을 경우 기본값과 안전하게 병합)
+  const retentionCapabilities = {
+    ...DEFAULT_RETENTION_CAPABILITIES,
+    ...(t.retentionCapabilities || {})
+  };
+  const operatorRetentionPolicy = {
+    ...DEFAULT_OPERATOR_RETENTION_POLICY,
+    ...(t.operatorRetentionPolicy || {})
+  };
   
   // 하위 호환성용 retentionPolicy 매핑
   const defaultOpLevel = operatorRetentionPolicy.defaultLevel || "full_archive";

@@ -19,7 +19,7 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase";
 import { subscribeUserDoc, createDefaultUserDoc } from "./authUserService";
-import { submitCompanyJoinRequest } from "./companyJoinService";
+import { submitCompanyJoinRequest, cancelCompanyJoinRequest } from "./companyJoinService";
 import type { UserDoc } from "@/types/n8lient";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +38,16 @@ interface AuthContextType {
   /** 로그아웃 */
   signOut: () => Promise<void>;
   /** 회사 가입 승인 요청 */
-  submitCompanyCode: (companyCode: string) => Promise<{ success: boolean; message?: string }>;
+  submitCompanyCode: (companyCode: string) => Promise<{
+    success: boolean;
+    message?: string;
+    requestedRole?: "company_admin" | "user";
+    clientId?: string;
+    companyCode?: string;
+    companyName?: string;
+  }>;
+  /** 승인 대기 중인 요청 취소 */
+  cancelJoinRequest: (clientId: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,6 +178,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return submitCompanyJoinRequest(db, user, companyCode);
   }, [user]);
 
+  /**
+   * 가입 승인 요청 취소 함수
+   */
+  const cancelJoinRequest = useCallback(async (clientId: string) => {
+    if (!user) {
+      return { success: false, message: "로그인이 필요합니다." };
+    }
+    return cancelCompanyJoinRequest(db, user.uid, clientId);
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -178,6 +197,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         signInWithGoogle,
         signOut,
         submitCompanyCode,
+        cancelJoinRequest,
       }}
     >
       {children}

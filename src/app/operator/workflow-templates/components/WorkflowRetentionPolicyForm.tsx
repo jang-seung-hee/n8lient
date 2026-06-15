@@ -25,6 +25,8 @@ export interface WorkflowRetentionPolicyFormProps {
   setSupportsResultRefs: (val: boolean) => void;
   supportsResultPolicyRouter: boolean;
   setSupportsResultPolicyRouter: (val: boolean) => void;
+  supportsEmailNotification: boolean;
+  setSupportsEmailNotification: (val: boolean) => void;
 
   opAllowedLevels: RetentionLevel[];
   setOpAllowedLevels: (val: RetentionLevel[]) => void;
@@ -53,6 +55,8 @@ export default function WorkflowRetentionPolicyForm({
   setSupportsResultRefs,
   supportsResultPolicyRouter,
   setSupportsResultPolicyRouter,
+  supportsEmailNotification,
+  setSupportsEmailNotification,
   opAllowedLevels,
   setOpAllowedLevels,
   opDefaultLevel,
@@ -207,6 +211,15 @@ export default function WorkflowRetentionPolicyForm({
               onChange={(e) => setSupportsResultPolicyRouter(e.target.checked)}
             />
             Result Policy Router 지원
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer", color: "#111111" }}>
+            <input
+              type="checkbox"
+              checked={supportsEmailNotification}
+              disabled={isStructureLocked}
+              onChange={(e) => setSupportsEmailNotification(e.target.checked)}
+            />
+            이메일 알림 발송 지원
           </label>
         </div>
         

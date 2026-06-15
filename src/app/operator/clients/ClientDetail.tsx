@@ -8,8 +8,14 @@ import type { ClientDoc } from "@/types/n8lient";
 import { db } from "@/lib/firebase";
 import { collection, query, where, limit, getDocs } from "firebase/firestore";
 
+import type { Firestore } from "firebase/firestore";
+import { ClientAdminPanel } from "./components/ClientAdminPanel";
+
 interface ClientDetailProps {
   client: ClientDoc;
+  db: Firestore;
+  operatorUid: string;
+  onRefresh: () => void;
   onEditClick: () => void;
   onBackClick: () => void;
 }
@@ -21,6 +27,9 @@ interface AdminInfo {
 
 export function ClientDetail({
   client,
+  db,
+  operatorUid,
+  onRefresh,
   onEditClick,
   onBackClick,
 }: ClientDetailProps) {
@@ -39,7 +48,7 @@ export function ClientDetail({
       try {
         // UID로 직접 users/{uid} 문서 조회
         const { getDoc, doc } = await import("firebase/firestore");
-        const userRef = doc(db, "users", client.ownerAdminUid);
+        const userRef = doc(db, "users", client.ownerAdminUid as string);
         const snap = await getDoc(userRef);
         if (snap.exists()) {
           const data = snap.data();
@@ -214,6 +223,14 @@ export function ClientDetail({
           </div>
         </div>
       </div>
+
+      {/* 회사 관리자 최초 등록 승인 및 제거 관리 패널 */}
+      <ClientAdminPanel
+        client={client}
+        db={db}
+        operatorUid={operatorUid}
+        onRefresh={onRefresh}
+      />
     </div>
   );
 }

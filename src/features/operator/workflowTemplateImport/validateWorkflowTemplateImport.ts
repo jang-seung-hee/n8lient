@@ -178,12 +178,136 @@ export function validateWorkflowTemplateImport(
     });
   }
 
-  // 4. 보관/보존 정책 정합성 검증 (6.5 기준)
+  // 4. 보관/보존 정책 정합성 검증 (6.5 및 지시서 기준)
   const caps = t.retentionCapabilities;
   const op = t.operatorRetentionPolicy;
   const allowedPolicyLevels = ["notify_only", "processed_result", "full_archive"];
 
-  if (caps && op) {
+  let hasCapsError = false;
+  let hasOpError = false;
+
+  // 4.1. retentionCapabilities 개별 필드 누락 및 타입 검증
+  if (!caps) {
+    addDiag("retentionCapabilities", "error", "보관 지원 범위 설정(retentionCapabilities)이 누락되었습니다.");
+    hasCapsError = true;
+  } else {
+    // maxLevel
+    if (caps.maxLevel === undefined || caps.maxLevel === null) {
+      addDiag("retentionCapabilities.maxLevel", "error", "retentionCapabilities.maxLevel 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.maxLevel !== "string") {
+      addDiag("retentionCapabilities.maxLevel", "error", "retentionCapabilities.maxLevel 필드는 string 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // defaultLevel
+    if (caps.defaultLevel === undefined || caps.defaultLevel === null) {
+      addDiag("retentionCapabilities.defaultLevel", "error", "retentionCapabilities.defaultLevel 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.defaultLevel !== "string") {
+      addDiag("retentionCapabilities.defaultLevel", "error", "retentionCapabilities.defaultLevel 필드는 string 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // supportedLevels
+    if (caps.supportedLevels === undefined || caps.supportedLevels === null) {
+      addDiag("retentionCapabilities.supportedLevels", "error", "retentionCapabilities.supportedLevels 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (!Array.isArray(caps.supportedLevels)) {
+      addDiag("retentionCapabilities.supportedLevels", "error", "retentionCapabilities.supportedLevels 필드는 배열(Array) 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // supportsProcessorResult
+    if (caps.supportsProcessorResult === undefined || caps.supportsProcessorResult === null) {
+      addDiag("retentionCapabilities.supportsProcessorResult", "error", "retentionCapabilities.supportsProcessorResult 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.supportsProcessorResult !== "boolean") {
+      addDiag("retentionCapabilities.supportsProcessorResult", "error", "retentionCapabilities.supportsProcessorResult 필드는 boolean 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // supportsOriginalFileRefs
+    if (caps.supportsOriginalFileRefs === undefined || caps.supportsOriginalFileRefs === null) {
+      addDiag("retentionCapabilities.supportsOriginalFileRefs", "error", "retentionCapabilities.supportsOriginalFileRefs 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.supportsOriginalFileRefs !== "boolean") {
+      addDiag("retentionCapabilities.supportsOriginalFileRefs", "error", "retentionCapabilities.supportsOriginalFileRefs 필드는 boolean 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // supportsResultRefs
+    if (caps.supportsResultRefs === undefined || caps.supportsResultRefs === null) {
+      addDiag("retentionCapabilities.supportsResultRefs", "error", "retentionCapabilities.supportsResultRefs 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.supportsResultRefs !== "boolean") {
+      addDiag("retentionCapabilities.supportsResultRefs", "error", "retentionCapabilities.supportsResultRefs 필드는 boolean 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // supportsResultPolicyRouter
+    if (caps.supportsResultPolicyRouter === undefined || caps.supportsResultPolicyRouter === null) {
+      addDiag("retentionCapabilities.supportsResultPolicyRouter", "error", "retentionCapabilities.supportsResultPolicyRouter 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.supportsResultPolicyRouter !== "boolean") {
+      addDiag("retentionCapabilities.supportsResultPolicyRouter", "error", "retentionCapabilities.supportsResultPolicyRouter 필드는 boolean 형태여야 합니다.");
+      hasCapsError = true;
+    }
+
+    // supportsEmailNotification
+    if (caps.supportsEmailNotification === undefined || caps.supportsEmailNotification === null) {
+      addDiag("retentionCapabilities.supportsEmailNotification", "error", "retentionCapabilities.supportsEmailNotification 필드가 누락되었습니다.");
+      hasCapsError = true;
+    } else if (typeof caps.supportsEmailNotification !== "boolean") {
+      addDiag("retentionCapabilities.supportsEmailNotification", "error", "retentionCapabilities.supportsEmailNotification 필드는 boolean 형태여야 합니다.");
+      hasCapsError = true;
+    }
+  }
+
+  // 4.2. operatorRetentionPolicy 개별 필드 누락 및 타입 검증
+  if (!op) {
+    addDiag("operatorRetentionPolicy", "error", "오퍼레이터 보관 제한 정책(operatorRetentionPolicy)이 누락되었습니다.");
+    hasOpError = true;
+  } else {
+    // allowedLevels
+    if (op.allowedLevels === undefined || op.allowedLevels === null) {
+      addDiag("operatorRetentionPolicy.allowedLevels", "error", "operatorRetentionPolicy.allowedLevels 필드가 누락되었습니다.");
+      hasOpError = true;
+    } else if (!Array.isArray(op.allowedLevels)) {
+      addDiag("operatorRetentionPolicy.allowedLevels", "error", "operatorRetentionPolicy.allowedLevels 필드는 배열(Array) 형태여야 합니다.");
+      hasOpError = true;
+    }
+
+    // defaultLevel
+    if (op.defaultLevel === undefined || op.defaultLevel === null) {
+      addDiag("operatorRetentionPolicy.defaultLevel", "error", "operatorRetentionPolicy.defaultLevel 필드가 누락되었습니다.");
+      hasOpError = true;
+    } else if (typeof op.defaultLevel !== "string") {
+      addDiag("operatorRetentionPolicy.defaultLevel", "error", "operatorRetentionPolicy.defaultLevel 필드는 string 형태여야 합니다.");
+      hasOpError = true;
+    }
+
+    // allowCompanyOverride
+    if (op.allowCompanyOverride === undefined || op.allowCompanyOverride === null) {
+      addDiag("operatorRetentionPolicy.allowCompanyOverride", "error", "operatorRetentionPolicy.allowCompanyOverride 필드가 누락되었습니다.");
+      hasOpError = true;
+    } else if (typeof op.allowCompanyOverride !== "boolean") {
+      addDiag("operatorRetentionPolicy.allowCompanyOverride", "error", "operatorRetentionPolicy.allowCompanyOverride 필드는 boolean 형태여야 합니다.");
+      hasOpError = true;
+    }
+
+    // allowUserOverride
+    if (op.allowUserOverride === undefined || op.allowUserOverride === null) {
+      addDiag("operatorRetentionPolicy.allowUserOverride", "error", "operatorRetentionPolicy.allowUserOverride 필드가 누락되었습니다.");
+      hasOpError = true;
+    } else if (typeof op.allowUserOverride !== "boolean") {
+      addDiag("operatorRetentionPolicy.allowUserOverride", "error", "operatorRetentionPolicy.allowUserOverride 필드는 boolean 형태여야 합니다.");
+      hasOpError = true;
+    }
+  }
+
+  // 4.3. 상호 정합성 및 한도 초과 검사 (필드가 모두 있을 때만 진행)
+  if (!hasCapsError && !hasOpError && caps && op) {
     const supported = caps.supportedLevels || [];
     const opAllowed = op.allowedLevels || [];
 

@@ -651,9 +651,13 @@ export async function createClient(
 
     batch.set(clientRef, clientData);
 
-    // companyJoinService 규격에 맞춰 status 필드 포함
+    // companyJoinService 규격에 맞춰 상세 필드 포함하여 생성
     batch.set(lookupRef, {
       clientId: client.clientId,
+      companyCode: normalizedCode,
+      companyName: client.companyName,
+      hasOwnerAdmin: client.ownerAdminUid ? true : false,
+      adminBootstrapStatus: client.ownerAdminUid ? "completed" : "pending",
       status: client.status === "active" ? "active" : "disabled", // active 일 때만 가입 신청이 가능함
     });
 
@@ -701,6 +705,13 @@ export async function updateClient(
     const docRef = doc(db, "clients", clientId);
     const normalizedCode = companyCode.trim().toUpperCase();
 
+    const clientSnap = await getDoc(docRef);
+    if (!clientSnap.exists()) {
+      return { success: false, message: "존재하지 않는 고객사입니다." };
+    }
+    const currentClientData = clientSnap.data() as ClientDoc;
+    const oldOwnerAdminUid = currentClientData.ownerAdminUid;
+
     // 1. ownerAdminUid 변경 시 검증
     if (data.ownerAdminUid) {
       const userRef = doc(db, "users", data.ownerAdminUid);
@@ -719,15 +730,21 @@ export async function updateClient(
     }
 
     // 수정 가능한 필드만 엄격히 격리 (clientId, companyCode 수정 차단)
-    const allowedData = {
+    const allowedData: any = {
       companyName: data.companyName,
       status: data.status,
-      ownerAdminUid: data.ownerAdminUid,
+      ownerAdminUid: data.ownerAdminUid || null,
+      ownerAdminEmail: data.ownerAdminEmail || "",
+      ownerAdminDisplayName: data.ownerAdminDisplayName || "",
+      adminBootstrapStatus: data.adminBootstrapStatus || (data.ownerAdminUid ? "completed" : "pending"),
       defaultTimezone: data.defaultTimezone,
       defaultReportEmail: data.defaultReportEmail,
-      defaultDriveRootFolderId: data.defaultDriveRootFolderId,
       updatedAt: new Date().toISOString(),
     };
+
+    if (data.defaultDriveRootFolderId !== undefined) {
+      allowedData.defaultDriveRootFolderId = data.defaultDriveRootFolderId;
+    }
 
     // batch를 통한 clients와 companyCodeLookups 동시 수정
     const { writeBatch } = await import("firebase/firestore");
@@ -737,16 +754,37 @@ export async function updateClient(
 
     if (normalizedCode) {
       const lookupRef = doc(db, "companyCodeLookups", normalizedCode);
-      // 문서가 아직 존재하지 않는 경우 batch.update는 Missing or insufficient permissions 에러를 유발합니다.
-      // 따라서 안전하게 set(merge: true)을 활용해 문서의 신규 생성/부분 업데이트를 모두 지원합니다.
+      
+      // 만약 회사코드(companyCode)가 변경되었다면 이전 룩업 문서는 삭제
+      if (currentClientData.companyCode && currentClientData.companyCode !== normalizedCode) {
+        const oldLookupRef = doc(db, "companyCodeLookups", currentClientData.companyCode.toUpperCase());
+        batch.delete(oldLookupRef);
+      }
+
+      const hasOwnerAdmin = data.ownerAdminUid ? true : (data.ownerAdminUid === null ? false : (currentClientData.ownerAdminUid ? true : false));
+      const adminBootstrapStatus = data.adminBootstrapStatus || (data.ownerAdminUid ? "completed" : (data.ownerAdminUid === null ? "pending" : (currentClientData.ownerAdminUid ? "completed" : "pending")));
+
       batch.set(
         lookupRef,
         {
           clientId: clientId,
+          companyCode: normalizedCode,
+          companyName: data.companyName || currentClientData.companyName,
+          hasOwnerAdmin,
+          adminBootstrapStatus,
           status: data.status === "active" ? "active" : "disabled",
         },
         { merge: true }
       );
+    }
+
+    // 기존 관리자가 있었는데 새 관리자가 다르다면(또는 삭제되었다면) 기존 관리자 강등
+    if (oldOwnerAdminUid && oldOwnerAdminUid !== data.ownerAdminUid) {
+      const oldUserRef = doc(db, "users", oldOwnerAdminUid);
+      batch.update(oldUserRef, {
+        role: "user",
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     // 지정된 관리자가 있으면 users와 companyJoinRequests 문서 일괄 업데이트

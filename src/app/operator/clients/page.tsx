@@ -72,6 +72,23 @@ export default function OperatorClients() {
     loadClients(); // 취소/뒤로가기 시에 최신 상태 동기화
   };
 
+  // 상세 보기 데이터 실시간 리프레시 헬퍼
+  const refreshSelectedClient = async () => {
+    if (!selectedClient) return;
+    try {
+      const { doc, getDoc } = await import("firebase/firestore");
+      const clientRef = doc(db, "clients", selectedClient.clientId);
+      const snap = await getDoc(clientRef);
+      if (snap.exists()) {
+        const updated = snap.data() as ClientDoc;
+        setSelectedClient(updated);
+        loadClients(); // 목록도 연쇄 갱신
+      }
+    } catch (err) {
+      console.error("고객사 상세 리프레시 실패:", err);
+    }
+  };
+
   // 3. 저장 및 수정 처리 (트랜잭션/Batch 비즈니스 연동 완료)
   const handleFormSubmit = async (client: ClientDoc) => {
     if (!user) {
@@ -143,6 +160,9 @@ export default function OperatorClients() {
       {viewMode === "detail" && selectedClient && (
         <ClientDetail
           client={selectedClient}
+          db={db}
+          operatorUid={user?.uid || "operator"}
+          onRefresh={refreshSelectedClient}
           onEditClick={handleEditClick}
           onBackClick={handleBackToList}
         />

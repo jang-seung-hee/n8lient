@@ -1,12 +1,16 @@
 // 이 파일은 회사코드 조회(companyCodeLookups) 및 회사 가입 승인 요청(companyJoinRequests)을 처리하는 서비스를 제공합니다.
 
-import { doc, getDoc, writeBatch, Firestore } from "firebase/firestore";
-import type { CompanyJoinRequest, ClientId } from "@/types/n8lient";
+import { doc, getDoc, writeBatch, Firestore, query, collection, where, getDocs } from "firebase/firestore";
+import type { CompanyJoinRequest, ClientId, ClientDoc } from "@/types/n8lient";
 import type { User } from "firebase/auth";
 
 interface SubmitResult {
   success: boolean;
   message?: string;
+  requestedRole?: "company_admin" | "user";
+  clientId?: string;
+  companyCode?: string;
+  companyName?: string;
 }
 
 /**
@@ -36,14 +40,45 @@ export async function submitCompanyJoinRequest(
   }
 
   if (!lookupSnap.exists()) {
-    return { success: false, message: "존재하지 않거나 활성화되지 않은 회사코드입니다." };
+    return { success: false, message: "유효하지 않은 회사 코드입니다. 회사 코드를 다시 확인해 주세요." };
   }
 
   const lookupData = lookupSnap.data();
-  const { clientId, status } = lookupData;
+  const { clientId, status, hasOwnerAdmin, companyName } = lookupData;
 
   if (status !== "active") {
-    return { success: false, message: "존재하지 않거나 활성화되지 않은 회사코드입니다." };
+    return { success: false, message: "유효하지 않은 회사 코드입니다. 회사 코드를 다시 확인해 주세요." };
+  }
+
+  // hasOwnerAdmin 존재 여부로 가입 신청 역할 분기
+  const requestedRole: "company_admin" | "user" = !hasOwnerAdmin ? "company_admin" : "user";
+
+  // 만약 company_admin 신청인 경우, 다른 pending 상태인 company_admin 요청이 있는지 조회하여 중복 방지
+  if (requestedRole === "company_admin") {
+    try {
+      const q = query(
+        collection(db, "companyJoinRequests"),
+        where("clientId", "==", clientId),
+        where("requestedRole", "==", "company_admin"),
+        where("status", "==", "pending")
+      );
+      const pendingAdminSnaps = await getDocs(q);
+      
+      // 나 이외의 다른 사람이 이미 pending 상태로 관리자 승인을 요청해둔 경우
+      const otherPending = pendingAdminSnaps.docs.filter(docSnap => docSnap.data().uid !== firebaseUser.uid);
+      if (otherPending.length > 0) {
+        return { 
+          success: false, 
+          message: "이미 이 회사에 대한 회사 관리자 승인 요청이 대기 중입니다. 완료될 때까지 기다려 주십시오." 
+        };
+      }
+    } catch (err: any) {
+      console.error("[디버그] 중복 관리자 요청 조회 실패", err);
+      return {
+        success: false,
+        message: `중복 가입요청 검사 중 오류가 발생했습니다. (에러: ${err.message || err})`
+      };
+    }
   }
 
   // 2단계: 결정형 문서 ID 생성 및 중복 확인 조회
@@ -60,9 +95,14 @@ export async function submitCompanyJoinRequest(
     };
   }
 
-  // 이미 요청이 존재하는 경우 중복 처리 방지
+  // 이미 본인의 요청이 존재하는 경우 중복 처리 방지
   if (requestSnap.exists() && requestSnap.data().status === "pending") {
-    return { success: false, message: "이미 이 회사로의 승인요청이 대기 중입니다." };
+    return { 
+      success: false, 
+      message: requestSnap.data().requestedRole === "company_admin"
+        ? "이미 이 회사로의 회사 관리자 승인요청이 대기 중입니다."
+        : "이미 이 회사로의 승인요청이 대기 중입니다." 
+    };
   }
 
   // 3단계: 승인 요청 데이터 모델 정의
@@ -78,6 +118,9 @@ export async function submitCompanyJoinRequest(
     reviewedAt: null,
     reviewedBy: null,
     rejectReason: null,
+    requestedRole,
+    companyCode: normalizedCode,
+    companyName: companyName || "",
   };
 
   // 4단계: batch 처리를 통한 원자적(atomic) 쓰기 수행
@@ -89,6 +132,7 @@ export async function submitCompanyJoinRequest(
     batch.update(userRef, {
       approvalStatus: "pending",
       clientId: clientId,
+      role: "user", // 회사 관리자 신청자도 일단 가입 승인 전에는 user 상태로 대기하며, 승인 시점에 company_admin으로 변경됨
       updatedAt: new Date().toISOString(),
     });
 
@@ -101,5 +145,65 @@ export async function submitCompanyJoinRequest(
     };
   }
 
-  return { success: true };
+  return {
+    success: true,
+    requestedRole,
+    clientId,
+    companyCode: normalizedCode,
+    companyName: companyName || "",
+  };
+}
+
+/**
+ * 대기 중인(pending) 가입 요청을 취소하고 유저 프로필 상태를 롤백합니다. (운영자 계정 방어 포함)
+ */
+export async function cancelCompanyJoinRequest(
+  db: Firestore,
+  uid: string,
+  clientId: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    // 1. users 문서 읽기 (operator 방어 보호)
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      return { success: false, message: "사용자 정보를 찾을 수 없습니다." };
+    }
+    const userData = userSnap.data();
+    if (userData.role === "operator") {
+      return { success: false, message: "운영자 계정의 승인 상태는 취소할 수 없습니다." };
+    }
+
+    // 2. 가입 요청서 문서 확인 (pending 체크)
+    const requestId = `${uid}_${clientId}`;
+    const requestRef = doc(db, "companyJoinRequests", requestId);
+    const requestSnap = await getDoc(requestRef);
+    if (!requestSnap.exists()) {
+      return { success: false, message: "가입 요청을 찾을 수 없습니다." };
+    }
+    const requestData = requestSnap.data() as CompanyJoinRequest;
+    if (requestData.status !== "pending") {
+      return { success: false, message: "대기 중(pending) 상태의 가입 요청만 취소할 수 있습니다." };
+    }
+
+    // 3. batch를 통한 원자적 취소 커밋
+    const batch = writeBatch(db);
+    batch.update(requestRef, {
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+      cancelledBy: uid,
+    });
+
+    batch.update(userRef, {
+      approvalStatus: "no_company",
+      clientId: null,
+      updatedAt: new Date().toISOString(),
+    });
+
+    await batch.commit();
+    return { success: true };
+  } catch (err: any) {
+    console.error("[companyJoinService] 가입 요청 취소 실패:", err);
+    return { success: false, message: err.message || "가입 요청 취소 도중 에러가 발생했습니다." };
+  }
 }

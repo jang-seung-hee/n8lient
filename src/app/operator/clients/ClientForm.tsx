@@ -72,7 +72,7 @@ export function ClientForm({
       if (initialData.ownerAdminUid) {
         const fetchAdminUser = async () => {
           try {
-            const userRef = doc(db, "users", initialData.ownerAdminUid);
+            const userRef = doc(db, "users", initialData.ownerAdminUid as string);
             const userSnap = await getDoc(userRef);
             if (userSnap.exists()) {
               const userData = userSnap.data();
@@ -167,13 +167,23 @@ export function ClientForm({
       companyName: companyName.trim(),
       companyCode: normalizedCode,
       status,
-      ownerAdminUid: ownerAdminUid.trim(),
+      ownerAdminUid: ownerAdminUid.trim() || null,
+      adminBootstrapStatus: ownerAdminUid.trim() ? "completed" : "pending",
       defaultTimezone,
       defaultReportEmail: defaultReportEmail.trim(),
-      defaultDriveRootFolderId: defaultDriveRootFolderId.trim() || undefined,
       createdAt: initialData?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    if (adminEmail.trim()) {
+      client.ownerAdminEmail = adminEmail.trim();
+    }
+    if (adminDisplayName.trim()) {
+      client.ownerAdminDisplayName = adminDisplayName.trim();
+    }
+    if (defaultDriveRootFolderId.trim()) {
+      client.defaultDriveRootFolderId = defaultDriveRootFolderId.trim();
+    }
 
     onSubmit(client);
   };

@@ -45,6 +45,13 @@ export type UserRole = "operator" | "company_admin" | "user";
 export type ApprovalStatus = "no_company" | "pending" | "approved" | "rejected" | "suspended";
 
 /**
+ * 회사 관리자(company_admin) 최초 등록 진행 상태
+ * - pending: 회사 관리자 등록 대기 중
+ * - completed: 회사 관리자 등록 완료
+ */
+export type AdminBootstrapStatus = "pending" | "completed";
+
+/**
  * 회사(client) 상태
  * - active: 정상 운영 중
  * - pending_setup: 초기 설정 대기
@@ -134,7 +141,10 @@ export interface ClientDoc {
   companyName: string;
   companyCode: string;
   status: ClientStatus;
-  ownerAdminUid: Uid;
+  ownerAdminUid: Uid | null;
+  ownerAdminEmail?: string;
+  ownerAdminDisplayName?: string;
+  adminBootstrapStatus?: AdminBootstrapStatus;
   defaultTimezone: string;
   defaultReportEmail: string;
   defaultDriveRootFolderId?: string;
@@ -163,6 +173,18 @@ export interface UserDoc {
 }
 
 /**
+ * companyCodeLookups 컬렉션 — 회사코드 룩업 테이블
+ */
+export interface CompanyCodeLookup {
+  clientId: ClientId;
+  companyCode: string;
+  companyName: string;
+  hasOwnerAdmin: boolean;
+  adminBootstrapStatus: AdminBootstrapStatus;
+  status: "active" | "disabled";
+}
+
+/**
  * companyJoinRequests 컬렉션 — 회사코드 승인 요청
  */
 export interface CompanyJoinRequest {
@@ -177,6 +199,11 @@ export interface CompanyJoinRequest {
   reviewedAt?: string | null;
   reviewedBy?: Uid | null;
   rejectReason?: string | null;
+  requestedRole?: "company_admin" | "user";
+  companyCode?: string;
+  companyName?: string;
+  cancelledAt?: string | null;
+  cancelledBy?: Uid | null;
 }
 
 /**
