@@ -44,9 +44,13 @@ async function runRulesTestSuite() {
       approvalStatus: "approved"
     });
 
-    // (2) 템플릿 2종 등록 (Draft 및 Published)
+    // (2) 템플릿 2종 등록 (Draft 및 Published) + 레거시용 Draft 템플릿 추가
     await adminDb.doc("workflowTemplates/tpl_draft_key").set({
       workflowKey: "tpl_draft_key",
+      status: "draft"
+    });
+    await adminDb.doc("workflowTemplates/tpl_draft_legacy_key").set({
+      workflowKey: "tpl_draft_legacy_key",
       status: "draft"
     });
     await adminDb.doc("workflowTemplates/tpl_published_key").set({
@@ -91,6 +95,20 @@ async function runRulesTestSuite() {
       settingId: "setting_prod",
       workflowKey: "tpl_draft_key",
       isTestSetting: false,
+      uid: "normal-user",
+      clientId: "test-client"
+    });
+
+    // (6) Draft 관련 하위 레거시 테스트 문서 (isTestExecution / isTestSetting 필드가 아예 없음)
+    await adminDb.doc("submissions/sub_legacy_draft").set({
+      submissionId: "sub_legacy_draft",
+      workflowKey: "tpl_draft_legacy_key",
+      clientId: "test-client",
+      uid: "normal-user"
+    });
+    await adminDb.doc("userAutomationSettings/setting_legacy_draft").set({
+      settingId: "setting_legacy_draft",
+      workflowKey: "tpl_draft_legacy_key",
       uid: "normal-user",
       clientId: "test-client"
     });
@@ -153,6 +171,22 @@ async function runRulesTestSuite() {
   } catch (err: any) {
     console.log("✅ [Test #4 SUCCESS] 운영 userAutomationSettings 데이터 삭제 차단 성공");
     passCount++;
+  }
+
+  // ────────────────────────────────────────────────────────
+  // [TC 5] Draft 템플릿에 연결된 레거시 하위 문서(isTest* 필드 없음) 일괄 삭제 (성공 예상)
+  // ────────────────────────────────────────────────────────
+  try {
+    const batch = operatorDb.batch();
+    batch.delete(operatorDb.doc("submissions/sub_legacy_draft"));
+    batch.delete(operatorDb.doc("userAutomationSettings/setting_legacy_draft"));
+    batch.delete(operatorDb.doc("workflowTemplates/tpl_draft_legacy_key"));
+    await batch.commit();
+    console.log("✅ [Test #5 SUCCESS] Draft 템플릿 및 관련 레거시 테스트 데이터 batch 일괄 삭제 허용");
+    passCount++;
+  } catch (err: any) {
+    console.error("❌ [Test #5 FAILED] Draft 레거시 데이터 CASCADE 삭제 거부 에러:", err.message);
+    failCount++;
   }
 
   console.log("==================================================");
