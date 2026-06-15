@@ -19,6 +19,7 @@ export interface WorkflowInputSchemaFormProps {
   maxFileSizeMB: number;
   setMaxFileSizeMB: (val: number) => void;
   diagnostics?: WorkflowImportDiagnostics | null;
+  isStructureLocked?: boolean;
 }
 
 export default function WorkflowInputSchemaForm({
@@ -31,6 +32,7 @@ export default function WorkflowInputSchemaForm({
   maxFileSizeMB,
   setMaxFileSizeMB,
   diagnostics = null,
+  isStructureLocked = false,
 }: WorkflowInputSchemaFormProps) {
   
   const handleCheckboxChange = (type: string, checked: boolean) => {
@@ -71,7 +73,8 @@ export default function WorkflowInputSchemaForm({
                 type="checkbox"
                 checked={acceptedTypes.includes(type)}
                 onChange={(e) => handleCheckboxChange(type, e.target.checked)}
-                style={{ cursor: "pointer" }}
+                disabled={isStructureLocked}
+                style={{ cursor: isStructureLocked ? "not-allowed" : "pointer" }}
               />
               {type}
             </label>
@@ -94,6 +97,7 @@ export default function WorkflowInputSchemaForm({
             value={allowedFileTypesStr}
             onChange={(e) => setAllowedFileTypesStr(e.target.value)}
             placeholder="pdf, jpg, png, xlsx"
+            disabled={isStructureLocked}
             style={{
               height: "36px",
               border: "1px solid #d1d5db",
@@ -101,8 +105,8 @@ export default function WorkflowInputSchemaForm({
               padding: "0 8px",
               fontSize: "13px",
               outline: "none",
-              color: "#111111",
-              backgroundColor: "#ffffff",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("inputSchema.allowedFileTypes", diagnostics)
             }}
           />
@@ -119,6 +123,7 @@ export default function WorkflowInputSchemaForm({
             value={maxFileSizeMB}
             onChange={(e) => setMaxFileSizeMB(Number(e.target.value))}
             required
+            disabled={isStructureLocked}
             style={{
               height: "36px",
               border: "1px solid #d1d5db",
@@ -126,8 +131,8 @@ export default function WorkflowInputSchemaForm({
               padding: "0 8px",
               fontSize: "13px",
               outline: "none",
-              color: "#111111",
-              backgroundColor: "#ffffff",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("inputSchema.maxFileSizeMB", diagnostics)
             }}
           />
@@ -144,7 +149,8 @@ export default function WorkflowInputSchemaForm({
               id="title-required-checkbox"
               checked={titleRequired}
               onChange={(e) => setTitleRequired(e.target.checked)}
-              style={{ cursor: "pointer" }}
+              disabled={isStructureLocked}
+              style={{ cursor: isStructureLocked ? "not-allowed" : "pointer" }}
             />
             <label
               htmlFor="title-required-checkbox"

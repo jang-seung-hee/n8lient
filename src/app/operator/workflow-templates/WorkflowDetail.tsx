@@ -2,7 +2,9 @@
 
 "use client";
 
-import type { WorkflowTemplate } from "@/types/n8lient";
+import { useState } from "react";
+import { Firestore } from "firebase/firestore";
+import type { WorkflowTemplate, WorkflowTemplateUsageSummary } from "@/types/n8lient";
 import {
   buildWorkflowTemplateImportJson,
   buildWorkflowTemplateExportFileName,
@@ -11,17 +13,25 @@ import {
 
 interface WorkflowDetailProps {
   template: WorkflowTemplate;
+  usageSummary?: WorkflowTemplateUsageSummary;
   onEditClick: () => void;
   onCloneClick: () => void;
   onBackClick: () => void;
+  db: Firestore;
+  onDeleteSuccess?: () => void;
 }
 
 export function WorkflowDetail({
   template,
+  usageSummary,
   onEditClick,
   onCloneClick,
   onBackClick,
+  db,
+  onDeleteSuccess,
 }: WorkflowDetailProps) {
+  const [deleting, setDeleting] = useState(false);
+
   /**
    * 현재 상세보기 중인 워크플로우를 N8Lient 표준 Import JSON으로 다운로드합니다.
    * - diagnostics, UI 임시 상태값, 실제 Secret/Token/API Key는 포함되지 않습니다.
@@ -33,8 +43,76 @@ export function WorkflowDetail({
     downloadJsonAsFile(payload, fileName);
   };
 
+  const handleDeleteDraft = async () => {
+    if (hasProductionReferences) {
+      alert("운영 참조가 있어 삭제할 수 없습니다.");
+      return;
+    }
+
+    const confirmMsg =
+      "이 워크플로우 마스터는 draft 상태입니다.\n" +
+      "삭제 시 테스트 계약, 테스트 배포 설정, 테스트 개인 설정, 테스트 실행 이력이 함께 삭제됩니다.\n" +
+      "운영 계약 또는 운영 실행 이력이 있는 경우 삭제되지 않습니다.\n" +
+      "정말 삭제하시겠습니까?";
+
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const { deleteDraftWorkflowTemplate } = await import("@/features/operator/operatorService");
+      const res = await deleteDraftWorkflowTemplate(db, template.workflowKey);
+      if (res.success) {
+        alert("Draft 워크플로우 마스터와 테스트 계약/설정/실행 이력이 삭제되었습니다.");
+        if (onDeleteSuccess) {
+          onDeleteSuccess();
+        }
+      } else {
+        alert(res.message || "삭제 실패");
+      }
+    } catch (err: any) {
+      alert(`삭제 도중 오류가 발생했습니다: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // 사용 상태 분석 (테스트/운영 참조 구분)
+  const hasProductionReferences = usageSummary?.hasProductionReferences === true;
+  const hasTestReferences = usageSummary?.hasTestReferences === true;
+  const hasProductionSubmissions = (usageSummary?.productionSubmissionCount ?? 0) > 0;
+
+  let badgeText = "참조 없음";
+  let badgeBg = "#eff6ff";
+  let badgeColor = "#1d4ed8";
+  let guideMessage = "";
+
+  if (hasProductionReferences) {
+    badgeText = "운영 참조 있음";
+    badgeBg = "#ffedd5";
+    badgeColor = "#c2410c";
+    guideMessage = "이 워크플로우 마스터는 회사 매핑이나 운영 계약 등의 참조가 존재하여 식별/구조 필드를 변경할 수 없으며 삭제가 불가합니다.";
+  } else if (hasProductionSubmissions) {
+    badgeText = "실행 이력 있음";
+    badgeBg = "#fee2e2";
+    badgeColor = "#b91c1c";
+    guideMessage = "운영 자동화 실행 이력이 존재합니다. 구조 변경이 필요하다면 복제 기능을 이용해 새 버전으로 등록하는 것을 권장합니다.";
+  } else if (hasTestReferences) {
+    badgeText = "테스트 참조 있음";
+    badgeBg = "#f3e8ff";
+    badgeColor = "#6b21a8";
+    guideMessage = "테스트 계약, 테스트 배포 설정 또는 테스트 실행 이력이 존재합니다. Draft 워크플로우를 삭제할 경우 관련 테스트 참조 데이터가 함께 일괄 정리됩니다. 구조 수정은 가능합니다.";
+  } else {
+    // 참조 없음
+    badgeText = "참조 없음";
+    badgeBg = "#eff6ff";
+    badgeColor = "#1d4ed8";
+    guideMessage = "아무런 계약이나 배포, 실행 참조가 없습니다. 자유로운 수정 및 삭제가 가능합니다.";
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 뒤로가기 및 액션 바 */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -53,9 +131,23 @@ export function WorkflowDetail({
             ⬅️
           </button>
           <div>
-            <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111111", margin: 0 }}>
-              {template.name} 상세 명세
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111111", margin: 0 }}>
+                {template.name} 상세 명세
+              </h2>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  backgroundColor: badgeBg,
+                  color: badgeColor,
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                }}
+              >
+                {badgeText}
+              </span>
+            </div>
             <p style={{ fontSize: "12px", color: "#6b7280", margin: "2px 0 0 0" }}>
               Key: {template.workflowKey} · v{template.version}
             </p>
@@ -63,17 +155,38 @@ export function WorkflowDetail({
         </div>
 
         <div style={{ display: "flex", gap: "8px" }}>
+          {/* Draft 삭제 버튼 추가 */}
+          {template.status === "draft" && (
+            <button
+              onClick={handleDeleteDraft}
+              disabled={deleting || hasProductionReferences}
+              style={{
+                backgroundColor: (deleting || hasProductionReferences) ? "#f3f4f6" : "#ef4444",
+                color: (deleting || hasProductionReferences) ? "#9ca3af" : "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "6px 14px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: (deleting || hasProductionReferences) ? "not-allowed" : "pointer",
+              }}
+              title={hasProductionReferences ? "운영 참조가 있어 삭제할 수 없습니다." : "테스트 이력이 함께 삭제됩니다."}
+            >
+              {deleting ? "삭제 중..." : "[Draft 삭제]"}
+            </button>
+          )}
           <button
             onClick={onCloneClick}
+            disabled={deleting}
             style={{
-              backgroundColor: "#eff6ff",
-              color: "#1d4ed8",
-              border: "1px solid #bfdbfe",
+              backgroundColor: deleting ? "#f3f4f6" : "#eff6ff",
+              color: deleting ? "#9ca3af" : "#1d4ed8",
+              border: deleting ? "1px solid #e5e7eb" : "1px solid #bfdbfe",
               borderRadius: "6px",
               padding: "6px 14px",
               fontSize: "12.5px",
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: deleting ? "not-allowed" : "pointer",
             }}
           >
             📋 워크플로우 복제
@@ -81,15 +194,16 @@ export function WorkflowDetail({
           {/* JSON 다운로드 버튼: 현재 명세를 N8Lient 표준 Import JSON으로 내보냅니다 */}
           <button
             onClick={handleDownloadJson}
+            disabled={deleting}
             style={{
-              backgroundColor: "#f0fdf4",
-              color: "#15803d",
-              border: "1px solid #bbf7d0",
+              backgroundColor: deleting ? "#f3f4f6" : "#f0fdf4",
+              color: deleting ? "#9ca3af" : "#15803d",
+              border: deleting ? "1px solid #e5e7eb" : "1px solid #bbf7d0",
               borderRadius: "6px",
               padding: "6px 14px",
               fontSize: "12.5px",
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: deleting ? "not-allowed" : "pointer",
             }}
             title="현재 워크플로우 명세를 N8Lient 표준 Import JSON 파일로 다운로드합니다."
           >
@@ -97,15 +211,16 @@ export function WorkflowDetail({
           </button>
           <button
             onClick={onEditClick}
+            disabled={deleting}
             style={{
-              backgroundColor: "#111111",
-              color: "#ffffff",
+              backgroundColor: deleting ? "#f3f4f6" : "#111111",
+              color: deleting ? "#9ca3af" : "#ffffff",
               border: "none",
               borderRadius: "6px",
               padding: "6px 14px",
               fontSize: "12.5px",
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: deleting ? "not-allowed" : "pointer",
             }}
           >
             ⚙️ 명세 수정
@@ -113,7 +228,25 @@ export function WorkflowDetail({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+      {/* 구조 잠금 안내 배너 노출 */}
+      {guideMessage && (
+        <div
+          style={{
+            backgroundColor: badgeBg,
+            border: `1px solid ${badgeColor}33`,
+            color: badgeColor,
+            padding: "12px 16px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            lineHeight: 1.5,
+            fontWeight: 500,
+          }}
+        >
+          💡 {guideMessage}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
         {/* 왼쪽 패널: 기본정보 & Webhook 설정 */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div

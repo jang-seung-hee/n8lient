@@ -242,6 +242,9 @@ export interface ClientContract {
   enabled: boolean;
   contractStatus: ContractStatus;
   contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도
+  contractMode?: "test" | "production";
+  isTestContract?: boolean;
+  templateStatusAtContract?: "draft" | "published";
   startedAt: string;
   endedAt?: string | null;
   createdBy: Uid;
@@ -270,6 +273,8 @@ export interface ClientAutomation {
   retentionPolicy?: RetentionPolicy; // [v2.5] 보관 정책 하위 호환
   companyRetentionPolicy?: CompanyRetentionPolicy; // [v2.6] 회사 보관 정책
   contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도 복사본
+  deploymentMode?: "test" | "production";
+  templateStatusAtBinding?: "draft" | "published";
   createdBy: Uid;
   createdAt: string;
   updatedAt: string;
@@ -435,6 +440,8 @@ export interface UserAutomationSettings {
    */
   settings: Record<string, string | number | boolean>;
   userRetentionPreference?: UserRetentionPreference; // [v2.6] 개인 선호 설정
+  templateStatusAtSetting?: "draft" | "published";
+  isTestSetting?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -520,6 +527,9 @@ export interface Submission {
   settingsSnapshot?: Record<string, string | number | boolean>;
   retentionPolicySnapshot?: RetentionPolicy; // [v2.5] 실행 시점 보관 정책 스냅샷
   
+  templateStatusAtExecution?: "draft" | "published";
+  isTestExecution?: boolean;
+  
   createdAt: string;
   updatedAt: string;
   completedAt?: string | null;
@@ -558,3 +568,30 @@ export interface N8nWebhookPayload {
   input: Submission["input"];
   requestedAt: string;
 }
+
+/**
+ * N8Lient 워크플로우 템플릿 사용 정보 요약 인터페이스
+ * - 한국어 주석 표준을 준수합니다.
+ */
+export interface WorkflowTemplateUsageSummary {
+  isReferenced: boolean;
+  hasProductionReferences: boolean;
+  hasTestReferences: boolean;
+  hasClientContracts: boolean;
+  hasClientAutomations: boolean;
+  hasSubmissions: boolean;
+  hasUserSettings: boolean;
+  productionClientContractCount: number;
+  testClientContractCount: number;
+  productionClientAutomationCount: number;
+  productionSubmissionCount: number;
+  productionUserSettingCount: number;
+  testClientAutomationCount: number;
+  testSubmissionCount: number;
+  testUserSettingCount: number;
+  clientContractCount: number;
+  clientAutomationCount: number;
+  submissionCount: number;
+  userSettingCount: number;
+}
+

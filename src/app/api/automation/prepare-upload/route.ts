@@ -151,6 +151,8 @@ export async function POST(req: NextRequest) {
       error: { code: null, message: null },
       retryOf: null,
       settingsMergeSummary,
+      templateStatusAtExecution: templateDoc.status === "draft" ? "draft" : "published",
+      isTestExecution: templateDoc.status === "draft",
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       completedAt: null,

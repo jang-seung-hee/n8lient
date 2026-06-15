@@ -35,6 +35,7 @@ export interface WorkflowRetentionPolicyFormProps {
   allowUserOverride: boolean;
   setAllowUserOverride: (val: boolean) => void;
   diagnostics?: WorkflowImportDiagnostics | null;
+  isStructureLocked?: boolean;
 }
 
 export default function WorkflowRetentionPolicyForm({
@@ -61,6 +62,7 @@ export default function WorkflowRetentionPolicyForm({
   allowUserOverride,
   setAllowUserOverride,
   diagnostics = null,
+  isStructureLocked = false,
 }: WorkflowRetentionPolicyFormProps) {
   return (
     <>
@@ -89,6 +91,7 @@ export default function WorkflowRetentionPolicyForm({
             <select
               value={maxLevel}
               onChange={(e: any) => setMaxLevel(e.target.value)}
+              disabled={isStructureLocked}
               style={{
                 height: "32px",
                 border: "1px solid #d1d5db",
@@ -96,8 +99,8 @@ export default function WorkflowRetentionPolicyForm({
                 padding: "0 6px",
                 fontSize: "12px",
                 outline: "none",
-                backgroundColor: "#ffffff",
-                color: "#111111",
+                backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+                color: isStructureLocked ? "#9ca3af" : "#111111",
               }}
             >
               <option value="notify_only">1단계: 알림/로그형 (notify_only)</option>
@@ -114,6 +117,7 @@ export default function WorkflowRetentionPolicyForm({
             <select
               value={capsDefaultLevel}
               onChange={(e: any) => setCapsDefaultLevel(e.target.value)}
+              disabled={isStructureLocked}
               style={{
                 height: "32px",
                 border: "1px solid #d1d5db",
@@ -121,8 +125,8 @@ export default function WorkflowRetentionPolicyForm({
                 padding: "0 6px",
                 fontSize: "12px",
                 outline: "none",
-                backgroundColor: "#ffffff",
-                color: "#111111",
+                backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+                color: isStructureLocked ? "#9ca3af" : "#111111",
                 ...getDiagnosticStyles("retentionCapabilities.defaultLevel", diagnostics)
               }}
             >
@@ -150,6 +154,7 @@ export default function WorkflowRetentionPolicyForm({
                 <input
                   type="checkbox"
                   checked={supportedLevels.includes(lvl as any)}
+                  disabled={isStructureLocked}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSupportedLevels([...supportedLevels, lvl as any]);
@@ -167,34 +172,38 @@ export default function WorkflowRetentionPolicyForm({
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px", marginTop: "4px" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#111111" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer", color: "#111111" }}>
             <input
               type="checkbox"
               checked={supportsProcessorResult}
+              disabled={isStructureLocked}
               onChange={(e) => setSupportsProcessorResult(e.target.checked)}
             />
             processorResult 생성 지원
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#111111" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer", color: "#111111" }}>
             <input
               type="checkbox"
               checked={supportsOriginalFileRefs}
+              disabled={isStructureLocked}
               onChange={(e) => setSupportsOriginalFileRefs(e.target.checked)}
             />
             originalFileRefs 지원
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#111111" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer", color: "#111111" }}>
             <input
               type="checkbox"
               checked={supportsResultRefs}
+              disabled={isStructureLocked}
               onChange={(e) => setSupportsResultRefs(e.target.checked)}
             />
             resultRefs 지원
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#111111" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer", color: "#111111" }}>
             <input
               type="checkbox"
               checked={supportsResultPolicyRouter}
+              disabled={isStructureLocked}
               onChange={(e) => setSupportsResultPolicyRouter(e.target.checked)}
             />
             Result Policy Router 지원
@@ -231,11 +240,12 @@ export default function WorkflowRetentionPolicyForm({
             {supportedLevels.map((lvl) => (
               <label
                 key={lvl}
-                style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: "#14532d" }}
+                style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer", color: "#14532d" }}
               >
                 <input
                   type="checkbox"
                   checked={opAllowedLevels.includes(lvl)}
+                  disabled={isStructureLocked}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setOpAllowedLevels([...opAllowedLevels, lvl]);
@@ -258,6 +268,7 @@ export default function WorkflowRetentionPolicyForm({
             <select
               value={opDefaultLevel}
               onChange={(e: any) => setOpDefaultLevel(e.target.value)}
+              disabled={isStructureLocked}
               style={{
                 height: "32px",
                 border: "1px solid #bbf7d0",
@@ -265,8 +276,8 @@ export default function WorkflowRetentionPolicyForm({
                 padding: "0 6px",
                 fontSize: "12px",
                 outline: "none",
-                backgroundColor: "#ffffff",
-                color: "#111111",
+                backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+                color: isStructureLocked ? "#9ca3af" : "#111111",
                 ...getDiagnosticStyles("operatorRetentionPolicy.defaultLevel", diagnostics)
               }}
             >
@@ -285,18 +296,20 @@ export default function WorkflowRetentionPolicyForm({
         </div>
 
         <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#14532d", marginTop: "4px" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer" }}>
             <input
               type="checkbox"
               checked={allowCompanyOverride}
+              disabled={isStructureLocked}
               onChange={(e) => setAllowCompanyOverride(e.target.checked)}
             />
             회사 관리자의 정책 수정 허용
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: isStructureLocked ? "not-allowed" : "pointer" }}>
             <input
               type="checkbox"
               checked={allowUserOverride}
+              disabled={isStructureLocked}
               onChange={(e) => setAllowUserOverride(e.target.checked)}
             />
             일반 사용자의 개인 보관 선호 수정 허용

@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
+import type { WorkflowTemplate, ConfigSchemaField, WorkflowTemplateUsageSummary } from "@/types/n8lient";
 import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import { playAppSound } from "@/lib/appSound";
 import ConfigSchemaEditor from "./components/ConfigSchemaEditor";
@@ -21,6 +21,8 @@ interface WorkflowFormProps {
   diagnostics?: WorkflowImportDiagnostics | null;
   /** Import 등록 모드에서만 전달: 현재 폼 상태가 바뀔 때마다 호출되어 부모에서 실시간 재검증을 수행할 수 있습니다. */
   onDraftChange?: (currentTemplate: WorkflowTemplate) => void;
+  usageSummary?: WorkflowTemplateUsageSummary;
+  isStructureLocked?: boolean;
 }
 
 export function WorkflowForm({
@@ -31,6 +33,8 @@ export function WorkflowForm({
   loading,
   diagnostics = null,
   onDraftChange,
+  usageSummary,
+  isStructureLocked = false,
 }: WorkflowFormProps) {
   // alert 지연 호출용 타이머 ID 보존 목록
   const timeoutIdsRef = useRef<number[]>([]);
@@ -516,6 +520,7 @@ export function WorkflowForm({
           setDescription={setDescription}
           isEditMode={isEditMode}
           diagnostics={diagnostics}
+          isStructureLocked={isStructureLocked}
         />
 
         <WorkflowRetentionPolicyForm
@@ -542,6 +547,7 @@ export function WorkflowForm({
           allowUserOverride={allowUserOverride}
           setAllowUserOverride={setAllowUserOverride}
           diagnostics={diagnostics}
+          isStructureLocked={isStructureLocked}
         />
 
         <WorkflowInputSchemaForm
@@ -554,6 +560,7 @@ export function WorkflowForm({
           maxFileSizeMB={maxFileSizeMB}
           setMaxFileSizeMB={setMaxFileSizeMB}
           diagnostics={diagnostics}
+          isStructureLocked={isStructureLocked}
         />
 
         <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
@@ -568,6 +575,7 @@ export function WorkflowForm({
           onMoveField={handleMoveField}
           onSelectOptionsChange={handleSelectOptionsChange}
           diagnostics={diagnostics}
+          isStructureLocked={isStructureLocked}
         />
 
         <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>

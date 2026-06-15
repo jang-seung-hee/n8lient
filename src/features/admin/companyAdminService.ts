@@ -248,6 +248,8 @@ export async function saveClientAutomation(
       configSchemaVersion: template.configSchemaVersion || 1,
       settings,
       retentionPolicy: retentionPolicy || null,
+      deploymentMode: template.status === "draft" ? "test" : "production",
+      templateStatusAtBinding: template.status === "draft" ? "draft" : "published",
       createdBy: adminUid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

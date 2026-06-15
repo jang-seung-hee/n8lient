@@ -29,6 +29,7 @@ export interface WorkflowBasicInfoFormProps {
   setDescription: (val: string) => void;
   isEditMode: boolean;
   diagnostics?: WorkflowImportDiagnostics | null;
+  isStructureLocked?: boolean;
 }
 
 export default function WorkflowBasicInfoForm({
@@ -50,6 +51,7 @@ export default function WorkflowBasicInfoForm({
   setDescription,
   isEditMode,
   diagnostics = null,
+  isStructureLocked = false,
 }: WorkflowBasicInfoFormProps) {
   const handleWorkflowKeyChange = (val: string) => {
     setWorkflowKey(val);
@@ -155,6 +157,7 @@ export default function WorkflowBasicInfoForm({
             onChange={(e) => setVersion(e.target.value)}
             placeholder="1.0.0"
             required
+            disabled={isStructureLocked}
             style={{
               height: "36px",
               border: "1px solid #d1d5db",
@@ -162,8 +165,8 @@ export default function WorkflowBasicInfoForm({
               padding: "0 8px",
               fontSize: "13px",
               outline: "none",
-              color: "#111111",
-              backgroundColor: "#ffffff",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("version", diagnostics)
             }}
           />
@@ -211,6 +214,7 @@ export default function WorkflowBasicInfoForm({
             onChange={(e) => setWebhookSecretId(e.target.value)}
             placeholder="예: expense-report"
             required
+            disabled={isStructureLocked}
             style={{
               height: "36px",
               border: "1px solid #d1d5db",
@@ -218,8 +222,8 @@ export default function WorkflowBasicInfoForm({
               padding: "0 8px",
               fontSize: "13px",
               outline: "none",
-              color: "#111111",
-              backgroundColor: "#ffffff",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("webhookSecretId", diagnostics)
             }}
           />
@@ -237,6 +241,7 @@ export default function WorkflowBasicInfoForm({
             onChange={(e) => setN8nServerKey(e.target.value)}
             placeholder="main"
             required
+            disabled={isStructureLocked}
             style={{
               height: "36px",
               border: "1px solid #d1d5db",
@@ -244,8 +249,8 @@ export default function WorkflowBasicInfoForm({
               padding: "0 8px",
               fontSize: "13px",
               outline: "none",
-              color: "#111111",
-              backgroundColor: "#ffffff",
+              color: isStructureLocked ? "#9ca3af" : "#111111",
+              backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("n8nServerKey", diagnostics)
             }}
           />

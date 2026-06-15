@@ -56,6 +56,18 @@ export async function createSubmission(
     const randomStr = Math.random().toString(36).substring(2, 8);
     const submissionId = `sub_${dateStr}_${randomStr}`;
 
+    const templateRef = doc(db, "workflowTemplates", params.workflowKey);
+    const templateSnap = await getDoc(templateRef);
+    let templateStatusAtExecution: "draft" | "published" = "published";
+    let isTestExecution = false;
+
+    if (templateSnap.exists()) {
+      const templateData = templateSnap.data();
+      const status = templateData?.status || "published";
+      templateStatusAtExecution = status === "draft" ? "draft" : "published";
+      isTestExecution = status === "draft";
+    }
+
     const submissionDoc: Submission = {
       submissionId,
       clientId: params.clientId,
@@ -73,6 +85,8 @@ export async function createSubmission(
         message: null,
       },
       retryOf: null,
+      templateStatusAtExecution,
+      isTestExecution,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       completedAt: null,

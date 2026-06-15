@@ -22,6 +22,7 @@ interface ConfigSchemaEditorProps {
   onMoveField: (fromIdx: number, toIdx: number) => void;
   onSelectOptionsChange: (index: number, options: string[], tempOptionsStr: string) => void;
   diagnostics?: WorkflowImportDiagnostics | null;
+  isStructureLocked?: boolean;
 }
 
 export default function ConfigSchemaEditor({
@@ -35,6 +36,7 @@ export default function ConfigSchemaEditor({
   onMoveField,
   onSelectOptionsChange,
   diagnostics = null,
+  isStructureLocked = false,
 }: ConfigSchemaEditorProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
@@ -53,13 +55,15 @@ export default function ConfigSchemaEditor({
         <h4 style={{ fontSize: "12.5px", fontWeight: 700, color: "#374151", margin: 0 }}>
           ⚙️ configSchema (설정 맵핑 요구사항)
         </h4>
-        <button
-          type="button"
-          onClick={onAddField}
-          style={{ fontSize: "11px", fontWeight: 600, color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}
-        >
-          ＋ 설정 필드 추가
-        </button>
+        {!isStructureLocked && (
+          <button
+            type="button"
+            onClick={onAddField}
+            style={{ fontSize: "11px", fontWeight: 600, color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}
+          >
+            ＋ 설정 필드 추가
+          </button>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -162,7 +166,7 @@ export default function ConfigSchemaEditor({
                     >
                       ▼
                     </button>
-                    {!isExistingField && (
+                    {!isExistingField && !isStructureLocked && (
                       <button
                         type="button"
                         onClick={() => onRemoveField(idx)}
@@ -200,7 +204,7 @@ export default function ConfigSchemaEditor({
                         onChange={(e) => onFieldChange(idx, "key", e.target.value)}
                         placeholder="예: googleDriveFolderId"
                         required
-                        disabled={isExistingField}
+                        disabled={isExistingField || isStructureLocked}
                         style={{
                           height: "30px",
                           border: "1px solid #d1d5db",
@@ -208,8 +212,8 @@ export default function ConfigSchemaEditor({
                           padding: "0 6px",
                           fontSize: "12px",
                           outline: "none",
-                          color: isExistingField ? "#9ca3af" : "#111111",
-                          backgroundColor: isExistingField ? "#f3f4f6" : "#ffffff",
+                          color: (isExistingField || isStructureLocked) ? "#9ca3af" : "#111111",
+                          backgroundColor: (isExistingField || isStructureLocked) ? "#f3f4f6" : "#ffffff",
                           ...getDiagnosticStyles(`configSchema[${idx}].key`, diagnostics)
                         }}
                       />
@@ -253,6 +257,7 @@ export default function ConfigSchemaEditor({
                       <select
                         value={(field as any).type || (field as any).inputType || "text"}
                         onChange={(e: any) => onFieldChange(idx, "type", e.target.value)}
+                        disabled={isStructureLocked}
                         style={{
                           height: "30px",
                           border: "1px solid #d1d5db",
@@ -260,8 +265,8 @@ export default function ConfigSchemaEditor({
                           padding: "0 4px",
                           fontSize: "12px",
                           outline: "none",
-                          backgroundColor: "#ffffff",
-                          color: "#111111",
+                          backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+                          color: isStructureLocked ? "#9ca3af" : "#111111",
                           ...getDiagnosticStyles(`configSchema[${idx}].type`, diagnostics)
                         }}
                       >
@@ -286,7 +291,17 @@ export default function ConfigSchemaEditor({
                         value={field.defaultValueSource || ""}
                         onChange={(e) => onFieldChange(idx, "defaultValueSource", e.target.value)}
                         placeholder="예: auth.email"
-                        style={{ height: "30px", border: "1px solid #d1d5db", borderRadius: "4px", padding: "0 6px", fontSize: "12px", outline: "none", color: "#111111" }}
+                        disabled={isStructureLocked}
+                        style={{
+                          height: "30px",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "4px",
+                          padding: "0 6px",
+                          fontSize: "12px",
+                          outline: "none",
+                          color: isStructureLocked ? "#9ca3af" : "#111111",
+                          backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
+                        }}
                       />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", height: "100%", marginTop: "16px" }}>
@@ -295,9 +310,10 @@ export default function ConfigSchemaEditor({
                         id={`required-${idx}`}
                         checked={field.required}
                         onChange={(e) => onFieldChange(idx, "required", e.target.checked)}
-                        style={{ cursor: "pointer" }}
+                        disabled={isStructureLocked}
+                        style={{ cursor: isStructureLocked ? "not-allowed" : "pointer" }}
                       />
-                      <label htmlFor={`required-${idx}`} style={{ fontSize: "11px", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
+                      <label htmlFor={`required-${idx}`} style={{ fontSize: "11px", fontWeight: 600, color: "#374151", cursor: isStructureLocked ? "not-allowed" : "pointer" }}>
                         필수 입력 항목
                       </label>
                     </div>
@@ -360,6 +376,7 @@ export default function ConfigSchemaEditor({
                       <input
                         type="text"
                         value={field.tempOptionsStr !== undefined ? field.tempOptionsStr : (field.options?.join(", ") || "")}
+                        disabled={isStructureLocked}
                         onChange={(e) => {
                           const val = e.target.value;
                           onFieldChange(idx, "tempOptionsStr" as any, val);
@@ -378,7 +395,8 @@ export default function ConfigSchemaEditor({
                           padding: "0 6px",
                           fontSize: "12px",
                           outline: "none",
-                          color: "#111111",
+                          color: isStructureLocked ? "#9ca3af" : "#111111",
+                          backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                           ...getDiagnosticStyles(`configSchema[${idx}].options`, diagnostics)
                         }}
                       />

@@ -11,8 +11,9 @@ import {
   where,
   limit,
   Firestore,
+  getCountFromServer,
 } from "firebase/firestore";
-import type { WorkflowTemplate, ClientContract, ClientDoc, UserDoc } from "@/types/n8lient";
+import type { WorkflowTemplate, ClientContract, ClientDoc, UserDoc, WorkflowTemplateUsageSummary } from "@/types/n8lient";
 
 /**
  * 시스템 전체에 등록된 공용 자동화 템플릿 목록을 조회합니다.
@@ -116,9 +117,39 @@ export async function createClientContract(
       };
     }
 
+    // contractMode가 이미 존재하는 경우 보존 처리, 신규이거나 없는 경우에만 자동 주입
+    let contractMode = contract.contractMode;
+    let isTestContract = contract.isTestContract;
+    let templateStatusAtContract = contract.templateStatusAtContract;
+
+    if (!contractMode) {
+      const templateRef = doc(db, "workflowTemplates", contract.workflowKey);
+      const templateSnap = await getDoc(templateRef);
+      if (templateSnap.exists()) {
+        const templateData = templateSnap.data();
+        const status = templateData?.status || "published";
+        if (status === "draft") {
+          contractMode = "test";
+          isTestContract = true;
+          templateStatusAtContract = "draft";
+        } else {
+          contractMode = "production";
+          isTestContract = false;
+          templateStatusAtContract = "published";
+        }
+      } else {
+        contractMode = "production";
+        isTestContract = false;
+        templateStatusAtContract = "published";
+      }
+    }
+
     await setDoc(docRef, {
       ...contract,
       contractId,
+      contractMode,
+      isTestContract,
+      templateStatusAtContract,
     });
     return { success: true };
   } catch (error: any) {
@@ -128,7 +159,179 @@ export async function createClientContract(
 }
 
 /**
+ * 워크플로우 템플릿의 사용 정보 요약(참조 현황)을 조회합니다.
+ * Firestore 단일 색인 조건(workflowKey)으로 가져온 후 메모리 상에서 분류하여 복합 색인 오류를 완벽 차단하고 하위 호환성을 처리합니다.
+ * - 한국어 주석 표준을 준수합니다.
+ */
+export async function getWorkflowTemplateUsageSummary(
+  db: Firestore,
+  workflowKey: string,
+  templateStatus?: string
+): Promise<WorkflowTemplateUsageSummary> {
+  try {
+    // 템플릿 상태 재확인 (하위 호환 및 폴백 기준)
+    let status = templateStatus;
+    if (!status) {
+      const templateSnap = await getDoc(doc(db, "workflowTemplates", workflowKey));
+      status = templateSnap.exists() ? (templateSnap.data()?.status || "draft") : "draft";
+    }
+
+    const contractsQuery = query(collection(db, "clientContracts"), where("workflowKey", "==", workflowKey));
+    const automationsQuery = query(collection(db, "clientAutomations"), where("workflowKey", "==", workflowKey));
+    const submissionsQuery = query(collection(db, "submissions"), where("workflowKey", "==", workflowKey));
+    const userSettingsQuery = query(collection(db, "userAutomationSettings"), where("workflowKey", "==", workflowKey));
+
+    const [contractsSnap, automationsSnap, submissionsSnap, userSettingsSnap] = await Promise.all([
+      getDocs(contractsQuery),
+      getDocs(automationsQuery),
+      getDocs(submissionsQuery),
+      getDocs(userSettingsQuery),
+    ]);
+
+    const clientContractCount = contractsSnap.size;
+    const clientAutomationCount = automationsSnap.size;
+    const submissionCount = submissionsSnap.size;
+    const userSettingCount = userSettingsSnap.size;
+
+    // 상세 분류 카운트 초기화
+    let productionClientContractCount = 0;
+    let testClientContractCount = 0;
+    let productionClientAutomationCount = 0;
+    let testClientAutomationCount = 0;
+    let productionSubmissionCount = 0;
+    let testSubmissionCount = 0;
+    let productionUserSettingCount = 0;
+    let testUserSettingCount = 0;
+
+    // 1. clientContracts 분류
+    contractsSnap.forEach((d) => {
+      const data = d.data();
+      const contractMode = data.contractMode;
+      const isTestContract = data.isTestContract;
+      const templateStatusAtContract = data.templateStatusAtContract;
+
+      const isTest =
+        contractMode === "test" ||
+        isTestContract === true ||
+        templateStatusAtContract === "draft" ||
+        (contractMode === undefined && isTestContract === undefined && templateStatusAtContract === undefined && status === "draft");
+
+      if (isTest) {
+        testClientContractCount++;
+      } else {
+        productionClientContractCount++;
+      }
+    });
+
+    const hasClientContracts = clientContractCount > 0;
+
+    // 2. clientAutomations 분류
+    automationsSnap.forEach((d) => {
+      const data = d.data();
+      const deploymentMode = data.deploymentMode;
+      const templateStatusAtBinding = data.templateStatusAtBinding;
+
+      // 구분 필드가 있는 경우 우선 적용, 없는 경우 하위 호환 (현재 템플릿 상태 기준)
+      const isTest =
+        deploymentMode === "test" ||
+        templateStatusAtBinding === "draft" ||
+        (deploymentMode === undefined && templateStatusAtBinding === undefined && status === "draft");
+
+      if (isTest) {
+        testClientAutomationCount++;
+      } else {
+        productionClientAutomationCount++;
+      }
+    });
+
+    // 3. submissions 분류
+    submissionsSnap.forEach((d) => {
+      const data = d.data();
+      const isTestExecution = data.isTestExecution;
+      const templateStatusAtExecution = data.templateStatusAtExecution;
+
+      // 구분 필드가 있는 경우 우선 적용, 없는 경우 하위 호환 (현재 템플릿 상태 기준)
+      const isTest =
+        isTestExecution === true ||
+        templateStatusAtExecution === "draft" ||
+        (isTestExecution === undefined && templateStatusAtExecution === undefined && status === "draft");
+
+      if (isTest) {
+        testSubmissionCount++;
+      } else {
+        productionSubmissionCount++;
+      }
+    });
+
+    // 4. userAutomationSettings 분류
+    userSettingsSnap.forEach((d) => {
+      const data = d.data();
+      const isTestSetting = data.isTestSetting;
+      const templateStatusAtSetting = data.templateStatusAtSetting;
+
+      // 구분 필드가 있는 경우 우선 적용, 없는 경우 하위 호환 (현재 템플릿 상태 기준)
+      const isTest =
+        isTestSetting === true ||
+        templateStatusAtSetting === "draft" ||
+        (isTestSetting === undefined && templateStatusAtSetting === undefined && status === "draft");
+
+      if (isTest) {
+        testUserSettingCount++;
+      } else {
+        productionUserSettingCount++;
+      }
+    });
+
+    // 운영 참조 존재 여부 판단 (오직 production 계약 정보만 포함)
+    const hasProductionReferences =
+      productionClientContractCount > 0 ||
+      productionClientAutomationCount > 0 ||
+      productionSubmissionCount > 0 ||
+      productionUserSettingCount > 0;
+
+    // 테스트 참조 존재 여부 판단
+    const hasTestReferences =
+      testClientContractCount > 0 ||
+      testClientAutomationCount > 0 ||
+      testSubmissionCount > 0 ||
+      testUserSettingCount > 0;
+
+    // isReferenced는 운영 참조 기준으로만 계산하여 테스트 참조만 있을 시 자유 수정을 허용
+    const isReferenced = hasProductionReferences;
+
+    return {
+      isReferenced,
+      hasProductionReferences,
+      hasTestReferences,
+      hasClientContracts,
+      hasClientAutomations: clientAutomationCount > 0,
+      hasSubmissions: submissionCount > 0,
+      hasUserSettings: userSettingCount > 0,
+
+      productionClientContractCount,
+      testClientContractCount,
+      productionClientAutomationCount,
+      productionSubmissionCount,
+      productionUserSettingCount,
+
+      testClientAutomationCount,
+      testSubmissionCount,
+      testUserSettingCount,
+
+      clientContractCount,
+      clientAutomationCount,
+      submissionCount,
+      userSettingCount,
+    };
+  } catch (error) {
+    console.error("[operatorService] 워크플로우 사용 요약 조회 실패:", error);
+    throw error;
+  }
+}
+
+/**
  * 기존 자동화 템플릿의 속성을 수정(업데이트)합니다. (운영자 권한 필요)
+ * 저장 전 원본 문서를 조회하여 제한 수정 조건(isStructureLocked)인 경우 위험 필드의 변경을 차단합니다.
  */
 export async function updateWorkflowTemplate(
   db: Firestore,
@@ -136,7 +339,129 @@ export async function updateWorkflowTemplate(
   data: Partial<WorkflowTemplate>
 ): Promise<{ success: boolean; message?: string }> {
   try {
+    // 1. 기존 원본 템플릿 로드
     const docRef = doc(db, "workflowTemplates", workflowKey);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      return { success: false, message: "수정하려는 워크플로우 템플릿이 존재하지 않습니다." };
+    }
+    const original = docSnap.data() as WorkflowTemplate;
+
+    // 2. 사용 요약 정보 조회
+    const usageSummary = await getWorkflowTemplateUsageSummary(db, workflowKey);
+
+    // 3. 구조적 잠금(isStructureLocked) 여부 판단 (테스트 참조 제외, 운영 참조 존재 시에만 락)
+    const isStructureLocked = original.status === "published" || usageSummary.hasProductionReferences;
+
+    if (isStructureLocked) {
+      const errorSuffix = "\n“이 워크플로우 마스터는 이미 회사 매핑 또는 실행 이력이 있어 식별/구조 필드를 수정할 수 없습니다. 구조 변경이 필요하면 복제하여 새 workflowKey로 등록하세요.”";
+
+      // 3.1. 식별/연동 필드 변경 검증
+      if (data.workflowKey !== undefined && data.workflowKey !== original.workflowKey) {
+        throw new Error(`workflowKey 필드는 수정이 불가능합니다.${errorSuffix}`);
+      }
+      if (data.webhookSecretId !== undefined && data.webhookSecretId !== original.webhookSecretId) {
+        throw new Error(`webhookSecretId 필드는 수정이 불가능합니다.${errorSuffix}`);
+      }
+      if (data.n8nServerKey !== undefined && data.n8nServerKey !== original.n8nServerKey) {
+        throw new Error(`n8nServerKey 필드는 수정이 불가능합니다.${errorSuffix}`);
+      }
+      if (data.version !== undefined && data.version !== original.version) {
+        throw new Error(`version 필드는 수정이 불가능합니다.${errorSuffix}`);
+      }
+
+      // 3.2. inputSchema 변경 검증
+      if (data.inputSchema !== undefined) {
+        const origIn = original.inputSchema || {};
+        const newIn = data.inputSchema || {};
+        const titleDiff = newIn.titleRequired !== origIn.titleRequired;
+        const sizeDiff = newIn.maxFileSizeMB !== origIn.maxFileSizeMB;
+
+        const origTypes = [...(origIn.acceptedInputTypes || [])].sort().join(",");
+        const newTypes = [...(newIn.acceptedInputTypes || [])].sort().join(",");
+        const typesDiff = origTypes !== newTypes;
+
+        const origExts = [...(origIn.allowedFileTypes || [])].sort().join(",");
+        const newExts = [...(newIn.allowedFileTypes || [])].sort().join(",");
+        const extsDiff = origExts !== newExts;
+
+        if (titleDiff || sizeDiff || typesDiff || extsDiff) {
+          throw new Error(`inputSchema(입력 요구사항) 관련 필드는 수정이 불가능합니다.${errorSuffix}`);
+        }
+      }
+
+      // 3.3. retention 정책 변경 검증
+      if (data.retentionCapabilities !== undefined) {
+        const origCap = original.retentionCapabilities || ({} as any);
+        const newCap = data.retentionCapabilities || ({} as any);
+        if (
+          newCap.maxLevel !== origCap.maxLevel ||
+          newCap.defaultLevel !== origCap.defaultLevel ||
+          JSON.stringify([...(newCap.supportedLevels || [])].sort()) !== JSON.stringify([...(origCap.supportedLevels || [])].sort()) ||
+          newCap.supportsProcessorResult !== origCap.supportsProcessorResult ||
+          newCap.supportsOriginalFileRefs !== origCap.supportsOriginalFileRefs ||
+          newCap.supportsResultRefs !== origCap.supportsResultRefs ||
+          newCap.supportsEmailNotification !== origCap.supportsEmailNotification ||
+          newCap.supportsResultPolicyRouter !== origCap.supportsResultPolicyRouter
+        ) {
+          throw new Error(`retentionCapabilities(보관 지원 범위)는 수정이 불가능합니다.${errorSuffix}`);
+        }
+      }
+      if (data.operatorRetentionPolicy !== undefined) {
+        const origOp = original.operatorRetentionPolicy || ({} as any);
+        const newOp = data.operatorRetentionPolicy || ({} as any);
+        if (
+          newOp.defaultLevel !== origOp.defaultLevel ||
+          JSON.stringify([...(newOp.allowedLevels || [])].sort()) !== JSON.stringify([...(origOp.allowedLevels || [])].sort()) ||
+          newOp.allowCompanyOverride !== origOp.allowCompanyOverride ||
+          newOp.allowUserOverride !== origOp.allowUserOverride
+        ) {
+          throw new Error(`operatorRetentionPolicy(오퍼레이터 보관 정책)는 수정이 불가능합니다.${errorSuffix}`);
+        }
+      }
+
+      // 3.4. configSchema 구조 필드 변경 검증
+      if (data.configSchema !== undefined) {
+        const origFields = original.configSchema || [];
+        const newFields = data.configSchema || [];
+
+        // key 목록 대조 (추가/삭제/key명 변경 금지)
+        const origKeys = origFields.map(f => f.key).filter(Boolean);
+        const newKeys = newFields.map(f => f.key).filter(Boolean);
+
+        const origKeySet = new Set(origKeys);
+        const newKeySet = new Set(newKeys);
+
+        if (origKeys.length !== newKeys.length || origKeySet.size !== newKeySet.size || [...origKeySet].some(k => !newKeySet.has(k))) {
+          throw new Error(`configSchema 설정 필드의 추가, 삭제 또는 Key 변경은 허용되지 않습니다.${errorSuffix}`);
+        }
+
+        // 개별 필드 속성(type, required, defaultSource, options) 변경 검사
+        const origMap = new Map(origFields.map(f => [f.key, f]));
+        for (const newField of newFields) {
+          const origField = origMap.get(newField.key);
+          if (!origField) continue;
+
+          if (newField.type !== origField.type) {
+            throw new Error(`configSchema 필드 '${newField.key}'의 인풋 타입(type) 변경은 허용되지 않습니다.${errorSuffix}`);
+          }
+          if (newField.required !== origField.required) {
+            throw new Error(`configSchema 필드 '${newField.key}'의 필수 여부(required) 변경은 허용되지 않습니다.${errorSuffix}`);
+          }
+          if (newField.defaultValueSource !== origField.defaultValueSource) {
+            throw new Error(`configSchema 필드 '${newField.key}'의 기본값 출처(defaultValueSource) 변경은 허용되지 않습니다.${errorSuffix}`);
+          }
+
+          const origOpts = (origField.options || []).join(",");
+          const newOpts = (newField.options || []).join(",");
+          if (origOpts !== newOpts) {
+            throw new Error(`configSchema 필드 '${newField.key}'의 선택 항목(options) 변경은 허용되지 않습니다.${errorSuffix}`);
+          }
+        }
+      }
+    }
+
+    // 검증 통과 시 업데이트 실행
     await updateDoc(docRef, {
       ...data,
       updatedAt: new Date().toISOString(),
@@ -145,6 +470,119 @@ export async function updateWorkflowTemplate(
   } catch (error: any) {
     console.error("[operatorService] 자동화 템플릿 수정 실패:", error);
     return { success: false, message: error.message || "템플릿 수정 중 오류가 발생했습니다." };
+  }
+
+}
+
+/**
+ * draft 상태인 임시 워크플로우 템플릿과 해당 템플릿의 테스트 참조 데이터를 일괄 삭제합니다.
+ * 운영 참조가 단 하나라도 존재하면 삭제가 즉각 차단됩니다. (clientContracts는 절대 삭제하지 않음)
+ */
+export async function deleteDraftWorkflowTemplate(
+  db: Firestore,
+  workflowKey: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    // 1. 원본 템플릿 문서 재조회
+    const docRef = doc(db, "workflowTemplates", workflowKey);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      return { success: false, message: "삭제하려는 워크플로우 템플릿이 존재하지 않습니다." };
+    }
+    const template = docSnap.data() as WorkflowTemplate;
+
+    // 2. status === "draft" 검증
+    if (template.status !== "draft") {
+      return { success: false, message: "배포된(published/disabled) 템플릿은 삭제할 수 없습니다. Draft 상태만 삭제 가능합니다." };
+    }
+
+    // 3. 사용 요약 정보(운영 참조 존재 유무) 재조회
+    const usageSummary = await getWorkflowTemplateUsageSummary(db, workflowKey, template.status);
+    if (usageSummary.hasProductionReferences || usageSummary.productionClientContractCount > 0) {
+      return { success: false, message: "운영 참조가 존재하여 이 워크플로우를 삭제할 수 없습니다. (운영 계약 또는 배포/실행 이력이 존재함)" };
+    }
+
+    // 4. 테스트 참조 데이터 일괄 수집
+    const docsToDelete: any[] = [];
+
+    // 4.0. 테스트 clientContracts 수집 (Cascade Delete 대상)
+    const caContractQuery = query(collection(db, "clientContracts"), where("workflowKey", "==", workflowKey));
+    const caContractSnap = await getDocs(caContractQuery);
+    caContractSnap.forEach((d) => {
+      const data = d.data();
+      const isProd =
+        data.contractMode === "production" ||
+        data.templateStatusAtContract === "published";
+      if (!isProd) {
+        docsToDelete.push(d.ref);
+      }
+    });
+
+    // 4.1. 테스트 clientAutomations 수집
+    const caQuery = query(collection(db, "clientAutomations"), where("workflowKey", "==", workflowKey));
+    const caSnap = await getDocs(caQuery);
+    caSnap.forEach((d) => {
+      const data = d.data();
+      const isProd =
+        data.deploymentMode === "production" ||
+        data.templateStatusAtBinding === "published";
+      if (!isProd) {
+        docsToDelete.push(d.ref);
+      }
+    });
+
+    // 4.2. 테스트 userAutomationSettings 수집
+    const uasQuery = query(collection(db, "userAutomationSettings"), where("workflowKey", "==", workflowKey));
+    const uasSnap = await getDocs(uasQuery);
+    uasSnap.forEach((d) => {
+      const data = d.data();
+      const isProd =
+        data.isTestSetting === false ||
+        data.templateStatusAtSetting === "published";
+      if (!isProd) {
+        docsToDelete.push(d.ref);
+      }
+    });
+
+    // 4.3. 테스트 submissions 수집
+    const subQuery = query(collection(db, "submissions"), where("workflowKey", "==", workflowKey));
+    const subSnap = await getDocs(subQuery);
+    subSnap.forEach((d) => {
+      const data = d.data();
+      const isProd =
+        data.isTestExecution === false ||
+        data.templateStatusAtExecution === "published";
+      if (!isProd) {
+        docsToDelete.push(d.ref);
+      }
+    });
+
+    // 4.4. 마지막으로 지울 템플릿 본문 추가
+    docsToDelete.push(docRef);
+
+    // 5. writeBatch를 이용한 400개 단위 안전 분할 삭제
+    const { writeBatch } = await import("firebase/firestore");
+    let batch = writeBatch(db);
+    let count = 0;
+
+    for (const ref of docsToDelete) {
+      batch.delete(ref);
+      count++;
+      if (count === 400) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("[operatorService] draft 워크플로우 일괄 삭제 실패:", error);
+    return { success: false, message: error.message || "삭제 도중 에러가 발생했습니다." };
   }
 }
 

@@ -88,6 +88,8 @@ export default function UserPersonalSettingsModal({
         userRetentionPreference: userPreferredLevel
           ? { preferredLevel: userPreferredLevel as any }
           : undefined,
+        templateStatusAtSetting: currentTemplate.status === "draft" ? "draft" : "published",
+        isTestSetting: currentTemplate.status === "draft",
         createdAt: existingUserSetting?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

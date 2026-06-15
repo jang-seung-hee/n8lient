@@ -9,8 +9,9 @@ import {
   getWorkflowTemplates,
   createWorkflowTemplate,
   updateWorkflowTemplate,
+  getWorkflowTemplateUsageSummary,
 } from "@/features/operator/operatorService";
-import type { WorkflowTemplate } from "@/types/n8lient";
+import type { WorkflowTemplate, WorkflowTemplateUsageSummary } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
 import { playAppSound } from "@/lib/appSound";
 
@@ -30,6 +31,7 @@ export default function OperatorTemplates() {
   // 1. 핵심 상태 제어 변수
   const [viewMode, setViewMode] = useState<"list" | "detail" | "form" | "import">("list");
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+  const [selectedTemplateUsageSummary, setSelectedTemplateUsageSummary] = useState<WorkflowTemplateUsageSummary | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
   // 3단계 신규 분석 드래프트 진단 및 경고 확인 상태
@@ -79,15 +81,42 @@ export default function OperatorTemplates() {
     loadTemplates();
   }, []);
 
-  // 3. 뷰 제어 및 액션 핸들러
-  const handleSelect = (template: WorkflowTemplate) => {
+  const handleSelect = async (template: WorkflowTemplate) => {
     setSelectedTemplate(template);
     setViewMode("detail");
+    try {
+      const summary = await getWorkflowTemplateUsageSummary(db, template.workflowKey);
+      setSelectedTemplateUsageSummary(summary);
+    } catch (err) {
+      console.error("[page] 사용 정보 요약 로드 실패:", err);
+      setSelectedTemplateUsageSummary({
+        isReferenced: false,
+        hasProductionReferences: false,
+        hasTestReferences: false,
+        hasClientContracts: false,
+        hasClientAutomations: false,
+        hasSubmissions: false,
+        hasUserSettings: false,
+        productionClientContractCount: 0,
+        testClientContractCount: 0,
+        productionClientAutomationCount: 0,
+        productionSubmissionCount: 0,
+        productionUserSettingCount: 0,
+        testClientAutomationCount: 0,
+        testSubmissionCount: 0,
+        testUserSettingCount: 0,
+        clientContractCount: 0,
+        clientAutomationCount: 0,
+        submissionCount: 0,
+        userSettingCount: 0,
+      });
+    }
   };
 
   const handleCreateClick = () => {
     playAppSound("click");
     setSelectedTemplate(null);
+    setSelectedTemplateUsageSummary(null);
     setIsEditMode(false);
     setActiveImportDraft(null);
     setWarningConfirmed(false);
@@ -97,6 +126,7 @@ export default function OperatorTemplates() {
   const handleDirectCreate = () => {
     playAppSound("click");
     setSelectedTemplate(null);
+    setSelectedTemplateUsageSummary(null);
     setIsEditMode(false);
     setActiveImportDraft(null);
     setWarningConfirmed(false);
@@ -107,6 +137,7 @@ export default function OperatorTemplates() {
     playAppSound("click");
     const mapped = mapImportJsonToWorkflowTemplate(draft);
     setSelectedTemplate(mapped);
+    setSelectedTemplateUsageSummary(null);
     setIsEditMode(false);
     setActiveImportDraft(draft);
     // Import 적용 직후에는 live diagnostics를 초기화하여 activeImportDraft.diagnostics 기준으로 표시합니다.
@@ -131,6 +162,7 @@ export default function OperatorTemplates() {
     if (!selectedTemplate) return;
     setIsEditMode(false);
     setActiveImportDraft(null);
+    setSelectedTemplateUsageSummary(null);
     // 복제는 Import 드래프트 없이 진행되므로 live diagnostics도 초기화합니다.
     setLiveImportDiagnostics(null);
     setWarningConfirmed(false);
@@ -151,10 +183,18 @@ export default function OperatorTemplates() {
   const handleBackToList = () => {
     playAppSound("click");
     setSelectedTemplate(null);
+    setSelectedTemplateUsageSummary(null);
     setActiveImportDraft(null);
     setLiveImportDiagnostics(null);
     setWarningConfirmed(false);
     setViewMode("list");
+  };
+
+  const handleDeleteSuccess = () => {
+    setViewMode("list");
+    setSelectedTemplate(null);
+    setSelectedTemplateUsageSummary(null);
+    loadTemplates();
   };
 
   // Import 등록 모드에서 폼 값이 바뀔 때마다 호출되는 실시간 재검증 핸들러
@@ -429,6 +469,9 @@ export default function OperatorTemplates() {
           onEditClick={handleEditClick}
           onCloneClick={handleCloneClick}
           onBackClick={handleBackToList}
+          usageSummary={selectedTemplateUsageSummary || undefined}
+          db={db}
+          onDeleteSuccess={handleDeleteSuccess}
         />
       )}
 
@@ -445,6 +488,10 @@ export default function OperatorTemplates() {
         // live diagnostics를 우선 표시하고, 없으면 Import 최초 diagnostics를 표시합니다.
         // 직접 등록/수정 모드에서는 activeImportDraft가 null이므로 displayDiagnostics도 null이 됩니다.
         const displayDiagnostics = liveImportDiagnostics ?? activeImportDraft?.diagnostics ?? null;
+        const isStructureLocked =
+          isEditMode &&
+          (selectedTemplate?.status === "published" || selectedTemplateUsageSummary?.hasProductionReferences === true);
+
         return (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
           {activeImportDraft && displayDiagnostics && (() => {
@@ -543,6 +590,8 @@ export default function OperatorTemplates() {
             loading={loading}
             diagnostics={activeImportDraft && !isEditMode ? displayDiagnostics : null}
             onDraftChange={activeImportDraft && !isEditMode ? handleImportDraftChange : undefined}
+            usageSummary={selectedTemplateUsageSummary || undefined}
+            isStructureLocked={isStructureLocked}
           />
         </div>
         );
