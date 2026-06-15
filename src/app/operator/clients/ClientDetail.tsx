@@ -10,6 +10,7 @@ import { collection, query, where, limit, getDocs } from "firebase/firestore";
 
 import type { Firestore } from "firebase/firestore";
 import { ClientAdminPanel } from "./components/ClientAdminPanel";
+import { ClientOperationStatusSection } from "./components/ClientOperationStatusSection";
 
 interface ClientDetailProps {
   client: ClientDoc;
@@ -230,6 +231,12 @@ export function ClientDetail({
         db={db}
         operatorUid={operatorUid}
         onRefresh={onRefresh}
+      />
+
+      {/* 고객사 마스터 운영 현황 섹션 */}
+      <ClientOperationStatusSection
+        clientId={client.clientId}
+        db={db}
       />
     </div>
   );

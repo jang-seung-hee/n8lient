@@ -38,6 +38,7 @@ export function AdminSidebar() {
 
   const menuItems = [
     { label: "대시보드 홈", path: "/company-admin", icon: "📊" },
+    { label: "회사 정보", path: "/company-admin/info", icon: "🏢" },
     { label: "사용자 승인", path: "/company-admin/approvals", icon: "👤" },
     { label: "사용자 목록", path: "/company-admin/users", icon: "👥" },
     { label: "N8N 워크플로우 설정", path: "/company-admin/automations", icon: "⚙️" },

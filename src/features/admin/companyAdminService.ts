@@ -10,8 +10,9 @@ import {
   setDoc,
   writeBatch,
   Firestore,
+  limit,
 } from "firebase/firestore";
-import type { CompanyJoinRequest, UserDoc, ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
+import type { CompanyJoinRequest, UserDoc, ClientContract, ClientAutomation, WorkflowTemplate, ClientDoc } from "@/types/n8lient";
 
 /**
  * 회사 ID(clientId) 기준 승인 대기(pending) 상태의 가입 요청 목록을 조회합니다.
@@ -262,4 +263,125 @@ export async function saveClientAutomation(
     return { success: false, message: error.message || "설정 저장 도중 오류가 발생했습니다." };
   }
 }
+
+/**
+ * 회사 ID(clientId) 기준 clients 문서를 get합니다.
+ */
+export async function getCompanyInfo(
+  db: Firestore,
+  clientId: string
+): Promise<ClientDoc | null> {
+  try {
+    const docRef = doc(db, "clients", clientId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as ClientDoc;
+    }
+    return null;
+  } catch (error) {
+    console.error("[companyAdminService] 회사 정보 단건 조회 실패:", error);
+    throw error;
+  }
+}
+
+/**
+ * 회사 ID(clientId) 기준 프로필 필드만 부분 업데이트(updateDoc)합니다.
+ */
+export async function updateCompanyProfile(
+  db: Firestore,
+  clientId: string,
+  profileData: {
+    companyDisplayName?: string;
+    contactName?: string;
+    contactPhone?: string;
+    address?: string;
+    homepageUrl?: string;
+    description?: string;
+    defaultTimezone?: string;
+    defaultReportEmail?: string;
+  }
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const docRef = doc(db, "clients", clientId);
+
+    // undefined 필드 제거 및 빈 값 처리
+    const updatePayload: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    const allowedKeys = [
+      "companyDisplayName",
+      "contactName",
+      "contactPhone",
+      "address",
+      "homepageUrl",
+      "description",
+      "defaultTimezone",
+      "defaultReportEmail",
+    ] as const;
+
+    for (const key of allowedKeys) {
+      if (profileData[key] !== undefined) {
+        updatePayload[key] = profileData[key];
+      }
+    }
+
+    const { updateDoc } = await import("firebase/firestore");
+    await updateDoc(docRef, updatePayload);
+    return { success: true };
+  } catch (error: any) {
+    console.error("[companyAdminService] 회사 정보 프로필 수정 실패:", error);
+    return { success: false, message: error.message || "회사 정보를 수정하지 못했습니다." };
+  }
+}
+
+/**
+ * 특정 고객사(clientId)의 최근 N시간 내 실행 요청(submissions) 개수를 조회합니다.
+ * 복합 인덱스 미생성 시 에러가 발생할 수 있으므로, Fallback 조회를 제공합니다.
+ */
+export async function getCompanyRecentSubmissionsCount(
+  db: Firestore,
+  clientId: string,
+  hours: number = 24
+): Promise<{ count: number; isFallback: boolean }> {
+  try {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    
+    // 1. 복합 인덱스를 사용하는 쿼리 시도
+    try {
+      const q = query(
+        collection(db, "submissions"),
+        where("clientId", "==", clientId),
+        where("createdAt", ">=", since)
+      );
+      const snap = await getDocs(q);
+      return { count: snap.size, isFallback: false };
+    } catch (err) {
+      console.warn(
+        "[companyAdminService] submissions 24시간 범위 쿼리가 복합 인덱스 부재로 인해 실패했습니다. Fallback 조회로 전환합니다.",
+        err
+      );
+      
+      // 2. Fallback: clientId 기준 limit(300) 조회 후 메모리에서 필터링
+      const fallbackQuery = query(
+        collection(db, "submissions"),
+        where("clientId", "==", clientId),
+        limit(300)
+      );
+      const snap = await getDocs(fallbackQuery);
+      let count = 0;
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data.createdAt && data.createdAt >= since) {
+          count++;
+        }
+      });
+      return { count, isFallback: true };
+    }
+  } catch (error) {
+    console.error("[companyAdminService] 최근 실행 결과 조회 실패:", error);
+    throw error;
+  }
+}
+
 

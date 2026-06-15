@@ -79,10 +79,33 @@ service cloud.firestore {
     match /clients/{clientId} {
       allow get: if isAuthenticated() && (
         getMyUser().role == 'operator' ||
-        getMyUser().clientId == clientId
+        (
+          getMyUser().role == 'company_admin' &&
+          getMyUser().clientId == clientId &&
+          getMyUser().approvalStatus == 'approved'
+        )
       );
       allow list: if isAuthenticated() && getMyUser().role == 'operator';
-      allow write: if isAuthenticated() && getMyUser().role == 'operator';
+      allow create, delete: if isAuthenticated() && getMyUser().role == 'operator';
+      allow update: if isAuthenticated() && (
+        getMyUser().role == 'operator' ||
+        (
+          getMyUser().role == 'company_admin' &&
+          getMyUser().clientId == clientId &&
+          getMyUser().approvalStatus == 'approved' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'companyDisplayName',
+            'contactName',
+            'contactPhone',
+            'address',
+            'homepageUrl',
+            'description',
+            'defaultTimezone',
+            'defaultReportEmail',
+            'updatedAt'
+          ])
+        )
+      );
     }
 
     // 2. 회사코드 룩업 (companyCodeLookups) 규칙

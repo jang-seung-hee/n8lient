@@ -149,6 +149,12 @@ export interface ClientDoc {
   defaultReportEmail: string;
   defaultDriveRootFolderId?: string;
   geminiApiKeySecretId?: SecretId;
+  companyDisplayName?: string;
+  contactName?: string;
+  contactPhone?: string;
+  address?: string;
+  homepageUrl?: string;
+  description?: string;
   createdAt: string; // ISO 타임스탬프 또는 Firestore Timestamp
   updatedAt: string;
 }
