@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "tsx scripts/syncGatewayValidation.ts",
+    "prebuild": "npx tsx scripts/syncGatewayValidation.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync:gateway-validation": "tsx scripts/syncGatewayValidation.ts"
+    "sync:gateway-validation": "npx tsx scripts/syncGatewayValidation.ts"
   },
   "dependencies": {
     "firebase": "^12.14.0",
@@ -18,6 +18,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
