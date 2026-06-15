@@ -8,7 +8,9 @@ import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { getActiveAutomations, subscribeMySubmissions } from "@/features/user/userService";
-import type { ClientAutomation, Submission } from "@/types/n8lient";
+import { getMyCompanyPublicProfile } from "@/features/user/companyProfileService";
+import { CompanyInfoModal } from "@/components/custom/CompanyInfoModal";
+import type { ClientAutomation, Submission, ClientPublicProfile } from "@/types/n8lient";
 
 export default function UserHome() {
   const { user, userDoc } = useAuthUser();
@@ -16,9 +18,16 @@ export default function UserHome() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 회사 공개 프로필 상태 추가
+  const [profile, setProfile] = useState<ClientPublicProfile | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [errorProfile, setErrorProfile] = useState<string | null>(null);
+
   useEffect(() => {
     if (!user || !userDoc?.clientId) {
       setLoading(false);
+      setLoadingProfile(false);
       return;
     }
 
@@ -41,6 +50,21 @@ export default function UserHome() {
       }
     );
 
+    // 3. 회사 공개 프로필 조회
+    setLoadingProfile(true);
+    setErrorProfile(null);
+    getMyCompanyPublicProfile(db, userDoc.clientId)
+      .then((data) => {
+        setProfile(data);
+      })
+      .catch((err) => {
+        console.error("공개 프로필 로드 에러:", err);
+        setErrorProfile("회사 정보를 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        setLoadingProfile(false);
+      });
+
     return () => unsubscribe();
   }, [user, userDoc]);
 
@@ -60,9 +84,24 @@ export default function UserHome() {
             <h2 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", marginBottom: "2px" }}>
               소속 회사
             </h2>
-            <p style={{ fontSize: "13px", color: "#4b5563" }}>
-              {userDoc?.clientId === "client_rentaltoktok_001" ? "렌탈톡톡" : userDoc?.clientId || "회사 지정 없음"}
-            </p>
+            <div style={{ fontSize: "13px", color: "#4b5563", marginTop: "4px" }}>
+              <button
+                onClick={() => setModalOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#2563eb",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  padding: 0,
+                  fontSize: "13px",
+                  textAlign: "left",
+                }}
+              >
+                {profile ? (profile.companyDisplayName || profile.companyName) : (loadingProfile ? "회사 정보를 불러오는 중입니다." : "표시 가능한 회사 정보가 아직 등록되지 않았습니다.")}
+              </button>
+            </div>
           </div>
           <span
             style={{
@@ -263,6 +302,16 @@ export default function UserHome() {
           )}
         </div>
       </section>
+
+      {/* 회사 정보 모달 추가 */}
+      <CompanyInfoModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        profile={profile}
+        department={userDoc?.department}
+        loading={loadingProfile}
+        error={errorProfile}
+      />
     </div>
   );
 }

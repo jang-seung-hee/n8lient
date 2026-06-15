@@ -286,6 +286,7 @@ export async function getCompanyInfo(
 
 /**
  * 회사 ID(clientId) 기준 프로필 필드만 부분 업데이트(updateDoc)합니다.
+ * 보안 요구사항에 따라 clientPublicProfiles/{clientId} 에도 동시 업데이트(배치)합니다.
  */
 export async function updateCompanyProfile(
   db: Firestore,
@@ -303,6 +304,7 @@ export async function updateCompanyProfile(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const docRef = doc(db, "clients", clientId);
+    const publicProfileRef = doc(db, "clientPublicProfiles", clientId);
 
     // undefined 필드 제거 및 빈 값 처리
     const updatePayload: Record<string, any> = {
@@ -326,8 +328,31 @@ export async function updateCompanyProfile(
       }
     }
 
-    const { updateDoc } = await import("firebase/firestore");
-    await updateDoc(docRef, updatePayload);
+    // clientPublicProfiles에 동기화할 필드만 추출 (address, defaultReportEmail, defaultTimezone 제외)
+    const publicProfilePayload: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+    const publicProfileKeys = [
+      "companyDisplayName",
+      "contactName",
+      "contactPhone",
+      "homepageUrl",
+      "description",
+    ] as const;
+
+    for (const key of publicProfileKeys) {
+      if (profileData[key] !== undefined) {
+        publicProfilePayload[key] = profileData[key];
+      }
+    }
+
+    const { writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+
+    batch.update(docRef, updatePayload);
+    batch.set(publicProfileRef, publicProfilePayload, { merge: true });
+
+    await batch.commit();
     return { success: true };
   } catch (error: any) {
     console.error("[companyAdminService] 회사 정보 프로필 수정 실패:", error);

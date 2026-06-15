@@ -206,5 +206,35 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // 9. 회사 공개 프로필 (clientPublicProfiles) 규칙
+    match /clientPublicProfiles/{clientId} {
+      allow get: if isAuthenticated() && (
+        getMyUser().role == 'operator' ||
+        (
+          getMyUser().clientId == clientId &&
+          getMyUser().approvalStatus == 'approved'
+        )
+      );
+      allow list: if isAuthenticated() && getMyUser().role == 'operator';
+      allow create, delete: if isAuthenticated() && getMyUser().role == 'operator';
+      allow update: if isAuthenticated() && (
+        getMyUser().role == 'operator' ||
+        (
+          getMyUser().role == 'company_admin' &&
+          getMyUser().clientId == clientId &&
+          getMyUser().approvalStatus == 'approved' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'companyDisplayName',
+            'contactName',
+            'contactPhone',
+            'homepageUrl',
+            'description',
+            'updatedAt'
+          ])
+        )
+      );
+    }
+
   }
 }
+

@@ -628,3 +628,15 @@ export interface WorkflowTemplateUsageSummary {
   userSettingCount: number;
 }
 
+export interface ClientPublicProfile {
+  clientId: string;
+  companyName: string;
+  companyDisplayName?: string;
+  companyCode?: string;
+  contactName?: string;
+  contactPhone?: string;
+  homepageUrl?: string;
+  description?: string;
+  updatedAt?: string;
+}
+

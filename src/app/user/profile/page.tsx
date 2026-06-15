@@ -2,13 +2,41 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { LogoutButton } from "@/features/auth/LogoutButton";
 import { siteConfig } from "@/config/siteConfig";
+import { db } from "@/lib/firebase";
+import { getMyCompanyPublicProfile } from "@/features/user/companyProfileService";
+import { CompanyInfoModal } from "@/components/custom/CompanyInfoModal";
+import type { ClientPublicProfile } from "@/types/n8lient";
 
 export default function UserProfile() {
   const { user, userDoc } = useAuthUser();
+  const [profile, setProfile] = useState<ClientPublicProfile | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [errorProfile, setErrorProfile] = useState<string | null>(null);
+
+  useEffect(() => {
+    const clientId = userDoc?.clientId;
+    if (!clientId) return;
+    const fetchProfile = async () => {
+      setLoadingProfile(true);
+      setErrorProfile(null);
+      try {
+        const data = await getMyCompanyPublicProfile(db, clientId);
+        setProfile(data);
+      } catch (err: any) {
+        console.error(err);
+        setErrorProfile("회사 정보를 불러오지 못했습니다.");
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    fetchProfile();
+  }, [userDoc?.clientId]);
 
   if (!user || !userDoc) return null;
 
@@ -70,9 +98,23 @@ export default function UserProfile() {
 
         {/* 세부 메타데이터 리스트 */}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#6b7280" }}>소속 회사 ID</span>
-            <span style={{ fontWeight: 500, color: "#111111" }}>{userDoc.clientId || "없음"}</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: "#6b7280" }}>소속 회사</span>
+            <button
+              onClick={() => setModalOpen(true)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#2563eb",
+                textDecoration: "underline",
+                cursor: "pointer",
+                fontWeight: 600,
+                padding: 0,
+                fontSize: "13px",
+              }}
+            >
+              {profile ? (profile.companyDisplayName || profile.companyName) : (loadingProfile ? "조회 중..." : "정보 등록 대기")}
+            </button>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ color: "#6b7280" }}>시스템 역할 (Role)</span>
@@ -109,6 +151,16 @@ export default function UserProfile() {
         {/* 로그아웃 */}
         <LogoutButton />
       </div>
+
+      {/* 회사 정보 상세 모달 */}
+      <CompanyInfoModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        profile={profile}
+        department={userDoc.department}
+        loading={loadingProfile}
+        error={errorProfile}
+      />
     </div>
   );
 }

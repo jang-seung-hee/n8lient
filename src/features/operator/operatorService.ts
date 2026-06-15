@@ -661,6 +661,20 @@ export async function createClient(
       status: client.status === "active" ? "active" : "disabled", // active 일 때만 가입 신청이 가능함
     });
 
+    // clientPublicProfiles 생성
+    const publicProfileRef = doc(db, "clientPublicProfiles", client.clientId);
+    batch.set(publicProfileRef, {
+      clientId: client.clientId,
+      companyName: client.companyName,
+      companyDisplayName: client.companyDisplayName || "",
+      companyCode: normalizedCode,
+      contactName: client.contactName || "",
+      contactPhone: client.contactPhone || "",
+      homepageUrl: client.homepageUrl || "",
+      description: client.description || "",
+      updatedAt: new Date().toISOString(),
+    });
+
     // 지정된 관리자가 있는 경우 users 및 companyJoinRequests 업데이트
     if (client.ownerAdminUid) {
       const userRef = doc(db, "users", client.ownerAdminUid);
@@ -745,12 +759,35 @@ export async function updateClient(
     if (data.defaultDriveRootFolderId !== undefined) {
       allowedData.defaultDriveRootFolderId = data.defaultDriveRootFolderId;
     }
+    if (data.companyDisplayName !== undefined) allowedData.companyDisplayName = data.companyDisplayName;
+    if (data.contactName !== undefined) allowedData.contactName = data.contactName;
+    if (data.contactPhone !== undefined) allowedData.contactPhone = data.contactPhone;
+    if (data.homepageUrl !== undefined) allowedData.homepageUrl = data.homepageUrl;
+    if (data.description !== undefined) allowedData.description = data.description;
 
     // batch를 통한 clients와 companyCodeLookups 동시 수정
     const { writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
 
     batch.update(docRef, allowedData);
+
+    // clientPublicProfiles 업데이트
+    const publicProfileRef = doc(db, "clientPublicProfiles", clientId);
+    batch.set(
+      publicProfileRef,
+      {
+        clientId: clientId,
+        companyName: data.companyName || currentClientData.companyName,
+        companyDisplayName: data.companyDisplayName !== undefined ? data.companyDisplayName : (currentClientData.companyDisplayName || ""),
+        companyCode: normalizedCode,
+        contactName: data.contactName !== undefined ? data.contactName : (currentClientData.contactName || ""),
+        contactPhone: data.contactPhone !== undefined ? data.contactPhone : (currentClientData.contactPhone || ""),
+        homepageUrl: data.homepageUrl !== undefined ? data.homepageUrl : (currentClientData.homepageUrl || ""),
+        description: data.description !== undefined ? data.description : (currentClientData.description || ""),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
 
     if (normalizedCode) {
       const lookupRef = doc(db, "companyCodeLookups", normalizedCode);
