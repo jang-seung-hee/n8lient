@@ -2,8 +2,40 @@
 
 > 목적: ChatGPT와 같은 외부 LLM AI의 새 대화창에서 N8Lient 개발을 이어가기 위한 인수인계 컨텍스트 문서.
 > 사용법: 새 채팅 첫 메시지에 이 파일을 붙이거나, `docs/N8Lient_HANDOFF_CONTEXT.md를 먼저 읽고 현재 정책을 기준으로 답변하라`고 지시한다.
-> 주의: 이 문서는 개발 AI(예: Antigravity, Codex 등)가 자동으로 따라야 하는 실행 지시서가 아니다. 개발 AI가 이 문서를 참고해야 할 경우에는 사용자가 명시적으로 참조를 지시한다.
+> 주의: 이 문서는 개발 AI(예: Antigravity, 커서AI, Codex 등)가 자동으로 따라야 하는 실행 지시서가 아니다. 개발 AI가 이 문서를 참고해야 할 경우에는 사용자가 명시적으로 참조를 지시한다.
 > 운영 방식: 중요한 프로젝트 정책 변경, 구조 변경, 권한 정책 변경, 데이터 모델 변경이 발생하면 이 문서에 핵심 결정만 요약해 기록한다.
+
+
+# 문서 작성 / 업데이트 원칙
+
+이 문서는 N8Lient 개발을 새 대화창 또는 다른 개발 AI가 이어받기 위한 **핵심 인수인계 문서**다.
+상세 작업 로그, 빌드 로그, 긴 디버깅 기록, 임시 실험 과정은 이 문서에 길게 남기지 않는다.
+
+업데이트 기준:
+
+* 중요한 정책 변경, 데이터 모델 변경, 권한 규칙 변경, 실행 계약 변경만 기록한다.
+* 단순 버그 수정은 재발 방지에 필요한 핵심 원칙만 3~10줄로 요약한다.
+* 기존 섹션에 합칠 수 있으면 새 섹션을 만들지 말고 기존 내용을 갱신한다.
+* “최근 변경 이력”은 짧게 유지하고, 오래된 내용은 관련 정책 섹션으로 흡수한다.
+* 파일 목록, 리비전 번호, 테스트 출력 전문, 긴 명령어 목록은 원칙적으로 넣지 않는다.
+* 필요하면 상세 기록은 별도 문서로 분리한다.
+
+  * 예: `docs/changelog/YYYY-MM-DD-주제.md`
+  * 예: `docs/debug-notes/주제.md`
+* 문서에 남길 때는 “무엇을 왜 그렇게 하기로 했는가”를 우선한다.
+* “어떻게 고쳤는가”는 핵심 파일명과 검증 기준만 남긴다.
+* “완벽히 해결” 같은 단정 표현은 피하고, “확인한 시나리오 기준 정상”처럼 쓴다.
+* 민감정보, API Key, Token, Secret, Credential, 실제 운영 값은 절대 기록하지 않는다.
+
+권장 기록 형식:
+
+```text
+- 결정:
+- 이유:
+- 관련 파일:
+- 주의사항:
+- 최소 검증 기준:
+```
 
 ---
 
@@ -618,4 +650,21 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 - `scripts/backfillTestSettingsAndSubmissions.ts`를 실행하여 Firestore의 submissions 및 userAutomationSettings 레거시 문서 중 누락된 `isTestExecution: true/false`, `isTestSetting: true/false` 필드를 백필 완료하였습니다.
 - 백필 완료 후 `firestore.rules`에서 레거시 fallback 완화 규칙(`resource.data.get(..., true) == true`)을 완전히 제거하고, 명시적으로 `resource.data.isTestExecution == true` 및 `resource.data.isTestSetting == true` 조건만 draft 템플릿에 연결된 테스트 데이터 삭제를 허용하도록 엄격하게 규칙을 원복하였습니다.
 - `scripts/testFirestoreRules.ts`를 통해 이를 검증하기 위한 자동화 규칙 테스트 케이스들을 유지 및 보존하고 있습니다.
+
+---
+
+## 18. 최근 변경 이력 — title 계약 정리
+
+* `input.title`은 사용자가 직접 입력한 제목만 의미한다. 제목이 없으면 `null`.
+* `titleRequired=false`인 워크플로우는 제목 없이 실행 가능해야 한다.
+* 시스템 임시 제목은 `submissionTitle` / `displayTitle`에만 둔다.
+* n8n/Gemini는 `titleProvided=false`이면 음성·본문 기반으로 `processorResult.title`을 생성한다.
+* 결과 표시 우선순위는 `processorResult.title > displayTitle > submissionTitle`.
+* Gateway는 `input.title`을 고정 필수값으로 검사하지 않는다. `titleRequired=true`일 때만 필수다.
+* 관련 헬퍼: `buildTitleContract.ts`, `getSubmissionDisplayTitle.ts`, `validateExecution.ts`.
+* `WorkflowInputPanel`은 녹음 타이머 updater 내부에서 부모 콜백을 호출하지 않는다.
+* Gateway 배포 전 `syncGatewayValidation.ts` 실행 여부를 확인한다.
+* 검증 기준: 제목 없는 음성 실행 성공, `input.title=null`, `titleProvided=false`, callback 후 결과 제목 표시.
+* Google Drive 폴더 ID 입력 필드는 전체 Drive 폴더 URL을 붙여넣어도 저장 전 folderId만 추출하도록 공통 유틸과 입력 컴포넌트를 적용했다.
+
 

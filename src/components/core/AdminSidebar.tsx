@@ -8,33 +8,59 @@ import { usePathname } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useAuthUser } from "@/features/auth/useAuthUser";
+import { buildCompanyInviteLink, siteConfig } from "@/config/siteConfig";
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const { userDoc } = useAuthUser();
   const [companyName, setCompanyName] = useState<string>("");
+  const [companyCode, setCompanyCode] = useState<string>("");
+  const [copyingInvite, setCopyingInvite] = useState(false);
 
   useEffect(() => {
     if (userDoc && typeof userDoc.clientId === "string") {
       const clientId = userDoc.clientId;
-      const fetchCompanyName = async () => {
+      const fetchCompanyInfo = async () => {
         try {
           const docRef = doc(db, "clients", clientId);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();
             setCompanyName(data.companyName || clientId);
+            setCompanyCode(data.companyCode || "");
           } else {
             setCompanyName(clientId);
+            setCompanyCode("");
           }
         } catch (err) {
           console.error("[AdminSidebar] 회사 정보 조회 실패:", err);
           setCompanyName(clientId);
+          setCompanyCode("");
         }
       };
-      fetchCompanyName();
+      fetchCompanyInfo();
     }
   }, [userDoc]);
+
+  const handleCopyInviteLink = async () => {
+    if (!companyCode) {
+      alert("회사코드를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
+    const inviteLink = buildCompanyInviteLink(companyCode);
+    setCopyingInvite(true);
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      alert(`${siteConfig.messages.inviteLinkCopied}\n${inviteLink}`);
+    } catch (err) {
+      console.error("[AdminSidebar] 초대링크 복사 실패:", err);
+      window.prompt(siteConfig.messages.inviteLinkCopyFailed, inviteLink);
+    } finally {
+      setCopyingInvite(false);
+    }
+  };
 
   const menuItems = [
     { label: "대시보드 홈", path: "/company-admin", icon: "📊" },
@@ -49,7 +75,7 @@ export function AdminSidebar() {
     <aside
       style={{
         width: "240px",
-        backgroundColor: "#1f2937", // 짙은 회색 계열 (콘솔 느낌)
+        backgroundColor: "#1f2937",
         color: "#f3f4f6",
         padding: "20px 12px",
         display: "flex",
@@ -60,17 +86,23 @@ export function AdminSidebar() {
       }}
     >
       <div>
-        {/* 콘솔명 */}
         <div style={{ padding: "0 8px 20px 8px", borderBottom: "1px solid #374151", marginBottom: "20px" }}>
-          <h1 style={{ fontSize: "16px", fontWeight: 700, color: "#ffffff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h1
+            style={{
+              fontSize: "16px",
+              fontWeight: 700,
+              color: "#ffffff",
+              margin: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {companyName || userDoc?.clientId || "N8Lient Admin"}
           </h1>
-          <p style={{ fontSize: "11px", color: "#9ca3af", margin: "4px 0 0 0" }}>
-            회사 관리자 콘솔
-          </p>
+          <p style={{ fontSize: "11px", color: "#9ca3af", margin: "4px 0 0 0" }}>회사 관리자 콘솔</p>
         </div>
 
-        {/* 메뉴 리스트 */}
         <nav style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {menuItems.map((item) => {
             const isActive = pathname === item.path;
@@ -100,8 +132,38 @@ export function AdminSidebar() {
         </nav>
       </div>
 
-      {/* 하단 유틸리티 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #374151", paddingTop: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          borderTop: "1px solid #374151",
+          paddingTop: "16px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleCopyInviteLink}
+          disabled={copyingInvite || !companyCode}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "12px",
+            color: copyingInvite || !companyCode ? "#6b7280" : "#e5e7eb",
+            background: "none",
+            border: "1px solid #374151",
+            borderRadius: "4px",
+            padding: "8px 10px",
+            cursor: copyingInvite || !companyCode ? "not-allowed" : "pointer",
+            textAlign: "left",
+          }}
+          title={companyCode ? "가입 초대링크를 클립보드에 복사합니다." : "회사코드 로딩 중"}
+        >
+          <span>🔗</span>
+          <span>{copyingInvite ? "복사 중..." : "초대링크"}</span>
+        </button>
+
         <Link
           href="/"
           style={{

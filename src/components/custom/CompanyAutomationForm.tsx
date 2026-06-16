@@ -5,6 +5,8 @@ import { Firestore } from "firebase/firestore";
 import { saveClientAutomation } from "@/features/admin/companyAdminService";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
 import { playAppSound } from "@/lib/appSound";
+import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
+import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
 
 interface CompanyAutomationFormProps {
   db: Firestore;
@@ -171,6 +173,14 @@ export default function CompanyAutomationForm({
         cleanedSettings[k] = v;
       }
 
+      const driveFolderNorm = normalizeSettingsDriveFolderIds(cleanedSettings, schemaFields);
+      if (driveFolderNorm.error) {
+        playAppSound("notify");
+        addDelayedAlert(driveFolderNorm.error);
+        return;
+      }
+      const settingsToSave = driveFolderNorm.settings;
+
       const { getDefaultRetentionPolicy } = require("@/types/n8lient");
 
       const res = await saveClientAutomation(db, {
@@ -178,7 +188,7 @@ export default function CompanyAutomationForm({
         workflowKey: contract.workflowKey,
         automationName: formName,
         enabled: formEnabled,
-        settings: cleanedSettings,
+        settings: settingsToSave,
         adminUid: uid,
         template,
         retentionPolicy: getDefaultRetentionPolicy(finalRecommendedLevel), // 하위 호환
@@ -360,6 +370,13 @@ export default function CompanyAutomationForm({
                   </option>
                 ))}
               </select>
+            ) : isGoogleDriveFolderIdConfigKey(field.key) ? (
+              <GoogleDriveFolderIdInput
+                value={String(formSettings[field.key] ?? "")}
+                onChange={(v) => handleFieldChange(field.key, v)}
+                placeholder={field.placeholder || `${field.label} ID 또는 Google Drive 폴더 링크`}
+                required={field.required}
+              />
             ) : (
               <input
                 type={field.type === "email" ? "email" : field.type === "number" ? "number" : "text"}

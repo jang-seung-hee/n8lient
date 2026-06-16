@@ -20,7 +20,7 @@ import {
 import { auth, googleProvider, db } from "@/lib/firebase";
 import { subscribeUserDoc, createDefaultUserDoc } from "./authUserService";
 import { submitCompanyJoinRequest, cancelCompanyJoinRequest } from "./companyJoinService";
-import type { UserDoc } from "@/types/n8lient";
+import type { UserDoc, SubmitCompanyJoinRequestPayload } from "@/types/n8lient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 컨텍스트 타입 정의
@@ -38,7 +38,7 @@ interface AuthContextType {
   /** 로그아웃 */
   signOut: () => Promise<void>;
   /** 회사 가입 승인 요청 */
-  submitCompanyCode: (companyCode: string) => Promise<{
+  submitCompanyCode: (payload: SubmitCompanyJoinRequestPayload) => Promise<{
     success: boolean;
     message?: string;
     requestedRole?: "company_admin" | "user";
@@ -171,11 +171,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * 회사코드 가입 승인 요청 전달 함수
    */
-  const submitCompanyCode = useCallback(async (companyCode: string) => {
+  const submitCompanyCode = useCallback(async (payload: SubmitCompanyJoinRequestPayload) => {
     if (!user) {
       return { success: false, message: "로그인이 필요합니다." };
     }
-    return submitCompanyJoinRequest(db, user, companyCode);
+    return submitCompanyJoinRequest(db, user, payload);
   }, [user]);
 
   /**

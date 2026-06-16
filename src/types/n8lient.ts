@@ -69,6 +69,9 @@ export type ClientStatus = "active" | "pending_setup" | "suspended" | "terminate
  */
 export type JoinRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 
+/** 회사 가입 승인 요청 제출 경로 */
+export type JoinRequestSource = "manual_code" | "invite_link";
+
 /**
  * 자동화 명세서(workflowTemplate) 상태
  * - draft: 작성 중
@@ -210,6 +213,21 @@ export interface CompanyJoinRequest {
   companyName?: string;
   cancelledAt?: string | null;
   cancelledBy?: Uid | null;
+  /** 사용자가 입력·확인한 신청 성명 */
+  requestedDisplayName?: string;
+  /** Google 계정 표시 이름 (하위 호환을 위해 displayName도 유지) */
+  googleDisplayName?: string;
+  /** Google 계정 이메일 (하위 호환을 위해 email도 유지) */
+  googleEmail?: string;
+  /** 가입 요청 제출 경로 */
+  source?: JoinRequestSource;
+}
+
+/** 회사 가입 승인 요청 제출 payload */
+export interface SubmitCompanyJoinRequestPayload {
+  companyCode: string;
+  requestedDisplayName: string;
+  source: JoinRequestSource;
 }
 
 /**

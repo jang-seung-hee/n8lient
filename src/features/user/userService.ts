@@ -15,6 +15,32 @@ import {
 import type { ClientAutomation, Submission, UserAutomationSettings } from "@/types/n8lient";
 
 /**
+ * Firestore setDoc/updateDoc 전송용 객체에서 undefined 값을 재귀적으로 제거합니다.
+ * null은 유지합니다.
+ */
+export function stripUndefinedDeep<T>(value: T): T {
+  if (value === undefined) {
+    return value;
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripUndefinedDeep(item))
+      .filter((item) => item !== undefined) as T;
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (nested === undefined) {
+      continue;
+    }
+    result[key] = stripUndefinedDeep(nested);
+  }
+  return result as T;
+}
+
+/**
  * 로그인한 사용자의 clientId 기준, 활성화되고 설정이 완료된 자동화(clientAutomations) 목록을 조회합니다.
  */
 export async function getActiveAutomations(
@@ -160,7 +186,8 @@ export async function saveUserAutomationSettings(
 ): Promise<void> {
   try {
     const docRef = doc(db, "userAutomationSettings", data.settingId);
-    await setDoc(docRef, data);
+    const payload = stripUndefinedDeep(data);
+    await setDoc(docRef, payload);
   } catch (error) {
     console.error("[userService] 개인 설정 저장 실패:", error);
     throw error;

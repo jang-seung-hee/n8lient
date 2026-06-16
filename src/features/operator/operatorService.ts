@@ -12,6 +12,7 @@ import {
   limit,
   Firestore,
   getCountFromServer,
+  type DocumentReference,
 } from "firebase/firestore";
 import type { WorkflowTemplate, ClientContract, ClientDoc, UserDoc, WorkflowTemplateUsageSummary } from "@/types/n8lient";
 
@@ -503,7 +504,7 @@ export async function deleteDraftWorkflowTemplate(
     }
 
     // 4. 테스트 참조 데이터 일괄 수집
-    const docsToDelete: any[] = [];
+    const docsToDelete: DocumentReference[] = [];
 
     // 4.0. 테스트 clientContracts 수집 (Cascade Delete 대상)
     const caContractQuery = query(collection(db, "clientContracts"), where("workflowKey", "==", workflowKey));
@@ -531,31 +532,46 @@ export async function deleteDraftWorkflowTemplate(
       }
     });
 
-    // 4.2. 테스트 userAutomationSettings 수집
+    // 4.2. userAutomationSettings — Firestore Rules와 동일: isTestSetting === true 만 삭제 대상
     const uasQuery = query(collection(db, "userAutomationSettings"), where("workflowKey", "==", workflowKey));
     const uasSnap = await getDocs(uasQuery);
+    let legacyUserSettingCount = 0;
     uasSnap.forEach((d) => {
       const data = d.data();
-      const isProd =
-        data.isTestSetting === false ||
-        data.templateStatusAtSetting === "published";
-      if (!isProd) {
+      if (data.isTestSetting === undefined) {
+        legacyUserSettingCount++;
+        return;
+      }
+      if (data.isTestSetting === true) {
         docsToDelete.push(d.ref);
       }
     });
 
-    // 4.3. 테스트 submissions 수집
+    // 4.3. submissions — Firestore Rules와 동일: isTestExecution === true 만 삭제 대상
     const subQuery = query(collection(db, "submissions"), where("workflowKey", "==", workflowKey));
     const subSnap = await getDocs(subQuery);
+    let legacySubmissionCount = 0;
     subSnap.forEach((d) => {
       const data = d.data();
-      const isProd =
-        data.isTestExecution === false ||
-        data.templateStatusAtExecution === "published";
-      if (!isProd) {
+      if (data.isTestExecution === undefined) {
+        legacySubmissionCount++;
+        return;
+      }
+      if (data.isTestExecution === true) {
         docsToDelete.push(d.ref);
       }
     });
+
+    // 4.3.1. 레거시 필드 누락 문서 pre-flight 차단 (Rules 완화 없이 삭제 불가)
+    const legacyFieldMissingCount = legacyUserSettingCount + legacySubmissionCount;
+    if (legacyFieldMissingCount > 0) {
+      return {
+        success: false,
+        message:
+          `테스트 실행/설정 문서 ${legacyFieldMissingCount}건에 isTestExecution/isTestSetting 필드가 없어 삭제할 수 없습니다. ` +
+          "백필 스크립트를 먼저 실행하세요.",
+      };
+    }
 
     // 4.4. 마지막으로 지울 템플릿 본문 추가
     docsToDelete.push(docRef);

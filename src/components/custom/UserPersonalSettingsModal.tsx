@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { Firestore } from "firebase/firestore";
 import { getUserAutomationSettings, saveUserAutomationSettings } from "@/features/user/userService";
-import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from "@/types/n8lient";
+import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings, UserRetentionPreference } from "@/types/n8lient";
+import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
+import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
 
 interface UserPersonalSettingsModalProps {
   isOpen: boolean;
@@ -77,6 +79,18 @@ export default function UserPersonalSettingsModal({
     if (!uid || !clientId || !currentAuto) return;
     try {
       setSaving(true);
+
+      const configFields = (currentTemplate.configSchema || []).filter(
+        (field) => !isSecurityField(field.key, field.type)
+      );
+      const driveFolderNorm = normalizeSettingsDriveFolderIds(personalSettings, configFields, {
+        allowEmptyForOptional: true,
+      });
+      if (driveFolderNorm.error) {
+        alert(driveFolderNorm.error);
+        return;
+      }
+
       const settingId = `${uid}_${currentAuto.automationId}`;
       const saveData: UserAutomationSettings = {
         settingId,
@@ -84,10 +98,14 @@ export default function UserPersonalSettingsModal({
         clientId,
         automationId: currentAuto.automationId,
         workflowKey: currentAuto.workflowKey,
-        settings: personalSettings,
-        userRetentionPreference: userPreferredLevel
-          ? { preferredLevel: userPreferredLevel as any }
-          : undefined,
+        settings: driveFolderNorm.settings,
+        ...(userPreferredLevel
+          ? {
+              userRetentionPreference: {
+                preferredLevel: userPreferredLevel as UserRetentionPreference["preferredLevel"],
+              },
+            }
+          : {}),
         templateStatusAtSetting: currentTemplate.status === "draft" ? "draft" : "published",
         isTestSetting: currentTemplate.status === "draft",
         createdAt: existingUserSetting?.createdAt || new Date().toISOString(),
@@ -283,6 +301,15 @@ export default function UserPersonalSettingsModal({
                         <option value="true">True (사용)</option>
                         <option value="false">False (미사용)</option>
                       </select>
+                    ) : isGoogleDriveFolderIdConfigKey(field.key) ? (
+                      <GoogleDriveFolderIdInput
+                        value={String(personalSettings[field.key] ?? "")}
+                        onChange={(v) =>
+                          setPersonalSettings((prev) => ({ ...prev, [field.key]: v }))
+                        }
+                        placeholder={`${helpText} (폴더 ID 또는 링크, 비워두면 기본값 사용)`}
+                        allowEmpty
+                      />
                     ) : (
                       <input
                         type={field.type === "number" ? "number" : "text"}

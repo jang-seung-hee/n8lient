@@ -1,5 +1,18 @@
 # 개발 컨텍스트 및 의사결정 기록
 
+## 2026-06-16: Draft 삭제 실패 원인 및 pre-flight 정렬
+
+### 1. 원인
+* v2.4 Firestore Rules 강화 후 `submissions`/`userAutomationSettings` 삭제는 `isTestExecution/isTestSetting == true`만 허용.
+* 앱 cascade delete는 필드 누락(undefined) 레거시 문서까지 batch에 포함 → `Missing or insufficient permissions`.
+
+### 2. 조치
+* Firebase 프로젝트 `n8lient`에 백필 스크립트 실행 (submissions 6건).
+* `deleteDraftWorkflowTemplate`에 Rules와 동일한 수집 조건 + 레거시 누락 pre-flight 차단 메시지 추가.
+* Rules 완화는 하지 않음. 장기적으로 Admin SDK API cascade delete 검토 가능.
+
+---
+
 ## 2026-06-12: N8Lient 결과/보관 정책 v1.1 적용
 
 ### 1. 결과/보관 정책 계층 및 책임 정리

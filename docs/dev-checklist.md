@@ -1,5 +1,24 @@
 # 개발 작업 체크리스트
 
+## 2026-06-16: 회사 초대링크 간소화 (복사 + /join + 성명)
+- [x] AdminSidebar 하단 「초대링크」버튼 — `{NEXT_PUBLIC_BASE_URL}/join?companyCode=...` 클립보드 복사
+- [x] `/join` 페이지 — query companyCode 자동 입력, invite_link / manual_code source
+- [x] JoinRequestForm 공통화, CompanyCodeForm 성명 필드 추가
+- [x] companyJoinService payload 확장 (requestedDisplayName, googleDisplayName, googleEmail, source)
+- [x] 승인 화면 신청 성명·Google 정보·신청 경로 컬럼
+- [x] Firestore Rules 변경 없음
+- [x] `npx tsc --noEmit`, `npm run build` 통과
+
+---
+
+## 2026-06-16: Draft 워크플로우 삭제 pre-flight 검증 및 테스트 필드 백필
+- [x] `scripts/backfillTestSettingsAndSubmissions.ts` dry-run (submissions 6건 `isTestExecution` 누락 확인)
+- [x] `--confirm BACKFILL_TEST_DATA` 백필 실행 (6건 반영, 재 dry-run 0건)
+- [x] `deleteDraftWorkflowTemplate` pre-flight: Rules와 동일하게 `isTestSetting/isTestExecution === true`만 batch 포함, 레거시 누락 시 명시적 차단
+- [x] `npx tsc --noEmit`, `npm run build`, `testFirestoreRules.ts` (6/6 통과) 검증
+
+---
+
 ## 2026-06-12: N8Lient 결과/보관 정책 v1.1 반영
 - [x] N8Lient 결과/보관 정책 v1.1에 대한 보존형 기초설계서 문서세트 정리 및 docs/01. 기초 설계서/ 폴더 내 최신화
 - [x] 기존 레거시 문서 7종 삭제하지 않고 docs/01. 기초 설계서/archive/ 폴더로 이동 및 보관

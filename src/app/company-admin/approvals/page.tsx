@@ -10,8 +10,26 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
 } from "@/features/admin/companyAdminService";
-import type { CompanyJoinRequest } from "@/types/n8lient";
+import type { CompanyJoinRequest, JoinRequestSource } from "@/types/n8lient";
 import { ListSearchFilterBar } from "@/components/core/ListSearchFilterBar";
+
+function getRequestedDisplayName(req: CompanyJoinRequest): string {
+  return req.requestedDisplayName || req.displayName || req.googleDisplayName || "이름 없음";
+}
+
+function getGoogleDisplayName(req: CompanyJoinRequest): string {
+  return req.googleDisplayName || req.displayName || "—";
+}
+
+function getGoogleEmail(req: CompanyJoinRequest): string {
+  return req.googleEmail || req.email || "—";
+}
+
+function getJoinSourceLabel(source?: JoinRequestSource): string {
+  if (source === "invite_link") return "초대링크";
+  if (source === "manual_code") return "직접 회사코드 입력";
+  return "—";
+}
 
 export default function AdminApprovals() {
   const { user, userDoc } = useAuthUser();
@@ -86,18 +104,22 @@ export default function AdminApprovals() {
 
   // 프론트엔드 필터링 적용
   const filteredRequests = requests.filter((req) => {
-    const name = req.displayName || "이름 없음";
-    const email = req.email || "";
+    const requestedName = getRequestedDisplayName(req);
+    const googleName = getGoogleDisplayName(req);
+    const email = getGoogleEmail(req);
     const code = req.requestedCompanyCode || "";
+    const sourceLabel = getJoinSourceLabel(req.source);
     const date = req.requestedAt ? new Date(req.requestedAt).toLocaleString() : "";
+    const q = searchQuery.toLowerCase();
 
-    const matchSearch =
-      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      date.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchSearch;
+    return (
+      requestedName.toLowerCase().includes(q) ||
+      googleName.toLowerCase().includes(q) ||
+      email.toLowerCase().includes(q) ||
+      code.toLowerCase().includes(q) ||
+      sourceLabel.toLowerCase().includes(q) ||
+      date.toLowerCase().includes(q)
+    );
   });
 
   return (
@@ -133,7 +155,7 @@ export default function AdminApprovals() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ListSearchFilterBar
-            searchPlaceholder="이름, 이메일, 요청 코드 검색..."
+            searchPlaceholder="신청 성명, Google 이름, 이메일, 코드, 경로 검색..."
             filterFields={[]}
             onChange={(query) => setSearchQuery(query)}
           />
@@ -156,7 +178,7 @@ export default function AdminApprovals() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.5fr 2fr 1.2fr 1.8fr 1fr",
+                  gridTemplateColumns: "1.1fr 1.1fr 1.6fr 1fr 0.9fr 1.4fr 0.85fr",
                   padding: "10px 16px",
                   backgroundColor: "#f9fafb",
                   borderBottom: "1px solid #e5e7eb",
@@ -165,20 +187,21 @@ export default function AdminApprovals() {
                   color: "#374151",
                 }}
               >
-                <span>신청인</span>
-                <span>이메일</span>
-                <span>입력 코드</span>
+                <span>신청 성명</span>
+                <span>Google 이름</span>
+                <span>Google 이메일</span>
+                <span>신청 경로</span>
+                <span>코드</span>
                 <span>신청 일시</span>
                 <span style={{ textAlign: "right" }}>작업</span>
               </div>
 
-              {/* 목록 */}
               {filteredRequests.map((req, idx) => (
                 <div
                   key={req.requestId}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1.5fr 2fr 1.2fr 1.8fr 1fr",
+                    gridTemplateColumns: "1.1fr 1.1fr 1.6fr 1fr 0.9fr 1.4fr 0.85fr",
                     padding: "12px 16px",
                     borderBottom: idx < filteredRequests.length - 1 ? "1px solid #f3f4f6" : "none",
                     fontSize: "13px",
@@ -186,10 +209,12 @@ export default function AdminApprovals() {
                     alignItems: "center",
                   }}
                 >
-                  <span style={{ fontWeight: 600, color: "#111827" }}>{req.displayName || "이름 없음"}</span>
-                  <span style={{ color: "#4b5563" }}>{req.email}</span>
+                  <span style={{ fontWeight: 600, color: "#111827" }}>{getRequestedDisplayName(req)}</span>
+                  <span style={{ color: "#4b5563" }}>{getGoogleDisplayName(req)}</span>
+                  <span style={{ color: "#4b5563", wordBreak: "break-all" }}>{getGoogleEmail(req)}</span>
+                  <span style={{ color: "#6b7280", fontSize: "12px" }}>{getJoinSourceLabel(req.source)}</span>
                   <span style={{ fontFamily: "monospace", color: "#374151" }}>{req.requestedCompanyCode}</span>
-                  <span style={{ color: "#6b7280" }}>
+                  <span style={{ color: "#6b7280", fontSize: "12px" }}>
                     {new Date(req.requestedAt).toLocaleString()}
                   </span>
                   <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>

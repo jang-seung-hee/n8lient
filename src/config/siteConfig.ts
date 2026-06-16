@@ -53,7 +53,27 @@ export const siteConfig = {
     submitBtn: "승인 요청 제출",
     submitting: "제출 중...",
     logoutBtn: "로그아웃",
+    displayNamePlaceholder: "성명 입력 (예: 홍길동)",
+    displayNameEmpty: "성명을 입력해 주십시오.",
+    inviteLinkCopied: "초대링크가 복사되었습니다.",
+    inviteLinkCopyFailed: "클립보드 복사에 실패했습니다. 아래 링크를 직접 복사해 주세요.",
   }
 };
 
 export type SiteConfig = typeof siteConfig;
+
+/** 공개 초대·가입 링크 생성에 사용할 base URL (브라우저에서는 현재 페이지 origin 우선) */
+export function getPublicBaseUrl(): string {
+  if (typeof window !== "undefined" && window.location.origin) {
+    return window.location.origin.replace(/\/$/, "");
+  }
+  const fromEnv = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  const base = fromEnv || siteConfig.url;
+  return base.replace(/\/$/, "");
+}
+
+/** 회사코드가 포함된 초대 가입 링크를 생성합니다. clientId는 포함하지 않습니다. */
+export function buildCompanyInviteLink(companyCode: string): string {
+  const normalized = companyCode.trim().toUpperCase();
+  return `${getPublicBaseUrl()}/join?companyCode=${encodeURIComponent(normalized)}`;
+}
