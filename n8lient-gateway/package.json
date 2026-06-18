@@ -4,8 +4,8 @@
   "description": "N8Lient Cloud Run API Gateway",
   "main": "dist/server.js",
   "scripts": {
-    "prebuild": "tsx ../scripts/syncGatewayValidation.ts",
     "build": "tsc",
+    "build:with-sync": "npx tsx ../scripts/syncGatewayValidation.ts && tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts"
   },

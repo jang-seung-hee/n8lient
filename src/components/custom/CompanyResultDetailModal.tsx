@@ -4,6 +4,9 @@ import React, { useState } from "react";
 import type { Submission } from "@/types/n8lient";
 import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 
+import { SubmissionStatusBadge } from "@/components/core/submission/SubmissionStatusBadge";
+import { SubmissionErrorDetailsPanel } from "@/components/core/submission/SubmissionErrorDetailsPanel";
+
 interface CompanyResultDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -152,18 +155,7 @@ export function CompanyResultDetailModal({ isOpen, onClose, submission }: Compan
             <div>
               <div style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 500, marginBottom: "2px" }}>상태</div>
               <div>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    backgroundColor: badge.bg,
-                    color: badge.text,
-                    padding: "3px 8px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {badge.label}
-                </span>
+                <SubmissionStatusBadge status={submission.status} />
               </div>
             </div>
             <div>
@@ -356,6 +348,9 @@ export function CompanyResultDetailModal({ isOpen, onClose, submission }: Compan
               )}
             </div>
           </div>
+
+          {/* 공통 에러 상세 패널 */}
+          <SubmissionErrorDetailsPanel submission={submission} copyButtonLabel="디버그 정보 복사" />
 
           {/* 설정 병합 로그 요약 */}
           {submission.settingsMergeSummary && (

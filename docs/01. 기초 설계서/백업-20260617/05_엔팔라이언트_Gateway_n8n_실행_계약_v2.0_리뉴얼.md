@@ -282,7 +282,7 @@ full_archive:
 ```text
 원본 파일 영구 보관 없음
 처리 중 임시 사용 가능
-이메일 첨부용 MD 임시 생성 가능
+이메일 첨부용 MD, 기타파일 임시 생성 가능
 Storage 저장 없음
 ```
 
@@ -347,7 +347,7 @@ n8n은 Gateway가 전달한 retentionPolicy를 기준으로 결과 후처리를 
 
 ```text
 notify_only
-→ 이메일 본문/MD 첨부 전송 중심
+→ 이메일 본문/MD, 기타파일 첨부 전송 중심
 → processorResult 전체 DB 저장 목적 callback 생략 가능
 
 processed_result

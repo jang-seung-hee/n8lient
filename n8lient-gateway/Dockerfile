@@ -4,8 +4,8 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 RUN npm ci
 COPY src ./src
-# Cloud Build 컨텍스트는 n8lient-gateway만 포함하므로 prebuild(sync)는 로컬에서 선행한다.
-RUN npx tsc
+# Cloud Build 시에는 이미 동기화된 파일이 포함된 상태여야 함 (로컬에서 npm run sync:gateway 선행 필수)
+RUN npm run build
 
 # Run stage
 FROM node:20-alpine AS runner

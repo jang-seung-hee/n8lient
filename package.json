@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync:gateway": "npx tsx scripts/syncGatewayValidation.ts",
+    "check:gateway-sync": "npx tsx scripts/checkGatewaySharedSync.ts",
+    "build:gateway": "npm run sync:gateway && cd n8lient-gateway && npm run build",
     "dev": "next dev",
     "prebuild": "npx tsx scripts/syncGatewayValidation.ts",
     "build": "next build",

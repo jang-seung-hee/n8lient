@@ -528,6 +528,52 @@ export interface ResultRef {
   resultType: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 실행 실패 디버깅 관련 타입 (v2.8)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ExecutionFailurePhase =
+  | "APP_VALIDATE"
+  | "API_ROUTE_VALIDATE"
+  | "API_ROUTE_GATEWAY_CALL"
+  | "GATEWAY_VALIDATE"
+  | "GATEWAY_STORAGE"
+  | "GATEWAY_N8N_CALL"
+  | "N8N_WORKFLOW"
+  | "N8N_EMAIL"
+  | "N8N_CALLBACK"
+  | "GATEWAY_CALLBACK"
+  | "FIRESTORE_UPDATE"
+  | "UNKNOWN";
+
+export type ExecutionFailureSource =
+  | "app"
+  | "api_route"
+  | "gateway"
+  | "n8n"
+  | "callback"
+  | "firestore"
+  | "unknown";
+
+export interface SubmissionErrorDetails {
+  phase: ExecutionFailurePhase;
+  source: ExecutionFailureSource;
+  httpStatus?: number;
+  retryable?: boolean;
+  occurredAt: string;
+
+  gatewayTraceId?: string;
+  n8nExecutionId?: string | null;
+
+  n8nServerKey?: string;
+  n8nWorkflowName?: string;
+  n8nWebhookPath?: string;
+  safeTarget?: string;
+
+  hint?: string;
+  sanitizedMessage?: string;
+}
+
 /**
  * n8n 프로세서가 반환하는 가공된 결과 구조
  */
@@ -575,6 +621,8 @@ export interface Submission {
     code?: N8nErrorCode | string | null; // N8nErrorCode 외 Gateway 에러코드 대응을 위해 string 확장
     message?: string | null;
   };
+  /** 디버깅용 상세 에러 정보 (v2.8 추가) */
+  errorDetails?: SubmissionErrorDetails;
   /** 재전송 시 원본 submissionId 참조 */
   retryOf?: SubmissionId | null;
   /** 디버깅용 비민감 설정 병합 요약 정보 */

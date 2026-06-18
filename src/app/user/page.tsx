@@ -163,7 +163,7 @@ export default function UserHome() {
                   </p>
                 </div>
                 <Link
-                  href="/user/execute"
+                  href={`/user/execute?automationId=${encodeURIComponent(auto.automationId)}`}
                   style={{
                     height: "30px",
                     padding: "0 10px",

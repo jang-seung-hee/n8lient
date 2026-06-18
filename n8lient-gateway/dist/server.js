@@ -122,6 +122,7 @@ app.get("/health", (req, res) => {
 app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), async (req, res) => {
     const file = req.file;
     let submissionId = "";
+    const gatewayTraceId = `gw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     try {
         const uid = req.user?.uid;
         if (!uid) {
@@ -351,11 +352,18 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
         }
         const storeProc = finalLevel !== "notify_only";
         const storeOrig = finalLevel === "full_archive";
+        // [v2.8.1] 이메일 전송 옵션과 Storage 보관 옵션 분리 (PATCH)
+        const emailEnabled = Boolean(finalSettings.reportEmailTo) && finalSettings.emailEnabled !== false;
+        const emailAttachResult = emailEnabled && finalSettings.emailAttachResult === true;
+        // 원본 입력 존재 여부 (audio, image, file 타입이면서 실제 파일이나 URL이 있는 경우)
+        const hasOriginalInput = ["audio", "image", "file"].includes(input.inputType) &&
+            Boolean(input.fileName || file || input.fileUrl);
+        const emailAttachOriginal = emailEnabled && finalSettings.emailAttachOriginal === true && hasOriginalInput;
         const retentionPolicy = {
             level: finalLevel,
-            emailEnabled: false,
-            emailAttachResult: false,
-            emailAttachOriginal: false,
+            emailEnabled,
+            emailAttachResult,
+            emailAttachOriginal,
             storeProcessorResult: storeProc,
             storeOriginalFiles: storeOrig,
             storageProvider: storeOrig ? "firebase_storage" : "none",
@@ -432,6 +440,13 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                             error: {
                                 code: "STORAGE_UPLOAD_FAILED",
                                 message: uploadErr.message || "Firebase Storage 원본 파일 저장 실패",
+                            },
+                            errorDetails: {
+                                phase: "GATEWAY_STORAGE",
+                                source: "gateway",
+                                occurredAt: failedAt,
+                                gatewayTraceId,
+                                hint: "Firebase Storage 업로드 중 오류가 발생했습니다. 권한 또는 네트워크 상태를 확인하세요.",
                             },
                             retryOf: null,
                             settingsMergeSummary,
@@ -525,18 +540,64 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
         };
         console.log(`[execute] n8n Webhook 호출 시작. URL: ${webhookConfig.url}`);
         // axios를 사용하여 n8n 호출 실행
-        const n8nResponse = await axios_1.default.post(webhookConfig.url, form, {
-            headers: n8nHeaders,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
-            timeout: 120000 // 2분 타임아웃
-        });
-        if (n8nResponse.status >= 200 && n8nResponse.status < 300) {
-            console.log(`[execute] n8n Webhook 호출 성공. Status: ${n8nResponse.status}`);
-            return res.status(200).json({ success: true, submissionId });
+        try {
+            const n8nResponse = await axios_1.default.post(webhookConfig.url, form, {
+                headers: n8nHeaders,
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity,
+                timeout: 120000 // 2분 타임아웃
+            });
+            if (n8nResponse.status >= 200 && n8nResponse.status < 300) {
+                console.log(`[execute] n8n Webhook 호출 성공. Status: ${n8nResponse.status}`);
+                return res.status(200).json({ success: true, submissionId });
+            }
+            else {
+                throw new Error(`n8n 서버 응답 실패 (HTTP ${n8nResponse.status})`);
+            }
         }
-        else {
-            throw new Error(`n8n 서버 응답 실패 (HTTP ${n8nResponse.status})`);
+        catch (n8nErr) {
+            const httpStatus = n8nErr.response?.status;
+            let hint = "n8n 서버 내부 오류 또는 워크플로우 런타임 오류 확인";
+            if (httpStatus === 404) {
+                hint = "n8n Webhook Path, 워크플로우 Active 상태, production/test webhook URL, Gateway n8n base URL 설정을 확인하세요.";
+            }
+            else if (httpStatus === 401 || httpStatus === 403) {
+                hint = "n8n Header Auth, X-N8N-TOKEN, Credential 연결 상태 확인";
+            }
+            else if (n8nErr.code === "ECONNABORTED" || n8nErr.message?.includes("timeout")) {
+                hint = "n8n 응답 지연, 파일 크기, 외부 API 처리 시간, Cloud Run timeout 확인";
+            }
+            else if (!httpStatus) {
+                hint = "n8n base URL, DNS, Cloud Run/터널, 방화벽 확인 (Network Error)";
+            }
+            const errorDetails = {
+                phase: "GATEWAY_N8N_CALL",
+                source: "gateway",
+                httpStatus,
+                occurredAt: new Date().toISOString(),
+                gatewayTraceId,
+                n8nServerKey,
+                n8nWebhookPath: webhookSecretId,
+                safeTarget: `${n8nServerKey}/${webhookSecretId}`,
+                hint,
+                sanitizedMessage: n8nErr.message,
+            };
+            if (submissionId) {
+                await db.collection("submissions").doc(submissionId).update({
+                    status: "failed",
+                    updatedAt: new Date().toISOString(),
+                    error: {
+                        code: "GATEWAY_EXECUTE_FAILED",
+                        message: n8nErr.message || "게이트웨이 통신 실패"
+                    },
+                    errorDetails
+                });
+            }
+            return res.status(httpStatus || 500).json({
+                success: false,
+                error: `실행 실패: ${n8nErr.message}`,
+                errorDetails
+            });
         }
     }
     catch (error) {
@@ -549,8 +610,15 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                     status: "failed",
                     updatedAt: new Date().toISOString(),
                     error: {
-                        code: "GATEWAY_EXECUTE_FAILED",
-                        message: error.message || "게이트웨이 통신 실패"
+                        code: "GATEWAY_INTERNAL_ERROR",
+                        message: error.message || "게이트웨이 내부 오류"
+                    },
+                    errorDetails: {
+                        phase: "UNKNOWN",
+                        source: "gateway",
+                        occurredAt: new Date().toISOString(),
+                        gatewayTraceId,
+                        hint: "게이트웨이 서버 내부 처리 중 예외가 발생했습니다.",
                     }
                 });
             }

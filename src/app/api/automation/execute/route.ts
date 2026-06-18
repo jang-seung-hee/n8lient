@@ -242,6 +242,13 @@ export async function POST(req: NextRequest) {
         code: "EXECUTION_VALIDATION_FAILED",
         error: "실행에 필요한 입력값이 부족합니다.",
         source: "api_route_execution_validation",
+        errorDetails: {
+          phase: "API_ROUTE_VALIDATE",
+          source: "api_route",
+          httpStatus: 400,
+          occurredAt: new Date().toISOString(),
+          hint: "입력값 또는 설정값이 워크플로우 schema와 맞지 않습니다.",
+        },
         missingFields: validationResult.missingFields,
         received: {
           hasAutomationId: validationResult.received.hasAutomationId,
@@ -424,10 +431,21 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // 실패: status → failed, error 저장
+      const errorDetails = {
+        phase: "API_ROUTE_GATEWAY_CALL",
+        source: "api_route",
+        httpStatus: n8nError!.code === "N8N_HTTP_ERROR" ? 502 : 500,
+        occurredAt: updatedAt,
+        n8nServerKey,
+        n8nWebhookPath: templateDoc.webhookSecretId || workflowKey,
+        hint: "Gateway 호출 또는 실행 요청 전달 단계에서 실패했습니다.",
+      };
+
       await db.collection("submissions").doc(submissionId).update({
         status: "failed",
         "error.code": n8nError!.code,
         "error.message": n8nError!.message,
+        errorDetails,
         updatedAt,
         completedAt: updatedAt,
       });
@@ -438,6 +456,7 @@ export async function POST(req: NextRequest) {
           success: false,
           submissionId,
           error: "자동화 실행 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해 주십시오.",
+          errorDetails,
         },
         { status: 502 }
       );

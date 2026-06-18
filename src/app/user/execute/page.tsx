@@ -21,6 +21,7 @@ import { buildExecutionTitleContract } from "@/common/execution/buildTitleContra
 export default function UserExecute() {
   const searchParams = useSearchParams();
   const isDebugMode = searchParams.get("debug") === "1";
+  const requestedAutoId = searchParams.get("automationId");
   const { user, userDoc, loading: authLoading } = useAuthUser();
   const [automations, setAutomations] = useState<ClientAutomation[]>([]);
   const [templates, setTemplates] = useState<Record<string, WorkflowTemplate>>({});
@@ -74,7 +75,13 @@ export default function UserExecute() {
       setAutomations(activeAutos);
 
       if (activeAutos.length > 0) {
-        setSelectedAutoId(activeAutos[0].automationId);
+        const matchedAutoId =
+          requestedAutoId && activeAutos.some((a) => a.automationId === requestedAutoId)
+            ? requestedAutoId
+            : activeAutos[0].automationId;
+        setSelectedAutoId(matchedAutoId);
+      } else {
+        setSelectedAutoId("");
       }
 
       const tempMap: Record<string, WorkflowTemplate> = {};
@@ -123,7 +130,7 @@ export default function UserExecute() {
     } else {
       setLoading(false);
     }
-  }, [userDoc, user, authLoading]);
+  }, [userDoc, user, authLoading, requestedAutoId]);
 
   useEffect(() => {
     if (selectedAutoId) {

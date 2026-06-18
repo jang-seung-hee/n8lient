@@ -13,6 +13,9 @@ import {
 } from "@/features/user/markdownExport";
 import { playAppSound } from "@/lib/appSound";
 
+import { SubmissionStatusBadge } from "@/components/core/submission/SubmissionStatusBadge";
+import { SubmissionErrorDetailsPanel } from "@/components/core/submission/SubmissionErrorDetailsPanel";
+
 interface SubmissionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -114,7 +117,7 @@ export default function SubmissionDetailModal({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f3f4f6", paddingBottom: "10px" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-              {getStatusBadge(submission.status)}
+              <SubmissionStatusBadge status={submission.status} />
               <span style={{ fontSize: "11px", color: "#9ca3af" }}>{submission.submissionId}</span>
             </div>
             <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111111", margin: 0 }}>
@@ -158,6 +161,9 @@ export default function SubmissionDetailModal({
             </p>
           </div>
         )}
+
+        {/* 공통 디버깅 패널 (성공/실패) */}
+        <SubmissionErrorDetailsPanel submission={submission} />
 
         {/* 2. 첨부파일 목록 (originalFileRefs) */}
         {submission.originalFileRefs && submission.originalFileRefs.length > 0 && (

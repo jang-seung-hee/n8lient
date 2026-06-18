@@ -666,5 +666,8 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 * Gateway 배포 전 `syncGatewayValidation.ts` 실행 여부를 확인한다.
 * 검증 기준: 제목 없는 음성 실행 성공, `input.title=null`, `titleProvided=false`, callback 후 결과 제목 표시.
 * Google Drive 폴더 ID 입력 필드는 전체 Drive 폴더 URL을 붙여넣어도 저장 전 folderId만 추출하도록 공통 유틸과 입력 컴포넌트를 적용했다.
-
-
+* 개인 설정 저장 시 「내 보관 단계」 미선택이면 `userRetentionPreference` 필드를 Firestore에 쓰지 않도록 조건부 spread와 `userService.stripUndefinedDeep` 방어를 적용했다.
+* 결과보관 정책을 변경했다, 1단계시 이메일 전송 + md파일 첨부 -> md파일 및 기타 파일 첨부까지 확대 (단, 이것은 저장이 아니라 이메일 첨부의 임시 저장이다)
+* 실행 실패 디버깅 로그 1차 개선 완료. submissions에 errorDetails(phase/source/httpStatus/gatewayTraceId/n8nWebhookPath/hint 등)를 추가하고, 사용자/관리자 결과 상세 모달에 상세 디버그 정보 및 복사 버튼을 추가했다. 민감정보는 sanitize 후 저장/표시/복사한다. App 및 Gateway 배포가 필요하며, 404 재현 테스트로 GATEWAY_N8N_CALL 단계 표시를 검증한다.
+* 실행 스냅샷 / 디버그 JSON 다운로드 1차 구현 완료. SubmissionErrorDetailsPanel을 성공/실패 공통 아코디언으로 전환하고, 실패 건은 기본 열림, 성공 건은 기본 닫힘으로 표시한다. 기존 디버그 정보 복사 기능을 유지하면서 debug_snapshot_{submissionId}.json 다운로드 기능을 추가했다. 다운로드 JSON은 submissions 문서의 settingsSnapshot, settingsMergeSummary, retentionPolicySnapshot, input, error, errorDetails를 기반으로 생성하며, 민감 키는 sanitizeDebugInfo 유틸로 마스킹한다. /user/results, /company-admin/results, /operator/logs 모두 공통 패널을 통해 동일 기능을 제공한다.
+* Gateway 빌드 구조 정리 완료. n8lient-gateway/package.json의 prebuild를 제거해 Cloud Run 빌드 컨텍스트 외부 파일 참조 문제를 해소했다. Gateway build는 tsc만 수행하며, shared validation 파일 동기화는 루트 package.json의 sync:gateway/check:gateway-sync/build:gateway 명령으로 명시 관리한다. Dockerfile도 npm run build 기준으로 정리했다.

@@ -2,15 +2,24 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
 import { CompanyResultDetailModal } from "@/components/custom/CompanyResultDetailModal";
-import type { Submission } from "@/types/n8lient";
+import { SubmissionList } from "@/components/core/submission/SubmissionList";
+import { subscribeCompanySubmissions } from "@/features/submission/submissionQueryService";
+import { filterSubmissions } from "@/common/submission/submissionFilters";
+import type { Submission, SubmissionStatus } from "@/types/n8lient";
 
 export default function AdminResults() {
   const { userDoc } = useAuthUser();
   
+  // 데이터 상태
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -18,6 +27,28 @@ export default function AdminResults() {
   // 상세 모달 상태
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Firestore 구독
+  useEffect(() => {
+    if (!userDoc?.clientId) return;
+
+    setLoading(true);
+    const unsubscribe = subscribeCompanySubmissions(
+      db,
+      userDoc.clientId,
+      (list) => {
+        setSubmissions(list);
+        setLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        setError("실행 로그를 불러오는 중 오류가 발생했습니다.");
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userDoc?.clientId]);
 
   const filterFields: FilterField[] = [
     {
@@ -27,6 +58,9 @@ export default function AdminResults() {
         { value: "success", label: "성공" },
         { value: "processing", label: "처리중" },
         { value: "failed", label: "실패" },
+        { value: "queued", label: "대기" },
+        { value: "skipped", label: "제외됨" },
+        { value: "config_error", label: "설정오류" },
       ],
     },
   ];
@@ -35,6 +69,17 @@ export default function AdminResults() {
     setSearchQuery(query);
     setFilters(filterValues);
   };
+
+  const handleRowClick = (sub: Submission) => {
+    setSelectedSub(sub);
+    setIsModalOpen(true);
+  };
+
+  // 클라이언트 사이드 필터링 적용
+  const filteredList = filterSubmissions(submissions, {
+    searchQuery,
+    status: filters.status as SubmissionStatus | "all",
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -54,18 +99,31 @@ export default function AdminResults() {
         onChange={handleFilterChange}
       />
 
+      {error && (
+        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       <div
         style={{
           backgroundColor: "#ffffff",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
-          padding: "40px 16px",
-          textAlign: "center",
-          color: "#6b7280",
-          fontSize: "14px",
+          overflow: "hidden",
         }}
       >
-        실행 로그 기록이 없습니다. (실시간 Firestore 연동 준비 중)
+        {loading && submissions.length === 0 ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
+            실행 로그를 불러오는 중...
+          </div>
+        ) : (
+          <SubmissionList 
+            submissions={filteredList} 
+            onRowClick={handleRowClick} 
+            viewMode="company_admin" 
+          />
+        )}
       </div>
 
       {/* 상세 모달 */}
@@ -77,4 +135,3 @@ export default function AdminResults() {
     </div>
   );
 }
-

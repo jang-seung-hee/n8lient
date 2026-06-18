@@ -5,11 +5,12 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
-import { subscribeMySubmissions } from "@/features/user/userService";
-import type { Submission } from "@/types/n8lient";
-import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
-import { siteConfig } from "@/config/siteConfig";
+import { subscribeMySubmissions } from "@/features/submission/submissionQueryService";
+import { filterSubmissions } from "@/common/submission/submissionFilters";
+import { SubmissionList } from "@/components/core/submission/SubmissionList";
 import SubmissionDetailModal from "@/components/custom/SubmissionDetailModal";
+import type { Submission, SubmissionStatus } from "@/types/n8lient";
+import { siteConfig } from "@/config/siteConfig";
 
 export default function UserResults() {
   const { user } = useAuthUser();
@@ -51,29 +52,10 @@ export default function UserResults() {
     ? (submissions.find((s) => s.submissionId === selectedSub.submissionId) || selectedSub)
     : null;
 
-  // 필터 적용
-  const filteredSubmissions = filterStatus === "all"
-    ? submissions
-    : submissions.filter((s) => s.status === filterStatus);
-
-  // 6가지 상태 배지 컬러 및 텍스트 매핑
-  const getBadgeStyles = (status: string) => {
-    switch (status) {
-      case "success":
-        return { bg: "#e2fbf0", text: "#0d9488", label: "성공" };
-      case "processing":
-        return { bg: "#eff6ff", text: "#2563eb", label: "진행중" };
-      case "failed":
-        return { bg: "#fef2f2", text: "#dc2626", label: "실패" };
-      case "skipped":
-        return { bg: "#f3f4f6", text: "#4b5563", label: "제외됨" };
-      case "config_error":
-        return { bg: "#fef2f2", text: "#b91c1c", label: "설정오류" };
-      case "queued":
-      default:
-        return { bg: "#f9fafb", text: "#6b7280", label: "대기중" };
-    }
-  };
+  // 필터 적용 (공통 필터 유틸 사용)
+  const filteredSubmissions = filterSubmissions(submissions, {
+    status: filterStatus as SubmissionStatus | "all",
+  });
 
   const handleRowClick = (sub: Submission) => {
     setSelectedSub(sub);
@@ -122,7 +104,7 @@ export default function UserResults() {
         </div>
       )}
 
-      {/* 리스트 출력 */}
+      {/* 공통 리스트 컴포넌트 사용 */}
       <div
         style={{
           backgroundColor: "#ffffff",
@@ -131,87 +113,11 @@ export default function UserResults() {
           overflow: "hidden",
         }}
       >
-        {filteredSubmissions.length === 0 ? (
-          <div style={{ padding: "32px 16px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
-            조회된 N8N 워크플로우 실행 로그가 없습니다.
-          </div>
-        ) : (
-          filteredSubmissions.map((sub, idx) => {
-            const badge = getBadgeStyles(sub.status);
-            return (
-              <div
-                key={sub.submissionId}
-                onClick={() => handleRowClick(sub)}
-                style={{
-                  padding: "10px 12px",
-                  borderBottom: idx < filteredSubmissions.length - 1 ? "1px solid #f3f4f6" : "none",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  flexDirection: "column",
-                  gap: "6px",
-                  cursor: "pointer",
-                  transition: "background-color 0.15s ease",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f9fafb"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-              >
-                <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: 600,
-                        backgroundColor: badge.bg,
-                        color: badge.text,
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {badge.label}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#111111",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        flex: 1,
-                      }}
-                    >
-                      {getSubmissionDisplayTitle(sub)}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: "11px", color: "#9ca3af", flexShrink: 0, marginLeft: "8px" }}>
-                    {new Date(sub.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    width: "100%",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: "11px",
-                    color: "#6b7280",
-                    paddingLeft: "4px",
-                  }}
-                >
-                  <span>
-                    워크플로우 Key: {sub.workflowKey} · ID: {sub.submissionId}
-                  </span>
-                  
-                  <span style={{ color: "#3b82f6", fontWeight: 600 }}>
-                    상세 보기 &rarr;
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
+        <SubmissionList 
+          submissions={filteredSubmissions} 
+          onRowClick={handleRowClick} 
+          viewMode="user" 
+        />
       </div>
 
       {isModalOpen && activeSubmission && (
@@ -227,4 +133,3 @@ export default function UserResults() {
     </div>
   );
 }
-

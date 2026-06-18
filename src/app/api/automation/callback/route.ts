@@ -142,6 +142,16 @@ export async function POST(req: NextRequest) {
     updateData["error.message"] = error?.message || "n8n 처리 실패";
     updateData["result.summary"] = null;
     updateData["result.resultUrl"] = null;
+
+    // v2.8 errorDetails 추가
+    updateData.errorDetails = {
+      phase: error?.phase || "N8N_WORKFLOW",
+      source: "n8n",
+      httpStatus: error?.httpStatus,
+      occurredAt: now,
+      n8nExecutionId: body.n8nExecutionId || null,
+      hint: error?.hint || "n8n 워크플로우 내부 실패입니다. n8n 실행 로그에서 실패 노드를 확인하세요.",
+    };
   }
 
   await submissionRef.update(updateData);

@@ -127,34 +127,14 @@ export async function createSubmission(
   }
 }
 
+import { subscribeMySubmissions as subscribeMySubmissionsNew } from "@/features/submission/submissionQueryService";
+
 /**
  * 로그인한 사용자(uid) 본인의 submissions 목록을 실시간으로 구독합니다.
  * 보안 규정 준수: 쿼리 필터에 uid == myUid 필수 지정 (전체 조회 금지)
+ * @deprecated subscribeMySubmissions in @/features/submission/submissionQueryService를 사용하세요.
  */
-export function subscribeMySubmissions(
-  db: Firestore,
-  uid: string,
-  onUpdate: (submissions: Submission[]) => void,
-  onError: (error: any) => void
-) {
-  const q = query(
-    collection(db, "submissions"),
-    where("uid", "==", uid),
-    orderBy("createdAt", "desc")
-  );
-
-  return onSnapshot(
-    q,
-    (snap) => {
-      const list = snap.docs.map((d) => d.data() as Submission);
-      onUpdate(list);
-    },
-    (err) => {
-      console.error("[userService] 내 실행 결과 구독 실패:", err);
-      onError(err);
-    }
-  );
-}
+export const subscribeMySubmissions = subscribeMySubmissionsNew;
 
 /**
  * 특정 사용자의 특정 자동화에 대한 개인 설정(userAutomationSettings)을 조회합니다.
