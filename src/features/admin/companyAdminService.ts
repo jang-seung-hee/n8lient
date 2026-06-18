@@ -8,6 +8,8 @@ import {
   getDocs,
   getDoc,
   setDoc,
+  updateDoc,
+  deleteField,
   writeBatch,
   Firestore,
   limit,
@@ -293,6 +295,14 @@ export async function saveClientAutomation(
         ? { contractRetentionLimit: contractRetentionLimit ?? existing?.contractRetentionLimit }
         : {}),
       ...(trimmedNotice ? { noticeText: trimmedNotice } : {}),
+      ...(existing?.companyDisabled === true
+        ? {
+            companyDisabled: true,
+            ...(existing.companyDisabledAt ? { companyDisabledAt: existing.companyDisabledAt } : {}),
+            ...(existing.companyDisabledBy ? { companyDisabledBy: existing.companyDisabledBy } : {}),
+            ...(existing.companyDisableReason ? { companyDisableReason: existing.companyDisableReason } : {}),
+          }
+        : {}),
     };
 
     await setDoc(docRef, removeUndefinedFields(clientAutomation));
@@ -300,6 +310,69 @@ export async function saveClientAutomation(
   } catch (error: any) {
     console.error("[companyAdminService] 자동화 설정 저장 실패:", error);
     return { success: false, message: error.message || "설정 저장 도중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 회사관리자가 직원에게 워크플로우 사용 여부(companyDisabled)를 설정합니다.
+ * updateDoc 전용 — saveClientAutomation과 분리하여 메타 필드 유실을 방지합니다.
+ */
+export async function setCompanyAutomationCompanyDisabled(
+  db: Firestore,
+  params: {
+    clientId: string;
+    workflowKey: string;
+    adminUid: string;
+    disabled: boolean;
+    reason?: string;
+  }
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const { clientId, workflowKey, adminUid, disabled, reason } = params;
+    const automationId = `${clientId}_${workflowKey}`;
+    const docRef = doc(db, "clientAutomations", automationId);
+    const existingSnap = await getDoc(docRef);
+
+    if (!existingSnap.exists()) {
+      return {
+        success: false,
+        message: "자동화 설정이 등록되지 않았습니다. 먼저 설정을 완료해 주십시오.",
+      };
+    }
+
+    const existing = existingSnap.data() as ClientAutomation;
+    if (existing.clientId !== clientId) {
+      return { success: false, message: "접근 권한이 없는 자동화입니다." };
+    }
+
+    const now = new Date().toISOString();
+
+    if (disabled) {
+      await updateDoc(
+        docRef,
+        removeUndefinedFields({
+          companyDisabled: true,
+          companyDisabledAt: now,
+          companyDisabledBy: adminUid,
+          ...(reason?.trim() ? { companyDisableReason: reason.trim() } : {}),
+          updatedAt: now,
+        })
+      );
+    } else {
+      await updateDoc(docRef, {
+        companyDisabled: false,
+        companyDisabledAt: deleteField(),
+        companyDisabledBy: deleteField(),
+        companyDisableReason: deleteField(),
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("[companyAdminService] 직원 사용 설정 변경 실패:", error);
+    const message = error instanceof Error ? error.message : "설정 변경 중 오류가 발생했습니다.";
+    return { success: false, message };
   }
 }
 

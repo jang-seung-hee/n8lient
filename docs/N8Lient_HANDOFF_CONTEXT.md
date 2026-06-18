@@ -678,3 +678,13 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 
 * **Gateway 정책 PATCH**: 프론트 `mergeAutomationSettings`로 execute validation 병합 정합. Gateway `optionalExportProvider` 하드코딩 제거(rev `00029-qsz`) → Policy Resolver Phase B `resolveRetentionPolicy` 분리(rev `00030-7kq`, `storeOriginalFileRefs`/`storeResultRefs` additive).
 * **워크플로우 표시명 SSOT**: `resolveWorkflowDisplayName` + `fetchWorkflowTemplatesByKeys` — 화면 표시는 `workflowTemplates.name` 우선, `clientAutomations.automationName`은 fallback. workflowKey·webhookPath·submissions 과거 로그는 변경 없음.
+
+## 20. 최근 변경 이력 — 실행 결과 상세 중앙화 (2026-06-18)
+
+* **결과 상세 SSOT**: `/user/results`, `/company-admin/results`, `/operator/logs`가 공통 `ExecutionResultDetailModal` → `ExecutionResultDetailPanel`(14섹션) + `resultDetailVisibility.ts`(role별 visible/defaultOpen)로 통합. 역할별 차이는 `viewerRole`만 전달; `SubmissionDetailModal`/`CompanyResultDetailModal`은 thin wrapper(deprecated).
+* **운영 디버그**: companyAdmin/operator는 `OpsDebugInfoSection`에서 debugInfo·snapshots·rawJson(operator) 병합 표시; user는 debugInfo 숨김. [01]/[02]만 defaultOpen true.
+* **부가**: 세 역할 목록 20건 페이징·실행일시(`YYMMDD HH:MM`)·요청자(`이름 / 구글이메일`, admin/operator) — `SubmissionList` + 공통 유틸 재사용.
+
+* 회사 관리자 전용 워크플로우 사용 안함 기능 구현 완료. clientAutomations에 companyDisabled/companyDisabledAt/companyDisabledBy/companyDisableReason optional 필드를 추가하고, operator 매핑 상태(clientContracts.enabled) 및 기존 clientAutomations.enabled 의미는 변경하지 않았다. /company-admin/automations에서는 회사관리자가 워크플로우별 직원 사용 여부를 토글할 수 있고, /user 및 /user/execute에서는 companyDisabled === true인 자동화를 숨긴다. 기존 submissions 실행 기록은 유지한다. Gateway, Next execute route, prepare-upload route에서 companyDisabled === true인 경우 submissions 생성 및 n8n 호출 전에 403 CLIENT_AUTOMATION_COMPANY_DISABLED로 차단한다. Gateway/n8n payload, callback, retentionPolicy, Firestore Rules는 변경하지 않았다.
+
+* operator 계약 비활성화 후 clientAutomations 잔상으로 직원 홈/실행 화면에 자동화가 계속 표시되던 문제를 수정했다. 직원 자동화 노출 조건을 clientContracts.enabled === true, contractStatus === active, clientAutomation.enabled === true, configStatus === configured, companyDisabled !== true로 공통화했다. userService.getActiveAutomations에서 clientContracts와 join/filter 처리하며, Gateway/Next execute/prepare-upload 3곳에서 contract 비활성 시 submissions 생성 및 n8n 호출 전에 403 CONTRACT_NOT_ACTIVE로 차단한다. clientAutomations 문서는 삭제하지 않아 operator 재활성 시 기존 회사 설정을 재사용할 수 있으며, 기존 submissions 실행 기록은 유지된다.

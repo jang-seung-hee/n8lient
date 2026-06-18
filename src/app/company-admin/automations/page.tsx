@@ -8,6 +8,7 @@ import { useAuthUser } from "@/features/auth/useAuthUser";
 import {
   getCompanyContracts,
   getCompanyAutomations,
+  setCompanyAutomationCompanyDisabled,
 } from "@/features/admin/companyAdminService";
 import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
@@ -120,6 +121,22 @@ export default function AdminAutomations() {
           }}
           onEdit={() => {
             setViewMode("form");
+          }}
+          onToggleEmployeeAccess={async (disabled, reason) => {
+            if (!userDoc?.clientId || !user) {
+              return { success: false, message: "로그인 정보를 확인할 수 없습니다." };
+            }
+            const result = await setCompanyAutomationCompanyDisabled(db, {
+              clientId: userDoc.clientId,
+              workflowKey: selectedContract.workflowKey,
+              adminUid: user.uid,
+              disabled,
+              reason,
+            });
+            if (result.success) {
+              await loadData();
+            }
+            return result;
           }}
         />
       )}

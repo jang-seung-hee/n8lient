@@ -2,15 +2,19 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
-import { CompanyResultDetailModal } from "@/components/custom/CompanyResultDetailModal";
+import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
+import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
+import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
 import { SubmissionList } from "@/components/core/submission/SubmissionList";
 import { subscribeCompanySubmissions } from "@/features/submission/submissionQueryService";
 import { filterSubmissions } from "@/common/submission/submissionFilters";
 import type { Submission, SubmissionStatus } from "@/types/n8lient";
+
+const PAGE_SIZE = 20;
 
 export default function AdminResults() {
   const { userDoc } = useAuthUser();
@@ -23,6 +27,7 @@ export default function AdminResults() {
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   // 상세 모달 상태
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
@@ -75,11 +80,42 @@ export default function AdminResults() {
     setIsModalOpen(true);
   };
 
+  const activeSubmission = selectedSub
+    ? submissions.find((s) => s.submissionId === selectedSub.submissionId) || selectedSub
+    : null;
+
+  const actorDisplaySource = useSubmissionActorDisplaySource(activeSubmission);
+
   // 클라이언트 사이드 필터링 적용
   const filteredList = filterSubmissions(submissions, {
     searchQuery,
     status: filters.status as SubmissionStatus | "all",
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+
+  const pagedLogs = useMemo(
+    () =>
+      filteredList.slice(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE
+      ),
+    [filteredList, currentPage]
+  );
+
+  const actorLabelByUid = useSubmissionActorLabelMap(pagedLogs);
+
+  // 필터·검색 변경 시 1페이지로 초기화
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters.status]);
+
+  // 결과 건수 감소 시 현재 페이지 보정
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -118,20 +154,84 @@ export default function AdminResults() {
             실행 로그를 불러오는 중...
           </div>
         ) : (
-          <SubmissionList 
-            submissions={filteredList} 
-            onRowClick={handleRowClick} 
-            viewMode="company_admin" 
-          />
+          <>
+            <SubmissionList
+              submissions={pagedLogs}
+              onRowClick={handleRowClick}
+              viewMode="company_admin"
+              actorLabelByUid={actorLabelByUid}
+            />
+            {filteredList.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  borderTop: "1px solid #e5e7eb",
+                  backgroundColor: "#f9fafb",
+                  fontSize: "13px",
+                  color: "#374151",
+                }}
+              >
+                <span style={{ color: "#6b7280" }}>
+                  총 {filteredList.length}건 · {currentPage} / {totalPages} 페이지
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "6px",
+                      backgroundColor: currentPage <= 1 ? "#f3f4f6" : "#ffffff",
+                      color: currentPage <= 1 ? "#9ca3af" : "#374151",
+                      cursor: currentPage <= 1 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    이전
+                  </button>
+                  <span style={{ fontSize: "12px", color: "#6b7280", minWidth: "48px", textAlign: "center" }}>
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "6px",
+                      backgroundColor: currentPage >= totalPages ? "#f3f4f6" : "#ffffff",
+                      color: currentPage >= totalPages ? "#9ca3af" : "#374151",
+                      cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* 상세 모달 */}
-      <CompanyResultDetailModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        submission={selectedSub}
-      />
+      {isModalOpen && activeSubmission && (
+        <ExecutionResultDetailModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedSub(null);
+          }}
+          submission={activeSubmission}
+          viewerRole="companyAdmin"
+          actorDisplaySource={actorDisplaySource}
+        />
+      )}
     </div>
   );
 }

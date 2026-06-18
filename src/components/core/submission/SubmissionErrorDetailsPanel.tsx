@@ -11,10 +11,15 @@ import {
   getSanitizedDebugInfo,
   downloadExecutionSnapshotJson,
 } from "@/common/debug/sanitizeDebugInfo";
+import { formatResultDisplayValue } from "@/components/results/formatResultDisplayValue";
 
 interface SubmissionErrorDetailsPanelProps {
   submission: Submission;
   copyButtonLabel?: string;
+  /** 지정 시 failed 기본값 대신 사용 */
+  defaultExpanded?: boolean;
+  /** true면 외부 아코디언에 임베드 — 헤더 토글 없이 콘텐츠·버튼만 표시 */
+  embedded?: boolean;
 }
 
 function isFailedStatus(status: string): boolean {
@@ -24,11 +29,15 @@ function isFailedStatus(status: string): boolean {
 export function SubmissionErrorDetailsPanel({
   submission,
   copyButtonLabel = "📋 디버그 정보 복사",
+  defaultExpanded,
+  embedded = false,
 }: SubmissionErrorDetailsPanelProps) {
   const { errorDetails } = submission;
   const failed = isFailedStatus(submission.status);
 
-  const [expanded, setExpanded] = useState(failed);
+  const [expanded, setExpanded] = useState(
+    defaultExpanded !== undefined ? defaultExpanded : failed
+  );
 
   const handleCopy = () => {
     const debugInfo = getSanitizedDebugInfo(submission);
@@ -61,14 +70,16 @@ export function SubmissionErrorDetailsPanel({
     whiteSpace: "nowrap",
   };
 
+  const showContent = embedded || expanded;
+
   return (
     <div
       style={{
-        backgroundColor: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        padding: "10px",
-        borderRadius: "6px",
-        marginTop: "12px",
+        backgroundColor: embedded ? "transparent" : "#f8fafc",
+        border: embedded ? "none" : "1px solid #e2e8f0",
+        padding: embedded ? 0 : "10px",
+        borderRadius: embedded ? 0 : "6px",
+        marginTop: embedded ? 0 : "12px",
       }}
     >
       <div
@@ -80,29 +91,31 @@ export function SubmissionErrorDetailsPanel({
           flexWrap: "wrap",
         }}
       >
-        <button
-          type="button"
-          onClick={() => setExpanded((prev) => !prev)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            flex: 1,
-            minWidth: 0,
-            textAlign: "left",
-          }}
-        >
-          <span style={{ fontSize: "10px", color: "#64748b" }}>{expanded ? "▼" : "▶"}</span>
-          <h4 style={{ fontSize: "11.5px", fontWeight: 700, color: "#475569", margin: 0 }}>
-            🔍 상세 디버깅 정보
-          </h4>
-        </button>
+        {!embedded && (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              flex: 1,
+              minWidth: 0,
+              textAlign: "left",
+            }}
+          >
+            <span style={{ fontSize: "10px", color: "#64748b" }}>{expanded ? "▼" : "▶"}</span>
+            <h4 style={{ fontSize: "11.5px", fontWeight: 700, color: "#475569", margin: 0 }}>
+              🔍 상세 디버깅 정보
+            </h4>
+          </button>
+        )}
 
-        <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: "4px", flexShrink: 0, marginLeft: embedded ? 0 : undefined }}>
           <button type="button" onClick={handleCopy} style={buttonStyle}>
             {copyButtonLabel}
           </button>
@@ -112,41 +125,45 @@ export function SubmissionErrorDetailsPanel({
         </div>
       </div>
 
-      {expanded && (
+      {showContent && (
         <div style={{ marginTop: "8px", fontSize: "11px", color: "#475569" }}>
           {failed ? (
             errorDetails ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                 <div>
                   <span style={{ color: "#64748b", marginRight: "6px" }}>실패 단계:</span>
-                  <strong>{errorDetails.phase}</strong>
+                  <strong>{formatResultDisplayValue(errorDetails.phase)}</strong>
                 </div>
                 <div>
                   <span style={{ color: "#64748b", marginRight: "6px" }}>실패 위치:</span>
-                  <strong>{errorDetails.source}</strong>
+                  <strong>{formatResultDisplayValue(errorDetails.source)}</strong>
                 </div>
                 {errorDetails.httpStatus != null && (
                   <div>
                     <span style={{ color: "#64748b", marginRight: "6px" }}>HTTP 상태:</span>
-                    {errorDetails.httpStatus}
+                    {formatResultDisplayValue(errorDetails.httpStatus)}
                   </div>
                 )}
                 {errorDetails.gatewayTraceId && (
                   <div>
                     <span style={{ color: "#64748b", marginRight: "6px" }}>추적 ID:</span>
-                    <span style={{ fontFamily: "monospace" }}>{errorDetails.gatewayTraceId}</span>
+                    <span style={{ fontFamily: "monospace" }}>
+                      {formatResultDisplayValue(errorDetails.gatewayTraceId)}
+                    </span>
                   </div>
                 )}
                 {errorDetails.n8nExecutionId && (
                   <div>
                     <span style={{ color: "#64748b", marginRight: "6px" }}>n8n 실행 ID:</span>
-                    <span style={{ fontFamily: "monospace" }}>{errorDetails.n8nExecutionId}</span>
+                    <span style={{ fontFamily: "monospace" }}>
+                      {formatResultDisplayValue(errorDetails.n8nExecutionId)}
+                    </span>
                   </div>
                 )}
                 {errorDetails.n8nWebhookPath && (
                   <div>
                     <span style={{ color: "#64748b", marginRight: "6px" }}>Webhook Path:</span>
-                    {errorDetails.n8nWebhookPath}
+                    {formatResultDisplayValue(errorDetails.n8nWebhookPath)}
                   </div>
                 )}
                 <div
@@ -158,7 +175,8 @@ export function SubmissionErrorDetailsPanel({
                     borderLeft: "3px solid #cbd5e1",
                   }}
                 >
-                  <strong>💡 확인 힌트:</strong> {errorDetails.hint || "n8n 실행 로그를 확인해 주세요."}
+                  <strong>💡 확인 힌트:</strong>{" "}
+                  {formatResultDisplayValue(errorDetails.hint || "n8n 실행 로그를 확인해 주세요.")}
                 </div>
               </div>
             ) : (

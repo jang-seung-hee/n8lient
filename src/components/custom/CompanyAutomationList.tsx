@@ -118,7 +118,7 @@ export default function CompanyAutomationList({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 0.8fr 0.8fr",
+              gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr",
               padding: "10px 16px",
               backgroundColor: "#f9fafb",
               borderBottom: "1px solid #e5e7eb",
@@ -131,6 +131,7 @@ export default function CompanyAutomationList({
             <span>workflowKey</span>
             <span>설정 상태</span>
             <span>활성 여부</span>
+            <span>직원 사용</span>
             <span>설정 항목 수</span>
             <span style={{ textAlign: "right" }}>액션</span>
           </div>
@@ -146,7 +147,7 @@ export default function CompanyAutomationList({
                 key={contract.contractId}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 0.8fr 0.8fr",
+                  gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr",
                   padding: "12px 16px",
                   borderBottom: idx < filteredContracts.length - 1 ? "1px solid #f3f4f6" : "none",
                   fontSize: "13px",
@@ -184,6 +185,37 @@ export default function CompanyAutomationList({
                   >
                     {auto?.enabled ? "활성화" : "비활성화"}
                   </span>
+                </span>
+                <span>
+                  {!auto ? (
+                    <span style={{ fontSize: "11px", color: "#9ca3af" }}>-</span>
+                  ) : auto.companyDisabled === true ? (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        backgroundColor: "#fef3c7",
+                        color: "#92400e",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      사용 안함
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        backgroundColor: "#dbeafe",
+                        color: "#1e40af",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      사용함
+                    </span>
+                  )}
                 </span>
                 <span style={{ fontWeight: 500, color: "#4b5563", paddingLeft: "8px" }}>
                   {settingCount}개

@@ -12,8 +12,11 @@ import {
   onSnapshot,
   Firestore,
 } from "firebase/firestore";
-import type { ClientAutomation, Submission, UserAutomationSettings } from "@/types/n8lient";
+import type { ClientAutomation, ClientContract, Submission, UserAutomationSettings } from "@/types/n8lient";
 import { removeUndefinedFields as stripUndefinedDeep } from "@/common/firestore/removeUndefinedFields";
+import {
+  isAutomationVisibleToEmployee,
+} from "@/common/automation/isAutomationVisibleToEmployee";
 
 /**
  * Firestore setDoc/updateDoc 전송용 객체에서 undefined 값을 재귀적으로 제거합니다.
@@ -22,21 +25,43 @@ import { removeUndefinedFields as stripUndefinedDeep } from "@/common/firestore/
 export { stripUndefinedDeep };
 
 /**
- * 로그인한 사용자의 clientId 기준, 활성화되고 설정이 완료된 자동화(clientAutomations) 목록을 조회합니다.
+ * 로그인한 사용자의 clientId 기준, operator 계약·회사 설정을 모두 통과한 자동화 목록을 조회합니다.
  */
 export async function getActiveAutomations(
   db: Firestore,
   clientId: string
 ): Promise<ClientAutomation[]> {
   try {
-    const q = query(
+    const automationsQuery = query(
       collection(db, "clientAutomations"),
       where("clientId", "==", clientId),
       where("enabled", "==", true),
       where("configStatus", "==", "configured")
     );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as ClientAutomation);
+    const contractsQuery = query(
+      collection(db, "clientContracts"),
+      where("clientId", "==", clientId)
+    );
+
+    const [automationsSnap, contractsSnap] = await Promise.all([
+      getDocs(automationsQuery),
+      getDocs(contractsQuery),
+    ]);
+
+    const contractByWorkflowKey = new Map<string, ClientContract>();
+    contractsSnap.docs.forEach((d) => {
+      const contract = d.data() as ClientContract;
+      contractByWorkflowKey.set(contract.workflowKey, contract);
+    });
+
+    return automationsSnap.docs
+      .map((d) => d.data() as ClientAutomation)
+      .filter((automation) =>
+        isAutomationVisibleToEmployee(
+          automation,
+          contractByWorkflowKey.get(automation.workflowKey) ?? null
+        )
+      );
   } catch (error) {
     console.error("[userService] 활성 자동화 목록 조회 실패:", error);
     throw error;

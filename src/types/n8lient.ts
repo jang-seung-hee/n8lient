@@ -130,7 +130,8 @@ export type N8nErrorCode =
   | "REQUIRED_SETTING_MISSING"
   | "SECRET_NOT_FOUND"
   | "INVALID_INPUT_TYPE"
-  | "INVALID_FILE_TYPE";
+  | "INVALID_FILE_TYPE"
+  | "CLIENT_AUTOMATION_COMPANY_DISABLED";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Firestore 컬렉션 도큐먼트 인터페이스
@@ -334,6 +335,11 @@ export interface ClientAutomation {
   contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도 복사본
   /** 회사관리자가 등록한 워크플로우별 사용자 안내 공지 (UI 표시 전용) */
   noticeText?: string;
+  /** 회사관리자 전용 — 직원 실행·노출 차단 (operator 매핑/enabled와 독립) */
+  companyDisabled?: boolean;
+  companyDisabledAt?: string;
+  companyDisabledBy?: string;
+  companyDisableReason?: string;
   deploymentMode?: "test" | "production";
   templateStatusAtBinding?: "draft" | "published";
   createdBy: Uid;

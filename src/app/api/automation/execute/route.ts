@@ -133,6 +133,38 @@ export async function POST(req: NextRequest) {
     if (autoDoc.clientId !== clientId) {
       return NextResponse.json({ success: false, error: "접근 권한이 없는 자동화입니다." }, { status: 403 });
     }
+
+    const workflowKey: string = autoDoc.workflowKey;
+    const contractSnap = await db
+      .collection("clientContracts")
+      .doc(`${clientId}_${workflowKey}`)
+      .get();
+    const contractDoc = contractSnap.exists ? contractSnap.data() : null;
+    if (
+      !contractDoc ||
+      contractDoc.enabled !== true ||
+      contractDoc.contractStatus !== "active"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "CONTRACT_NOT_ACTIVE",
+          error: "현재 사용할 수 없는 워크플로우 계약입니다.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (autoDoc.companyDisabled === true) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "CLIENT_AUTOMATION_COMPANY_DISABLED",
+          error: "회사 관리자에 의해 사용이 중지된 워크플로우입니다.",
+        },
+        { status: 403 }
+      );
+    }
     if (!autoDoc.enabled) {
       return NextResponse.json({ success: false, error: "비활성화된 자동화입니다." }, { status: 400 });
     }
@@ -140,7 +172,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "설정이 완료되지 않은 자동화입니다." }, { status: 400 });
     }
 
-    const workflowKey: string = autoDoc.workflowKey;
     const companySettings: Record<string, any> = autoDoc.settings || {};
 
     // ── 4.5. userAutomationSettings/{uid}_{automationId} 조회 및 병합 ──────

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
 import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
@@ -10,6 +11,10 @@ interface CompanyAutomationDetailProps {
   template: WorkflowTemplate | null;
   onBack: () => void;
   onEdit: () => void;
+  onToggleEmployeeAccess: (
+    disabled: boolean,
+    reason?: string
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
 export default function CompanyAutomationDetail({
@@ -18,7 +23,12 @@ export default function CompanyAutomationDetail({
   template,
   onBack,
   onEdit,
+  onToggleEmployeeAccess,
 }: CompanyAutomationDetailProps) {
+  const [toggleLoading, setToggleLoading] = useState(false);
+  const [disableReason, setDisableReason] = useState("");
+  const [toggleError, setToggleError] = useState<string | null>(null);
+
   const isSecurityKey = (key: string) => {
     const lowercaseKey = key.toLowerCase();
     const forbiddenKeywords = ["token", "secret", "apikey", "credential", "accesstoken", "refreshtoken"];
@@ -31,6 +41,31 @@ export default function CompanyAutomationDetail({
     automation,
     workflowKey: contract.workflowKey,
   });
+
+  const isEmployeeDisabled = automation?.companyDisabled === true;
+
+  const handleToggleEmployeeAccess = async () => {
+    if (!automation) return;
+
+    setToggleLoading(true);
+    setToggleError(null);
+
+    const nextDisabled = !isEmployeeDisabled;
+    const result = await onToggleEmployeeAccess(
+      nextDisabled,
+      nextDisabled ? disableReason : undefined
+    );
+
+    if (result.success) {
+      if (!nextDisabled) {
+        setDisableReason("");
+      }
+    } else {
+      setToggleError(result.message || "설정 변경에 실패했습니다.");
+    }
+
+    setToggleLoading(false);
+  };
 
   return (
     <div
@@ -108,12 +143,99 @@ export default function CompanyAutomationDetail({
           </p>
         </div>
         <div>
+          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>직원 사용</span>
+          <p style={{ fontSize: "14px", fontWeight: 600, margin: "4px 0 0 0" }}>
+            {!automation ? (
+              <span style={{ color: "#9ca3af" }}>-</span>
+            ) : isEmployeeDisabled ? (
+              <span style={{ color: "#92400e" }}>🚫 사용 안함 (직원에게 숨김)</span>
+            ) : (
+              <span style={{ color: "#1e40af" }}>✅ 사용함</span>
+            )}
+          </p>
+        </div>
+        <div>
           <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>최종 수정 일시</span>
           <p style={{ fontSize: "14px", fontWeight: 500, color: "#111111", margin: "4px 0 0 0" }}>
             {automation?.updatedAt ? new Date(automation.updatedAt).toLocaleString() : "-"}
           </p>
         </div>
       </div>
+
+      {automation && (
+        <div
+          style={{
+            backgroundColor: isEmployeeDisabled ? "#fffbeb" : "#f0fdf4",
+            border: `1px solid ${isEmployeeDisabled ? "#fcd34d" : "#bbf7d0"}`,
+            borderRadius: "8px",
+            padding: "16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <div>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "#374151" }}>
+              👥 직원에게 사용함 / 사용 안함
+            </span>
+            <p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0 0 0", lineHeight: 1.5 }}>
+              오퍼레이터 매핑·활성 상태와 별도로, 회사 직원의 실행·목록 노출만 제어합니다. 기존 실행 기록은 유지됩니다.
+            </p>
+          </div>
+
+          {isEmployeeDisabled && automation.companyDisableReason && (
+            <p style={{ fontSize: "12px", color: "#92400e", margin: 0 }}>
+              사유: {automation.companyDisableReason}
+            </p>
+          )}
+
+          {!isEmployeeDisabled && (
+            <input
+              type="text"
+              value={disableReason}
+              onChange={(e) => setDisableReason(e.target.value)}
+              placeholder="사용 안함 사유 (선택)"
+              style={{
+                height: "32px",
+                borderRadius: "6px",
+                border: "1px solid #d1d5db",
+                padding: "0 10px",
+                fontSize: "12px",
+                maxWidth: "400px",
+              }}
+            />
+          )}
+
+          {toggleError && (
+            <p style={{ fontSize: "12px", color: "#b91c1c", margin: 0 }}>{toggleError}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleToggleEmployeeAccess}
+            disabled={toggleLoading}
+            style={{
+              alignSelf: "flex-start",
+              height: "34px",
+              padding: "0 14px",
+              backgroundColor: isEmployeeDisabled ? "#059669" : "#d97706",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: toggleLoading ? "not-allowed" : "pointer",
+              opacity: toggleLoading ? 0.7 : 1,
+            }}
+          >
+            {toggleLoading
+              ? "처리 중..."
+              : isEmployeeDisabled
+                ? "✅ 직원에게 다시 사용함"
+                : "🚫 직원에게 사용 안함"}
+          </button>
+        </div>
+      )}
 
       {noticeText && <AutomationNoticeBox noticeText={noticeText} />}
 
@@ -157,7 +279,6 @@ export default function CompanyAutomationDetail({
               gap: "12px",
             }}
           >
-            {/* 1. 템플릿의 configSchema 배열 순서대로 매핑하여 렌더링 */}
             {template?.configSchema && template.configSchema.length > 0 && (
               <div
                 style={{
@@ -198,7 +319,6 @@ export default function CompanyAutomationDetail({
               </div>
             )}
 
-            {/* 2. settings에는 존재하지만 template.configSchema에 없는 legacy/unknown key 표시 */}
             {(() => {
               const schemaKeys = new Set(template?.configSchema?.map((f) => f.key) || []);
               const extraSettings = Object.entries(automation.settings).filter(

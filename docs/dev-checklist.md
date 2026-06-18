@@ -1,5 +1,30 @@
 # 개발 작업 체크리스트
 
+## 2026-06-18: 운영 디버그 섹션 병합 및 전체 디버그 복사
+- [x] [12] debugInfo + [13] snapshots + [14] rawJson(operator) UI 병합 → `OpsDebugInfoSection`
+- [x] `buildDebugClipboardText.ts` — `---` 구분자 전체 디버그 복사
+- [x] visibility: snapshots/rawJson 별도 섹션 hidden, debugInfo만 표시
+- [x] `npx tsc --noEmit`, `npm run build` 통과
+
+---
+- [x] `/company-admin/results` → `ExecutionResultDetailModal` + `viewerRole="companyAdmin"`
+- [x] `/operator/logs` → `ExecutionResultDetailModal` + `viewerRole="operator"`
+- [x] `CompanyResultDetailModal` thin wrapper + deprecated 주석
+- [x] `useSubmissionActorDisplaySource` 훅으로 실행자 표시 (페이지 레벨 users 조회)
+- [x] 공통 Modal 다운로드 기본 동작 companyAdmin/operator 포함
+- [x] `npx tsc --noEmit`, `npm run build` 통과
+
+---
+- [x] `src/components/results/` 공통 컴포넌트 5종 생성 (Panel, Modal, Accordion, types, visibility)
+- [x] `RESULT_DETAIL_VISIBILITY` 3 role 전체 정책 구현
+- [x] `/user/results` → `ExecutionResultDetailModal` + `viewerRole="user"` 연결
+- [x] `SubmissionDetailModal` thin wrapper 유지
+- [x] `SubmissionErrorDetailsPanel` embedded/defaultExpanded prop 추가
+- [x] company-admin/operator 페이지 연결은 2차 별도 승인 대기
+- [x] `npx tsc --noEmit`, `npm run build` 통과
+
+---
+
 ## 2026-06-16: 회사 초대링크 간소화 (복사 + /join + 성명)
 - [x] AdminSidebar 하단 「초대링크」버튼 — `{NEXT_PUBLIC_BASE_URL}/join?companyCode=...` 클립보드 복사
 - [x] `/join` 페이지 — query companyCode 자동 입력, invite_link / manual_code source

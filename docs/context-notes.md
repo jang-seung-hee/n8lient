@@ -1,5 +1,27 @@
 # 개발 컨텍스트 및 의사결정 기록
 
+## 2026-06-18: 실행 결과 상세 섹션 SSOT (1차)
+
+### 1. 구조
+* 실행 결과 상세 UI는 `src/components/results/ExecutionResultDetailPanel` + `ExecutionResultDetailModal`로 중앙화.
+* 역할별 차이는 `resultDetailVisibility.ts`의 `visible` / `defaultOpen`만 사용 (summary/restricted/full 금지).
+* 14섹션 표준 순서는 `resultDetailTypes.ts`의 `RESULT_SECTION_ORDER`가 SSOT.
+
+### 2. 1차 범위
+* `/user/results`만 실제 연결 (`viewerRole="user"`).
+* companyAdmin/operator visibility map·Panel·Modal props는 준비 완료, 페이지 wiring은 2차 승인 후.
+
+### 4. 2차 범위 (완료)
+* `/company-admin/results`, `/operator/logs` 공통 Modal 연결.
+* 실행자 표시: `useSubmissionActorDisplaySource` (페이지에서 users 조회, 공통 컴포넌트 Firestore 조회 없음).
+
+---
+* [07] 리포트 본문, [08] 구조화 데이터: 기본 닫힘.
+* [12][13][14]: hidden (기존 user 화면의 디버깅 패널 노출 제거).
+* [03] 입력 정보, [10] Optional Export: 신규 섹션 추가.
+
+---
+
 ## 2026-06-16: Draft 삭제 실패 원인 및 pre-flight 정렬
 
 ### 1. 원인

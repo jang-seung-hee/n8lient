@@ -7,15 +7,25 @@
 import React from "react";
 import type { Submission } from "@/types/n8lient";
 import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
+import {
+  formatUserListActorLabel,
+  resolveSubmissionActorDisplaySource,
+} from "@/common/user/formatUserDisplayName";
+import {
+  formatCompactDateTime,
+  resolveSubmissionExecutionDateTime,
+} from "@/common/date/formatCompactDateTime";
 import { SubmissionStatusBadge } from "./SubmissionStatusBadge";
 
 interface SubmissionListProps {
   submissions: Submission[];
   onRowClick: (submission: Submission) => void;
   viewMode: "user" | "company_admin" | "operator";
+  /** operator·company_admin 목록: uid → 이름 / 구글이메일 라벨 (users 조회 결과) */
+  actorLabelByUid?: Record<string, string>;
 }
 
-export function SubmissionList({ submissions, onRowClick, viewMode }: SubmissionListProps) {
+export function SubmissionList({ submissions, onRowClick, viewMode, actorLabelByUid }: SubmissionListProps) {
   if (submissions.length === 0) {
     return (
       <div style={{ padding: "32px 16px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
@@ -61,8 +71,8 @@ export function SubmissionList({ submissions, onRowClick, viewMode }: Submission
                   {getSubmissionDisplayTitle(sub)}
                 </span>
               </div>
-              <span style={{ fontSize: "11px", color: "#9ca3af", flexShrink: 0, marginLeft: "8px" }}>
-                {new Date(sub.createdAt).toLocaleDateString()}
+              <span style={{ fontSize: "11px", color: "#9ca3af", flexShrink: 0, marginLeft: "8px", whiteSpace: "nowrap" }}>
+                {formatCompactDateTime(resolveSubmissionExecutionDateTime(sub))}
               </span>
             </div>
             <div style={{ display: "flex", width: "100%", justifyContent: "space-between", fontSize: "11px", color: "#6b7280", paddingLeft: "4px" }}>
@@ -76,55 +86,87 @@ export function SubmissionList({ submissions, onRowClick, viewMode }: Submission
   }
 
   // 2. 관리자/운영자 뷰 (테이블형)
+  const operatorGridColumns = "1.2fr 0.75fr 1fr 1.5fr 2fr 0.8fr";
+  const adminGridColumns = "1.2fr 0.75fr 1.5fr 2fr 0.8fr";
+  const usesActorLabel = viewMode === "operator" || viewMode === "company_admin";
+  const gridColumns = viewMode === "operator" ? operatorGridColumns : adminGridColumns;
+  const tableMinWidth = viewMode === "operator" ? "820px" : "760px";
+
   return (
     <div style={{ overflowX: "auto" }}>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: viewMode === "operator" ? "1.2fr 1fr 1.5fr 2fr 0.8fr" : "1.2fr 1.5fr 2fr 0.8fr",
+          gridTemplateColumns: gridColumns,
           padding: "10px 16px",
           backgroundColor: "#f9fafb",
           borderBottom: "1px solid #e5e7eb",
           fontSize: "12px",
           fontWeight: 600,
           color: "#374151",
-          minWidth: "700px",
+          minWidth: tableMinWidth,
         }}
       >
         <span>실행 ID</span>
+        {usesActorLabel && <span>실행일시</span>}
         {viewMode === "operator" && <span>고객사 ID</span>}
-        <span>요청자 UID/이메일</span>
+        <span>{usesActorLabel ? "이름 / 구글이메일" : "요청자 UID/이메일"}</span>
         <span>실행명 (워크플로우)</span>
         <span style={{ textAlign: "right" }}>상태</span>
       </div>
-      {submissions.map((sub) => (
+      {submissions.map((sub) => {
+        const actorLabel =
+          usesActorLabel && actorLabelByUid?.[sub.uid]
+            ? actorLabelByUid[sub.uid]
+            : usesActorLabel
+              ? formatUserListActorLabel(resolveSubmissionActorDisplaySource(sub))
+              : sub.uid;
+
+        return (
         <div
           key={sub.submissionId}
           onClick={() => onRowClick(sub)}
           style={{
             display: "grid",
-            gridTemplateColumns: viewMode === "operator" ? "1.2fr 1fr 1.5fr 2fr 0.8fr" : "1.2fr 1.5fr 2fr 0.8fr",
+            gridTemplateColumns: gridColumns,
             padding: "12px 16px",
             borderBottom: "1px solid #f3f4f6",
             fontSize: "13px",
             color: "#111111",
             cursor: "pointer",
             alignItems: "center",
-            minWidth: "700px",
+            minWidth: tableMinWidth,
             transition: "background-color 0.15s ease",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f9fafb"; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
         >
           <span style={{ fontSize: "11px", fontFamily: "monospace", color: "#64748b" }}>{sub.submissionId}</span>
+          {usesActorLabel && (
+            <span style={{ whiteSpace: "nowrap", fontSize: "11px", color: "#64748b" }}>
+              {formatCompactDateTime(resolveSubmissionExecutionDateTime(sub))}
+            </span>
+          )}
           {viewMode === "operator" && <span style={{ fontSize: "11px", color: "#64748b" }}>{sub.clientId}</span>}
-          <span style={{ fontSize: "12px", color: "#374151", overflow: "hidden", textOverflow: "ellipsis" }}>{sub.uid}</span>
+          <span
+            style={{
+              maxWidth: usesActorLabel ? "180px" : undefined,
+              fontSize: "12px",
+              color: "#374151",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {actorLabel}
+          </span>
           <span style={{ fontWeight: 500 }}>{getSubmissionDisplayTitle(sub)} <small style={{ fontWeight: 400, color: "#94a3b8" }}>({sub.workflowKey})</small></span>
           <div style={{ textAlign: "right" }}>
             <SubmissionStatusBadge status={sub.status} />
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

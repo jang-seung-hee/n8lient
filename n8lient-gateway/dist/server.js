@@ -18,6 +18,7 @@ const storage_1 = require("./lib/storage");
 const validateExecution_1 = require("./shared/validateExecution");
 const buildTitleContract_1 = require("./shared/buildTitleContract");
 const resolveRetentionPolicy_1 = require("./shared/resolveRetentionPolicy");
+const isClientContractActiveForEmployee_1 = require("./shared/isClientContractActiveForEmployee");
 // .env 파일 로드 (로컬 개발용)
 dotenv_1.default.config();
 /**
@@ -186,13 +187,32 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
         if (autoDoc.clientId !== clientId) {
             return res.status(403).json({ success: false, error: "접근 권한이 없는 자동화 설정입니다." });
         }
+        const workflowKey = autoDoc.workflowKey;
+        const contractSnap = await db
+            .collection("clientContracts")
+            .doc((0, isClientContractActiveForEmployee_1.buildClientContractId)(clientId, workflowKey))
+            .get();
+        const contractDoc = contractSnap.exists ? contractSnap.data() : null;
+        if (!(0, isClientContractActiveForEmployee_1.isClientContractActiveForEmployee)(contractDoc)) {
+            return res.status(403).json({
+                success: false,
+                code: "CONTRACT_NOT_ACTIVE",
+                error: "현재 사용할 수 없는 워크플로우 계약입니다.",
+            });
+        }
+        if (autoDoc.companyDisabled === true) {
+            return res.status(403).json({
+                success: false,
+                code: "CLIENT_AUTOMATION_COMPANY_DISABLED",
+                error: "회사 관리자에 의해 사용이 중지된 워크플로우입니다.",
+            });
+        }
         if (!autoDoc.enabled) {
             return res.status(400).json({ success: false, error: "비활성화 상태의 자동화입니다." });
         }
         if (autoDoc.configStatus !== "configured") {
             return res.status(400).json({ success: false, error: "설정이 미완료된 자동화입니다." });
         }
-        const workflowKey = autoDoc.workflowKey;
         const companySettings = autoDoc.settings || {};
         // 3. userAutomationSettings 개인 설정 조회 및 병합
         const finalSettings = { ...companySettings };
