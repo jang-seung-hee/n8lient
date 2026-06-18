@@ -373,31 +373,65 @@ export default function UserExecute() {
                 />
               )}
             </div>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <select
-                value={selectedAutoId}
-                onChange={(e) => {
-                  setSelectedAutoId(e.target.value);
-                  setSuccess(false);
-                  setError(null);
-                }}
-                style={{ flex: 1, height: "38px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "0 8px", fontSize: "14px", backgroundColor: "#ffffff", color: "#111111", outline: "none" }}
-              >
-                {automations.map((a) => (
-                  <option key={a.automationId} value={a.automationId}>
-                    {resolveWorkflowDisplayName({
-                      template: templates[a.workflowKey],
-                      automation: a,
-                      workflowKey: a.workflowKey,
-                    })} ({a.workflowKey})
-                  </option>
-                ))}
-              </select>
+            <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
+                <select
+                  value={selectedAutoId}
+                  onChange={(e) => {
+                    setSelectedAutoId(e.target.value);
+                    setSuccess(false);
+                    setError(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    height: "38px",
+                    borderRadius: "6px",
+                    border: "1px solid #e5e7eb",
+                    padding: "0 8px",
+                    fontSize: "14px",
+                    backgroundColor: "#ffffff",
+                    color: "#111111",
+                    outline: "none",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {automations.map((a) => (
+                    <option key={a.automationId} value={a.automationId}>
+                      {resolveWorkflowDisplayName({
+                        template: templates[a.workflowKey],
+                        automation: a,
+                        workflowKey: a.workflowKey,
+                      })}
+                    </option>
+                  ))}
+                </select>
+                {currentAuto && (
+                  <p
+                    style={{
+                      fontSize: "11px",
+                      color: "#6b7280",
+                      margin: "4px 0 0 0",
+                      lineHeight: 1.4,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={currentAuto.workflowKey}
+                  >
+                    Key: {currentAuto.workflowKey}
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleOpenSettingsModal}
                 disabled={!selectedAutoId}
                 style={{
+                  flexShrink: 0,
                   height: "38px",
                   padding: "0 12px",
                   fontSize: "13px",
