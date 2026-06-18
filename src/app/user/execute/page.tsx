@@ -13,10 +13,12 @@ import { siteConfig } from "@/config/siteConfig";
 import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsModal";
 import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
 import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
+import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 import { useSearchParams } from "next/navigation";
 import { validateExecution } from "@/common/validation/validateExecution";
 import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
+import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettings";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -173,7 +175,10 @@ export default function UserExecute() {
     });
 
     const resolvedInputType = inputType || "text";
-    const currentSettings = userSettings?.settings || currentAuto.settings || {};
+    const currentSettings = mergeAutomationSettings(
+      currentAuto.settings || {},
+      userSettings?.settings
+    );
 
     const validationResult = validateExecution({
       automationId: currentAuto.automationId,
@@ -195,7 +200,9 @@ export default function UserExecute() {
     console.warn("[N8Lient execute validation]", {
       isValid: validationResult.isValid,
       missingFields: validationResult.missingFields,
-      received: validationResult.received
+      issues: validationResult.issues,
+      received: validationResult.received,
+      settingsKeysUsed: Object.keys(currentSettings),
     });
     setValidationDebug(validationResult);
 
@@ -413,6 +420,10 @@ export default function UserExecute() {
             </p>
           </div>
 
+          {currentAuto?.noticeText?.trim() && (
+            <AutomationNoticeBox noticeText={currentAuto.noticeText} />
+          )}
+
           {currentTemplate?.description && (
             <p style={{ fontSize: "12px", color: "#6b7280", margin: "0 0 4px 0", lineHeight: 1.4 }}>
               💡 {currentTemplate.description}
@@ -501,6 +512,16 @@ export default function UserExecute() {
             <summary style={{ cursor: "pointer", fontWeight: 600, outline: "none" }}>🔍 개발자 디버그 정보 (클릭하여 열기)</summary>
             <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px", fontFamily: "monospace" }}>
               <div>누락 필드: {validationDebug.missingFields?.join(", ") || "(없음)"}</div>
+              {validationDebug.issues?.length > 0 && (
+                <div style={{ marginTop: "4px" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "2px" }}>검증 이슈:</div>
+                  {validationDebug.issues.map((issue: { field: string; code: string; message: string }, idx: number) => (
+                    <div key={idx} style={{ marginLeft: "8px" }}>
+                      [{issue.code}] {issue.field}: {issue.message}
+                    </div>
+                  ))}
+                </div>
+              )}
               {validationDebug.received ? (
                 <>
                   <div>자동화 ID 존재 여부: {String(validationDebug.received.hasAutomationId ?? "")}</div>

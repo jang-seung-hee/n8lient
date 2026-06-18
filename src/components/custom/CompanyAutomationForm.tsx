@@ -46,6 +46,7 @@ export default function CompanyAutomationForm({
   };
   const [formName, setFormName] = useState("");
   const [formEnabled, setFormEnabled] = useState(true);
+  const [formNoticeText, setFormNoticeText] = useState("");
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
   
   // [v2.6] 회사 보관 정책 관련 상태 선언
@@ -69,6 +70,7 @@ export default function CompanyAutomationForm({
   useEffect(() => {
     setFormName(automation?.automationName || template.shortName || template.name);
     setFormEnabled(automation ? automation.enabled : true);
+    setFormNoticeText(automation?.noticeText ?? "");
 
     // [v2.7] 회사 보관 정책 초기화
     const opPolicy = template.operatorRetentionPolicy || {
@@ -191,16 +193,15 @@ export default function CompanyAutomationForm({
         settings: settingsToSave,
         adminUid: uid,
         template,
-        retentionPolicy: getDefaultRetentionPolicy(finalRecommendedLevel), // 하위 호환
-        retentionPolicySnapshot: getDefaultRetentionPolicy(finalRecommendedLevel), // 하위 호환
-        contractRetentionLimit, // [v2.7] 계약 한도 저장
+        retentionPolicy: getDefaultRetentionPolicy(finalRecommendedLevel),
+        noticeText: formNoticeText,
+        contractRetentionLimit,
         companyRetentionPolicy: {
           recommendedLevel: finalRecommendedLevel,
-          defaultLevel: finalRecommendedLevel, // 하위 호환 필드
           allowedUserLevels: coAllowedUserLevels,
           allowUserOverride: finalAllowUserOverride,
         },
-      } as any);
+      });
 
       if (res.success) {
         playAppSound("success");
@@ -244,6 +245,35 @@ export default function CompanyAutomationForm({
             required
             style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111", boxSizing: "border-box" }}
           />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>공지사항</label>
+          <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
+            사용자가 이 워크플로우를 실행하기 전에 확인할 안내 문구입니다. 비워두면 사용자 화면에 표시되지 않습니다.
+          </span>
+          <textarea
+            value={formNoticeText}
+            onChange={(e) => setFormNoticeText(e.target.value)}
+            rows={4}
+            maxLength={2000}
+            placeholder="예: 음성 파일은 20MB 이하로 업로드해 주세요. 결과는 이메일과 실행 결과 화면에서 확인할 수 있습니다."
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "8px",
+              fontSize: "13px",
+              outline: "none",
+              color: "#111111",
+              resize: "vertical",
+              minHeight: "88px",
+              fontFamily: "inherit",
+              lineHeight: 1.5,
+            }}
+          />
+          <span style={{ fontSize: "11px", color: "#9ca3af", textAlign: "right" }}>
+            {formNoticeText.length}/2000
+          </span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "4px 0" }}>

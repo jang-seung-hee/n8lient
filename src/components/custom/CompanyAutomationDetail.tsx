@@ -1,6 +1,7 @@
 "use client";
 
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
+import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 
 interface CompanyAutomationDetailProps {
   contract: ClientContract;
@@ -22,6 +23,8 @@ export default function CompanyAutomationDetail({
     const forbiddenKeywords = ["token", "secret", "apikey", "credential", "accesstoken", "refreshtoken"];
     return forbiddenKeywords.some((keyword) => lowercaseKey.includes(keyword));
   };
+
+  const noticeText = automation?.noticeText?.trim() ?? "";
 
   return (
     <div
@@ -105,6 +108,8 @@ export default function CompanyAutomationDetail({
           </p>
         </div>
       </div>
+
+      {noticeText && <AutomationNoticeBox noticeText={noticeText} />}
 
       {template?.description && (
         <div style={{ backgroundColor: "#f9fafb", borderRadius: "6px", padding: "12px", border: "1px solid #f3f4f6" }}>

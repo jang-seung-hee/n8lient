@@ -332,6 +332,8 @@ export interface ClientAutomation {
   retentionPolicy?: RetentionPolicy; // [v2.5] 보관 정책 하위 호환
   companyRetentionPolicy?: CompanyRetentionPolicy; // [v2.6] 회사 보관 정책
   contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도 복사본
+  /** 회사관리자가 등록한 워크플로우별 사용자 안내 공지 (UI 표시 전용) */
+  noticeText?: string;
   deploymentMode?: "test" | "production";
   templateStatusAtBinding?: "draft" | "published";
   createdBy: Uid;

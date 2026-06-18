@@ -12,7 +12,17 @@ import {
   Firestore,
   limit,
 } from "firebase/firestore";
-import type { CompanyJoinRequest, UserDoc, ClientContract, ClientAutomation, WorkflowTemplate, ClientDoc } from "@/types/n8lient";
+import type {
+  CompanyJoinRequest,
+  UserDoc,
+  ClientContract,
+  ClientAutomation,
+  WorkflowTemplate,
+  ClientDoc,
+  CompanyRetentionPolicy,
+  ContractRetentionLimit,
+} from "@/types/n8lient";
+import { removeUndefinedFields } from "@/common/firestore/removeUndefinedFields";
 
 /**
  * 회사 ID(clientId) 기준 승인 대기(pending) 상태의 가입 요청 목록을 조회합니다.
@@ -206,10 +216,25 @@ export async function saveClientAutomation(
     settings: Record<string, string | number | boolean>;
     adminUid: string;
     template: WorkflowTemplate;
-    retentionPolicy?: any; // [v2.5]
+    retentionPolicy?: ClientAutomation["retentionPolicy"];
+    noticeText?: string;
+    companyRetentionPolicy?: CompanyRetentionPolicy;
+    contractRetentionLimit?: ContractRetentionLimit;
   }): Promise<{ success: boolean; message?: string }> {
   try {
-    const { clientId, workflowKey, automationName, enabled, settings, adminUid, template, retentionPolicy } = params;
+    const {
+      clientId,
+      workflowKey,
+      automationName,
+      enabled,
+      settings,
+      adminUid,
+      template,
+      retentionPolicy,
+      noticeText,
+      companyRetentionPolicy,
+      contractRetentionLimit,
+    } = params;
 
     // 1. 런타임 필수 설정 키 검증 (configSchema.key 기준)
     for (const field of template.configSchema) {
@@ -238,6 +263,10 @@ export async function saveClientAutomation(
     // 3. automationId 생성 포맷: {clientId}_{workflowKey}
     const automationId = `${clientId}_${workflowKey}`;
     const docRef = doc(db, "clientAutomations", automationId);
+    const existingSnap = await getDoc(docRef);
+    const existing = existingSnap.exists() ? (existingSnap.data() as ClientAutomation) : null;
+    const trimmedNotice = noticeText?.trim() ?? "";
+    const allowedUserIds = Array.isArray(existing?.allowedUserIds) ? existing.allowedUserIds : [];
 
     const clientAutomation: ClientAutomation = {
       automationId,
@@ -245,18 +274,28 @@ export async function saveClientAutomation(
       workflowKey,
       automationName,
       enabled,
-      configStatus: "configured", // 설정 완료 상태
+      configStatus: "configured",
       configSchemaVersion: template.configSchemaVersion || 1,
       settings,
-      retentionPolicy: retentionPolicy || null,
+      allowedUserIds,
       deploymentMode: template.status === "draft" ? "test" : "production",
       templateStatusAtBinding: template.status === "draft" ? "draft" : "published",
-      createdBy: adminUid,
-      createdAt: new Date().toISOString(),
+      createdBy: existing?.createdBy ?? adminUid,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      ...(retentionPolicy ?? existing?.retentionPolicy
+        ? { retentionPolicy: retentionPolicy ?? existing?.retentionPolicy }
+        : {}),
+      ...(companyRetentionPolicy ?? existing?.companyRetentionPolicy
+        ? { companyRetentionPolicy: companyRetentionPolicy ?? existing?.companyRetentionPolicy }
+        : {}),
+      ...(contractRetentionLimit ?? existing?.contractRetentionLimit
+        ? { contractRetentionLimit: contractRetentionLimit ?? existing?.contractRetentionLimit }
+        : {}),
+      ...(trimmedNotice ? { noticeText: trimmedNotice } : {}),
     };
 
-    await setDoc(docRef, clientAutomation);
+    await setDoc(docRef, removeUndefinedFields(clientAutomation));
     return { success: true };
   } catch (error: any) {
     console.error("[companyAdminService] 자동화 설정 저장 실패:", error);

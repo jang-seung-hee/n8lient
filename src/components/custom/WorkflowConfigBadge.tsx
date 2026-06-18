@@ -5,6 +5,7 @@
 
 import React from "react";
 import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from "@/types/n8lient";
+import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettings";
 
 interface WorkflowConfigBadgeProps {
   automation: ClientAutomation | null;
@@ -24,27 +25,10 @@ export default function WorkflowConfigBadge({
   };
 
   // 1. 회사 설정 위에 개인 설정을 우선 덮어쓰기하여 임시 병합 설정 객체 반환
-  const getMergedSettings = (): Record<string, any> => {
-    const companySettings = automation?.settings || {};
-    const merged = { ...companySettings };
-
-    if (userSettings && userSettings.settings) {
-      for (const [key, val] of Object.entries(userSettings.settings)) {
-        // 빈 문자열, 공백 문자열, null, undefined는 무시하여 회사 기본값이 fallback되게 함
-        const isInvalid =
-          val === null ||
-          val === undefined ||
-          (typeof val === "string" && val.trim() === "");
-
-        if (!isInvalid) {
-          merged[key] = val;
-        }
-      }
-    }
-    return merged;
-  };
-
-  const mergedSettings = getMergedSettings();
+  const mergedSettings = mergeAutomationSettings(
+    automation?.settings || {},
+    userSettings?.settings
+  );
 
   // 2. 최종 병합된 설정을 기준으로 필수 설정 누락 여부 판단
   const isRequiredSettingMissing = () => {

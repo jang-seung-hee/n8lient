@@ -1,0 +1,45 @@
+redirectsOrigin = "config"
+headers = []
+
+[functions]
+
+[functions."*"]
+
+[[plugins]]
+origin = "default"
+package = "@netlify/plugin-nextjs"
+pinned_version = "5"
+
+[plugins.inputs]
+
+[build]
+publish = "E:\\05.Python_Project\\34.n8n-project\\클라이언트 프로그램\\frontend\\build"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npm run build"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
