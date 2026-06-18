@@ -7,7 +7,6 @@ import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { getActiveAutomations, getUserAutomationSettings } from "@/features/user/userService";
-import { doc, getDoc } from "firebase/firestore";
 import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
 import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsModal";
@@ -19,6 +18,8 @@ import { useSearchParams } from "next/navigation";
 import { validateExecution } from "@/common/validation/validateExecution";
 import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettings";
+import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -86,16 +87,10 @@ export default function UserExecute() {
         setSelectedAutoId("");
       }
 
-      const tempMap: Record<string, WorkflowTemplate> = {};
-      for (const auto of activeAutos) {
-        if (!tempMap[auto.workflowKey]) {
-          const tempRef = doc(db, "workflowTemplates", auto.workflowKey);
-          const tempSnap = await getDoc(tempRef);
-          if (tempSnap.exists()) {
-            tempMap[auto.workflowKey] = tempSnap.data() as WorkflowTemplate;
-          }
-        }
-      }
+      const tempMap = await fetchWorkflowTemplatesByKeys(
+        db,
+        activeAutos.map((auto) => auto.workflowKey)
+      );
       setTemplates(tempMap);
     } catch (err: any) {
       console.error(err);
@@ -171,7 +166,11 @@ export default function UserExecute() {
 
     const titleContract = buildExecutionTitleContract({
       inputTitle: title,
-      workflowName: currentTemplate?.name || currentAuto.workflowKey,
+      workflowName: resolveWorkflowDisplayName({
+        template: currentTemplate,
+        automation: currentAuto ?? null,
+        workflowKey: currentAuto?.workflowKey,
+      }) || currentAuto?.workflowKey || "",
     });
 
     const resolvedInputType = inputType || "text";
@@ -386,7 +385,11 @@ export default function UserExecute() {
               >
                 {automations.map((a) => (
                   <option key={a.automationId} value={a.automationId}>
-                    {a.automationName} ({a.workflowKey})
+                    {resolveWorkflowDisplayName({
+                      template: templates[a.workflowKey],
+                      automation: a,
+                      workflowKey: a.workflowKey,
+                    })} ({a.workflowKey})
                   </option>
                 ))}
               </select>

@@ -6,6 +6,7 @@ import { getUserAutomationSettings, saveUserAutomationSettings } from "@/feature
 import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings, UserRetentionPreference } from "@/types/n8lient";
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
 import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 interface UserPersonalSettingsModalProps {
   isOpen: boolean;
@@ -166,7 +167,11 @@ export default function UserPersonalSettingsModal({
           }}
         >
           <h3 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", margin: 0 }}>
-            🛠️ {currentAuto.automationName} 개인 설정
+            🛠️ {resolveWorkflowDisplayName({
+              template: currentTemplate,
+              automation: currentAuto,
+              workflowKey: currentAuto.workflowKey,
+            })} 개인 설정
           </h3>
           <button
             type="button"

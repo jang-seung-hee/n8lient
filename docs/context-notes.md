@@ -203,3 +203,9 @@
   - `WorkflowInputPanel.tsx`에서 확장자 검증과 MIME 검증을 물리적으로 분리했습니다.
   - 파일 확장자 추출 및 정규화(소문자화 및 온점 제거) 헬퍼를 추가하여 확장자 일치 여부를 1순위로 비교하고, 브라우저 환경에 구애받지 않도록 `mp3`, `webm`, `m4a`, `wav` 각 미디어 타입에 대응하는 유효 MIME 후보군 배열을 정의하여 매핑 검사를 2순위로 병행 지원함으로써, 둘 중 하나라도 검증을 통과하면 최종 업로드를 승인하는 유연하고 견고한 검증 모델을 수립했습니다.
   - 용량 제한 및 허용 형식 가이드 UI가 하드코딩 값이 아닌 워크플로우 템플릿의 `maxFileSizeMB` 설정값을 온전히 바인딩하도록 수정해 데이터 정합성을 개선했습니다.
+
+## 2026-06-18: retentionPolicy optionalExportProvider Gateway PATCH
+
+* **배경**: `sub_20260618075036_yj1eoc`에서 `settingsSnapshot.optionalExportProvider=google_drive`인데 `retentionPolicySnapshot.optionalExportProvider=none`으로 기록되어 n8n Google Drive Optional Export 분기가 실행되지 않았습니다.
+* **원인**: Gateway `retentionPolicy` 생성 시 `optionalExportProvider: "none"` 하드코딩. `storageProvider`(Firebase Storage)와 `optionalExportProvider`(외부 Drive 내보내기)는 별개 필드인데 후자가 settings와 동기화되지 않았습니다.
+* **결정**: `finalSettings.optionalExportProvider === "google_drive"`일 때만 retentionPolicy에 `"google_drive"` 반영, 그 외는 `"none"`. Cloud Run revision `n8lient-gateway-00029-qsz` 배포.

@@ -12,6 +12,7 @@ import { checkAuth, AuthenticatedRequest } from "./middleware/auth";
 import { uploadFileToStorage, FileRef } from "./lib/storage";
 import { validateExecution } from "./shared/validateExecution";
 import { buildExecutionTitleContract, resolveDisplayTitleAfterCallback } from "./shared/buildTitleContract";
+import { resolveRetentionPolicy } from "./shared/resolveRetentionPolicy";
 
 // .env 파일 로드 (로컬 개발용)
 dotenv.config();
@@ -388,26 +389,16 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       }
     }
 
-    const storeProc = finalLevel !== "notify_only";
-    const storeOrig = finalLevel === "full_archive";
-
-    // [v2.8.1] 이메일 전송 옵션과 Storage 보관 옵션 분리 (PATCH)
-    const emailEnabled = Boolean(finalSettings.reportEmailTo) && finalSettings.emailEnabled !== false;
-    const emailAttachResult = emailEnabled && finalSettings.emailAttachResult === true;
-    // 원본 입력 존재 여부 (audio, image, file 타입이면서 실제 파일이나 URL이 있는 경우)
-    const hasOriginalInput = ["audio", "image", "file"].includes(input.inputType) && 
-                             Boolean(input.fileName || file || input.fileUrl);
-    const emailAttachOriginal = emailEnabled && finalSettings.emailAttachOriginal === true && hasOriginalInput;
-
-    const retentionPolicy = {
-      level: finalLevel,
-      emailEnabled,
-      emailAttachResult,
-      emailAttachOriginal,
-      storeProcessorResult: storeProc,
-      storeOriginalFiles: storeOrig,
-      storageProvider: storeOrig ? "firebase_storage" : "none",
-      optionalExportProvider: "none",
+    // [v2.1] Policy Resolver를 통한 최종 보관 정책 계산
+    const retentionPolicy = resolveRetentionPolicy({
+      finalLevel,
+      finalSettings,
+      input: {
+        inputType: input.inputType || "file",
+        fileName: input.fileName,
+        fileUrl: input.fileUrl
+      },
+      hasFile: !!file,
       resolvedFrom: {
         workflowDefault: capabilities.defaultLevel || null,
         operatorDefault: opPolicy.defaultLevel || null,
@@ -415,7 +406,7 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
         userPreference: userPreferredLevel || null,
         reason,
       }
-    };
+    });
 
     // 5. submissions 문서 queued 상태로 생성 (사전 등록)
     const now = new Date();

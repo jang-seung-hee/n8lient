@@ -17,6 +17,7 @@ const auth_1 = require("./middleware/auth");
 const storage_1 = require("./lib/storage");
 const validateExecution_1 = require("./shared/validateExecution");
 const buildTitleContract_1 = require("./shared/buildTitleContract");
+const resolveRetentionPolicy_1 = require("./shared/resolveRetentionPolicy");
 // .env 파일 로드 (로컬 개발용)
 dotenv_1.default.config();
 /**
@@ -350,24 +351,16 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                 reason = "requested_level_out_of_bounds_fallback_to_minimum_allowed";
             }
         }
-        const storeProc = finalLevel !== "notify_only";
-        const storeOrig = finalLevel === "full_archive";
-        // [v2.8.1] 이메일 전송 옵션과 Storage 보관 옵션 분리 (PATCH)
-        const emailEnabled = Boolean(finalSettings.reportEmailTo) && finalSettings.emailEnabled !== false;
-        const emailAttachResult = emailEnabled && finalSettings.emailAttachResult === true;
-        // 원본 입력 존재 여부 (audio, image, file 타입이면서 실제 파일이나 URL이 있는 경우)
-        const hasOriginalInput = ["audio", "image", "file"].includes(input.inputType) &&
-            Boolean(input.fileName || file || input.fileUrl);
-        const emailAttachOriginal = emailEnabled && finalSettings.emailAttachOriginal === true && hasOriginalInput;
-        const retentionPolicy = {
-            level: finalLevel,
-            emailEnabled,
-            emailAttachResult,
-            emailAttachOriginal,
-            storeProcessorResult: storeProc,
-            storeOriginalFiles: storeOrig,
-            storageProvider: storeOrig ? "firebase_storage" : "none",
-            optionalExportProvider: "none",
+        // [v2.1] Policy Resolver를 통한 최종 보관 정책 계산
+        const retentionPolicy = (0, resolveRetentionPolicy_1.resolveRetentionPolicy)({
+            finalLevel,
+            finalSettings,
+            input: {
+                inputType: input.inputType || "file",
+                fileName: input.fileName,
+                fileUrl: input.fileUrl
+            },
+            hasFile: !!file,
             resolvedFrom: {
                 workflowDefault: capabilities.defaultLevel || null,
                 operatorDefault: opPolicy.defaultLevel || null,
@@ -375,7 +368,7 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                 userPreference: userPreferredLevel || null,
                 reason,
             }
-        };
+        });
         // 5. submissions 문서 queued 상태로 생성 (사전 등록)
         const now = new Date();
         const dateStr = now.toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);

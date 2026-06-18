@@ -2,6 +2,7 @@
 
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
 import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 interface CompanyAutomationDetailProps {
   contract: ClientContract;
@@ -25,6 +26,11 @@ export default function CompanyAutomationDetail({
   };
 
   const noticeText = automation?.noticeText?.trim() ?? "";
+  const displayName = resolveWorkflowDisplayName({
+    template,
+    automation,
+    workflowKey: contract.workflowKey,
+  });
 
   return (
     <div
@@ -43,7 +49,7 @@ export default function CompanyAutomationDetail({
         <div>
           <span style={{ fontSize: "11px", color: "#6b7280", fontWeight: 600 }}>N8N 워크플로우 상세 정보</span>
           <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#111827", margin: "2px 0 0 0" }}>
-            {automation?.automationName || template?.name || contract.workflowKey}
+            {displayName}
           </h3>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>

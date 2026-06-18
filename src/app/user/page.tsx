@@ -10,12 +10,15 @@ import { useAuthUser } from "@/features/auth/useAuthUser";
 import { getActiveAutomations, subscribeMySubmissions } from "@/features/user/userService";
 import { getMyCompanyPublicProfile } from "@/features/user/companyProfileService";
 import { CompanyInfoModal } from "@/components/custom/CompanyInfoModal";
-import type { ClientAutomation, Submission, ClientPublicProfile } from "@/types/n8lient";
+import type { ClientAutomation, Submission, ClientPublicProfile, WorkflowTemplate } from "@/types/n8lient";
 import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
+import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 export default function UserHome() {
   const { user, userDoc } = useAuthUser();
   const [automations, setAutomations] = useState<ClientAutomation[]>([]);
+  const [templates, setTemplates] = useState<Record<string, WorkflowTemplate>>({});
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +37,14 @@ export default function UserHome() {
 
     // 1. 활성 N8N 워크플로우 설정 조회
     getActiveAutomations(db, userDoc.clientId)
-      .then((list) => setAutomations(list.slice(0, 3)))
+      .then(async (list) => {
+        setAutomations(list.slice(0, 3));
+        const templateMap = await fetchWorkflowTemplatesByKeys(
+          db,
+          list.map((auto) => auto.workflowKey)
+        );
+        setTemplates(templateMap);
+      })
       .catch((err) => console.error("워크플로우 로드 실패:", err));
 
     // 2. 본인의 실행 결과 실시간 구독 (최근 3개)
@@ -156,7 +166,11 @@ export default function UserHome() {
               >
                 <div>
                   <h4 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", marginBottom: "2px" }}>
-                    {auto.automationName}
+                    {resolveWorkflowDisplayName({
+                      template: templates[auto.workflowKey],
+                      automation: auto,
+                      workflowKey: auto.workflowKey,
+                    })}
                   </h4>
                   <p style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.3 }}>
                     Key: {auto.workflowKey}

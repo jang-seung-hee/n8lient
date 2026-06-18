@@ -7,6 +7,7 @@ import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types
 import { playAppSound } from "@/lib/appSound";
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
 import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 interface CompanyAutomationFormProps {
   db: Firestore;
@@ -220,6 +221,11 @@ export default function CompanyAutomationForm({
   };
 
   const schemaFields = template.configSchema.filter((f) => !isSecurityField(f.key, f.type));
+  const displayName = resolveWorkflowDisplayName({
+    template,
+    automation,
+    workflowKey: contract.workflowKey,
+  });
 
   return (
     <div
@@ -232,7 +238,7 @@ export default function CompanyAutomationForm({
       }}
     >
       <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111111", margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "10px" }}>
-        ⚙️ [{template.name}] N8N 워크플로우 설정 편집
+        ⚙️ [{displayName}] N8N 워크플로우 설정 편집
       </h3>
 
       <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>

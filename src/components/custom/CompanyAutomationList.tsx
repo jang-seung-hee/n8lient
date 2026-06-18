@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ListSearchFilterBar, FilterField } from "@/components/core/ListSearchFilterBar";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 interface CompanyAutomationListProps {
   contracts: ClientContract[];
@@ -50,7 +51,11 @@ export default function CompanyAutomationList({
     const auto = automations.find((a) => a.workflowKey === contract.workflowKey);
 
     // 1. 검색어 필터링
-    const name = auto?.automationName || template?.name || "";
+    const name = resolveWorkflowDisplayName({
+      template,
+      automation: auto ?? null,
+      workflowKey: contract.workflowKey,
+    });
     const key = contract.workflowKey;
     const matchSearch =
       name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -150,7 +155,11 @@ export default function CompanyAutomationList({
                 }}
               >
                 <span style={{ fontWeight: 600, color: "#111827" }}>
-                  {auto?.automationName || template?.name || contract.workflowKey}
+                  {resolveWorkflowDisplayName({
+                    template,
+                    automation: auto ?? null,
+                    workflowKey: contract.workflowKey,
+                  })}
                 </span>
                 <span style={{ fontFamily: "monospace", color: "#6b7280", fontSize: "12px" }}>
                   {contract.workflowKey}

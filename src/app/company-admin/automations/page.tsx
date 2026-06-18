@@ -9,7 +9,7 @@ import {
   getCompanyContracts,
   getCompanyAutomations,
 } from "@/features/admin/companyAdminService";
-import { doc, getDoc } from "firebase/firestore";
+import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
 
@@ -44,16 +44,10 @@ export default function AdminAutomations() {
       setAutomations(automationList);
 
       // 2. 계약된 자동화의 템플릿(명세서) 데이터 로드
-      const tempMap: Record<string, WorkflowTemplate> = {};
-      for (const contract of contractList) {
-        if (!tempMap[contract.workflowKey]) {
-          const tempRef = doc(db, "workflowTemplates", contract.workflowKey);
-          const tempSnap = await getDoc(tempRef);
-          if (tempSnap.exists()) {
-            tempMap[contract.workflowKey] = tempSnap.data() as WorkflowTemplate;
-          }
-        }
-      }
+      const tempMap = await fetchWorkflowTemplatesByKeys(
+        db,
+        contractList.map((contract) => contract.workflowKey)
+      );
       setTemplates(tempMap);
     } catch (err: any) {
       console.error(err);

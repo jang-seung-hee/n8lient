@@ -172,3 +172,9 @@
   - 일반 파일 첨부 input 태그에 동적으로 `accept` 속성이 부여되도록 기능 보완
   - 파일 용량 제한 메시지가 하드코딩 용량이 아닌 템플릿의 `maxFileSizeMB`와 동적 연동되도록 수정
 - [x] **E2E 실행 및 빌드 검증**: `sub_20260612065844_08jxfn` 성공 케이스(mp3 업로드 및 callback 수신 완료)를 기준으로 E2E 전 흐름 작동 및 Next.js 프로덕션 빌드 통과 완료
+
+## 2026-06-18: Gateway retentionPolicy optionalExportProvider PATCH
+- [x] `n8lient-gateway/src/server.ts` — `retentionPolicy.optionalExportProvider` 하드코딩 `"none"` 제거, `finalSettings.optionalExportProvider` 반영
+- [x] `npm run build:gateway` 통과
+- [x] Cloud Run 재배포: revision `n8lient-gateway-00029-qsz`, URL `https://n8lient-gateway-769159846381.asia-northeast3.run.app`
+- [ ] audio + full_archive + `optionalExportProvider=google_drive` 재실행 후 Drive 폴더 파일 생성 수동 확인
