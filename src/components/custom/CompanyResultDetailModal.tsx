@@ -6,6 +6,7 @@ import type { Submission } from "@/types/n8lient";
 import type { UserDisplaySource } from "@/common/user/formatUserDisplayName";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import type { ViewerRole } from "@/components/results/resultDetailTypes";
+import type { DownloadTarget } from "@/components/results/downloadTarget";
 
 /** @deprecated 직접 ExecutionResultDetailModal 사용을 권장합니다. 하위 호환 thin wrapper입니다. */
 interface CompanyResultDetailModalProps {
@@ -13,6 +14,8 @@ interface CompanyResultDetailModalProps {
   onClose: () => void;
   submission: Submission | null;
   viewerRole?: ViewerRole;
+  onDownloadTarget?: (target: DownloadTarget) => Promise<void>;
+  /** @deprecated onDownloadTarget 사용을 권장합니다. */
   onDownloadFile?: (
     refType: "original" | "result",
     index: number,
@@ -26,6 +29,7 @@ export function CompanyResultDetailModal({
   onClose,
   submission,
   viewerRole = "companyAdmin",
+  onDownloadTarget,
   onDownloadFile,
   actorDisplaySource,
 }: CompanyResultDetailModalProps) {
@@ -37,6 +41,7 @@ export function CompanyResultDetailModal({
       onClose={onClose}
       submission={submission}
       viewerRole={viewerRole}
+      onDownloadTarget={onDownloadTarget}
       onDownloadFile={onDownloadFile}
       actorDisplaySource={actorDisplaySource}
     />

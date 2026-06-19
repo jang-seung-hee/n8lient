@@ -12,7 +12,14 @@ import { checkAuth, AuthenticatedRequest } from "./middleware/auth";
 import { uploadFileToStorage, FileRef } from "./lib/storage";
 import { validateExecution } from "./shared/validateExecution";
 import { buildExecutionTitleContract, resolveDisplayTitleAfterCallback } from "./shared/buildTitleContract";
-import { resolveRetentionPolicy } from "./shared/resolveRetentionPolicy";
+import {
+  resolveEffectiveOptionalExportProvider,
+  resolveRetentionPolicy,
+} from "./shared/resolveRetentionPolicy";
+import {
+  applyEffectiveRetentionToSettings,
+  resolveEffectiveRetentionLevel,
+} from "./shared/resolveEffectiveRetentionLevel";
 import {
   buildClientContractId,
   isClientContractActiveForEmployee,
@@ -341,15 +348,7 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       });
     }
 
-    // ── 5. submissions 문서 queued 상태로 생성 (사전 등록) ──
-    // 1. 레벨 가중치 오더 정의
-    const RETENTION_LEVEL_ORDER: Record<string, number> = {
-      notify_only: 1,
-      processed_result: 2,
-      full_archive: 3,
-    };
-
-    // 2. 워크플로우 및 계약 한도 획득
+    // ── 5. 실행 시점 보관 정책 effective value 계산 ──
     const capabilities = templateDoc.retentionCapabilities || {
       maxLevel: "full_archive",
       supportedLevels: ["notify_only", "processed_result", "full_archive"],
@@ -362,78 +361,61 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       allowUserOverride: true,
     };
 
-    // 회사별 계약 한도 획득 (clientAutomations/autoDoc의 contractRetentionLimit 우선, 없으면 operatorRetentionPolicy에서 추출)
-    const contractRetentionLimit = autoDoc.contractRetentionLimit || {
-      maxLevel: opPolicy.defaultLevel || "full_archive",
-      allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"]
+    const operatorContractFallback = {
+      maxLevel: (opPolicy.defaultLevel || "full_archive") as "notify_only" | "processed_result" | "full_archive",
+      allowedLevels: opPolicy.allowedLevels || ["notify_only", "processed_result", "full_archive"],
     };
 
     const coPolicy = autoDoc.companyRetentionPolicy || {
-      recommendedLevel: autoDoc.companyRetentionPolicy?.defaultLevel || contractRetentionLimit.maxLevel || "full_archive",
-      defaultLevel: autoDoc.companyRetentionPolicy?.defaultLevel || contractRetentionLimit.maxLevel || "full_archive",
-      allowedUserLevels: contractRetentionLimit.allowedLevels || ["notify_only", "processed_result", "full_archive"],
+      recommendedLevel:
+        autoDoc.companyRetentionPolicy?.defaultLevel ||
+        contractDoc?.contractRetentionLimit?.maxLevel ||
+        operatorContractFallback.maxLevel,
+      defaultLevel:
+        autoDoc.companyRetentionPolicy?.defaultLevel ||
+        contractDoc?.contractRetentionLimit?.maxLevel ||
+        operatorContractFallback.maxLevel,
+      allowedUserLevels:
+        autoDoc.companyRetentionPolicy?.allowedUserLevels ||
+        contractDoc?.contractRetentionLimit?.allowedLevels ||
+        operatorContractFallback.allowedLevels,
       allowUserOverride: opPolicy.allowUserOverride,
     };
 
-    // 3. 허용 가능한 교집합(선택가능 범위) 계산
-    const supportedLevels = capabilities.supportedLevels || [];
-    const contractAllowedLevels = contractRetentionLimit.allowedLevels || [];
-    const selectableLevels = supportedLevels.filter((lvl: any) => contractAllowedLevels.includes(lvl));
+    const levelResolution = resolveEffectiveRetentionLevel({
+      capabilities,
+      operatorDefaultLevel: opPolicy.defaultLevel || null,
+      liveContractLimit: contractDoc?.contractRetentionLimit ?? null,
+      autoDocContractLimit: autoDoc.contractRetentionLimit ?? null,
+      operatorContractFallback,
+      companyPolicy: coPolicy,
+      userPreferredLevel: userPreference?.preferredLevel ?? null,
+    });
 
-    // 4. 개인 선호값 및 회사 권장값 획득
-    const userPreferredLevel = userPreference?.preferredLevel || null;
-    const companyRecommendedLevel = coPolicy.recommendedLevel || coPolicy.defaultLevel || capabilities.defaultLevel || "full_archive";
+    const { effectiveLevel: finalLevel, resolvedFrom: levelResolvedFrom } = levelResolution;
 
-    // 5. 요청 레벨 결정 (개인 설정 우선, 없으면 회사 권장)
-    let requestedLevel = userPreferredLevel || companyRecommendedLevel;
-    let finalLevel = requestedLevel;
-    let reason = userPreferredLevel
-      ? "user_preference_applied_within_contract_limit"
-      : "company_recommended_level_applied";
+    const effectiveOptionalExport = resolveEffectiveOptionalExportProvider(
+      finalLevel,
+      finalSettings.optionalExportProvider
+    );
+    Object.assign(
+      finalSettings,
+      applyEffectiveRetentionToSettings(finalSettings, finalLevel, effectiveOptionalExport)
+    );
 
-    // 6. clampToMaxAllowedLevel 구현 및 적용
-    if (!selectableLevels.includes(finalLevel)) {
-      // 요청 레벨이 허용 범위에 없는 경우 조정
-      const reqVal = RETENTION_LEVEL_ORDER[finalLevel] || 3;
-      
-      // 1) 허용 범위 중 요청한 레벨보다 작거나 같으면서 가장 큰 레벨 탐색
-      const lowerOrEqualLevels = selectableLevels
-        .filter((lvl: any) => (RETENTION_LEVEL_ORDER[lvl] || 1) <= reqVal)
-        .sort((a: any, b: any) => (RETENTION_LEVEL_ORDER[b] || 0) - (RETENTION_LEVEL_ORDER[a] || 0));
-
-      if (lowerOrEqualLevels.length > 0) {
-        finalLevel = lowerOrEqualLevels[0];
-        reason = userPreferredLevel 
-          ? "user_preference_clamped_to_max_allowed" 
-          : "company_recommended_clamped_to_max_allowed";
-      } else {
-        // 2) 더 낮은 허용 레벨이 전혀 없는 경우, 허용 레벨 중 최솟값 적용
-        const sortedSelectable = [...selectableLevels].sort((a: any, b: any) => (RETENTION_LEVEL_ORDER[a] || 0) - (RETENTION_LEVEL_ORDER[b] || 0));
-        finalLevel = sortedSelectable[0] || capabilities.defaultLevel || "full_archive";
-        reason = "requested_level_out_of_bounds_fallback_to_minimum_allowed";
-      }
-    }
-
-    // [v2.1] Policy Resolver를 통한 최종 보관 정책 계산
     const retentionPolicy = resolveRetentionPolicy({
       finalLevel,
       finalSettings,
       input: {
         inputType: input.inputType || "file",
         fileName: input.fileName,
-        fileUrl: input.fileUrl
+        fileUrl: input.fileUrl,
       },
       hasFile: !!file,
-      resolvedFrom: {
-        workflowDefault: capabilities.defaultLevel || null,
-        operatorDefault: opPolicy.defaultLevel || null,
-        companyDefault: companyRecommendedLevel || null,
-        userPreference: userPreferredLevel || null,
-        reason,
-      }
+      resolvedFrom: levelResolvedFrom,
     });
 
-    // 5. submissions 문서 queued 상태로 생성 (사전 등록)
+    // ── 6. submissions 문서 queued 상태로 생성 (사전 등록) ──
     const now = new Date();
     const dateStr = now.toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
     const randomStr = Math.random().toString(36).substring(2, 8);

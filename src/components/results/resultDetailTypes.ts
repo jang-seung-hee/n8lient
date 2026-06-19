@@ -53,7 +53,7 @@ export const RESULT_SECTION_LABELS: Record<ResultSectionKey, string> = {
   reportBody: "상세 리포트 본문",
   structuredData: "추출 구조화 데이터",
   resultFiles: "생성된 결과 파일",
-  optionalExport: "Optional Export 결과",
+  optionalExport: "Google Drive보내기",
   actions: "실행 액션",
   debugInfo: "운영 디버그 정보",
   snapshots: "Snapshot 정보 (병합됨)",

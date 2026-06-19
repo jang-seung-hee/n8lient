@@ -1,5 +1,8 @@
 // 서버리스 API 게이트웨이: Firebase ID Token 검증 → Firestore 확인 → n8n Webhook 전송
 // 환경변수: N8N_SERVER_{KEY}_BASE_URL, N8N_SERVER_{KEY}_TOKEN, N8N_WEBHOOK_PATH_{ID}
+//
+// 보관 정책(retentionPolicy) 계산 SSOT는 n8lient-gateway /api/automation/execute 입니다.
+// 사용자 실행(/user/execute)은 Gateway를 사용합니다. 본 route는 retention clamp 없이 settings를 n8n에 전달할 수 있어 레거시 경로로 취급합니다.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebaseAdmin";

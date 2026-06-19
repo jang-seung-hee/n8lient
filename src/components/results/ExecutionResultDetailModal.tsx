@@ -18,13 +18,17 @@ import { SubmissionStatusBadge } from "@/components/core/submission/SubmissionSt
 import { ExecutionResultDetailPanel } from "./ExecutionResultDetailPanel";
 import type { ViewerRole } from "./resultDetailTypes";
 import type { UserDisplaySource } from "@/common/user/formatUserDisplayName";
+import type { DownloadTarget } from "./downloadTarget";
+import { getDownloadTargetId } from "./downloadTarget";
 
 export interface ExecutionResultDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   submission: Submission;
   viewerRole: ViewerRole;
-  /** 2차: companyAdmin/operator 전용 다운로드 핸들러 주입 */
+  /** Storage 파일 다운로드 커스텀 핸들러 (companyAdmin/operator 주입) */
+  onDownloadTarget?: (target: DownloadTarget) => Promise<void>;
+  /** @deprecated onDownloadTarget 사용을 권장합니다. */
   onDownloadFile?: (
     refType: "original" | "result",
     index: number,
@@ -39,14 +43,12 @@ export function ExecutionResultDetailModal({
   onClose,
   submission,
   viewerRole,
+  onDownloadTarget: onDownloadTargetProp,
   onDownloadFile: onDownloadFileProp,
   actorDisplaySource: actorDisplaySourceProp,
 }: ExecutionResultDetailModalProps) {
   const { user, userDoc } = useAuthUser();
-  const [downloadingIndex, setDownloadingIndex] = useState<{
-    type: string;
-    idx: number;
-  } | null>(null);
+  const [activeTargetId, setActiveTargetId] = useState<string | null>(null);
   const timeoutIdsRef = useRef<number[]>([]);
 
   useEffect(() => {
@@ -64,26 +66,87 @@ export function ExecutionResultDetailModal({
 
   if (!isOpen) return null;
 
-  const handleDownloadDefault = async (
-    refType: "original" | "result",
-    index: number,
-    fileName: string
-  ) => {
+  const handleDownloadTargetDefault = async (target: DownloadTarget) => {
+    const targetId = getDownloadTargetId(target);
     playAppSound("click");
+
+    if (target.kind === "unavailable") {
+      addDelayedAlert(target.reason ?? "다운로드 가능한 파일 참조가 없습니다.");
+      return;
+    }
+
+    if (target.kind === "optional_export") {
+      if (!target.url?.trim()) {
+        playAppSound("error");
+        addDelayedAlert("열 수 있는 Drive 링크가 없습니다.");
+        return;
+      }
+      window.open(target.url, "_blank", "noopener,noreferrer");
+      playAppSound("success");
+      return;
+    }
+
+    if (target.kind === "dynamic_md") {
+      handleMarkdownExport();
+      return;
+    }
+
+    if (target.kind !== "original_storage" && target.kind !== "result_storage") {
+      return;
+    }
+
+    const refType = target.refType;
+    const refIndex = target.refIndex;
+    if (refType === undefined || refIndex === undefined) {
+      playAppSound("error");
+      addDelayedAlert("다운로드 가능한 파일 참조가 없습니다.");
+      return;
+    }
+
     try {
-      setDownloadingIndex({ type: refType, idx: index });
-      await downloadSubmissionFile(auth, submission.submissionId, refType, index, fileName);
+      setActiveTargetId(targetId);
+      await downloadSubmissionFile(
+        auth,
+        submission.submissionId,
+        refType,
+        refIndex,
+        target.fileName
+      );
       playAppSound("success");
     } catch (err: unknown) {
       playAppSound("error");
       const message = err instanceof Error ? err.message : "알 수 없는 오류";
       addDelayedAlert(`다운로드 실패: ${message}`);
     } finally {
-      setDownloadingIndex(null);
+      setActiveTargetId(null);
     }
   };
 
-  const handleDownload = onDownloadFileProp ?? handleDownloadDefault;
+  const handleDownloadTargetLegacy = async (target: DownloadTarget) => {
+    if (target.kind !== "original_storage" && target.kind !== "result_storage") {
+      return handleDownloadTargetDefault(target);
+    }
+    if (!onDownloadFileProp || target.refType === undefined || target.refIndex === undefined) {
+      return handleDownloadTargetDefault(target);
+    }
+
+    const targetId = getDownloadTargetId(target);
+    playAppSound("click");
+    try {
+      setActiveTargetId(targetId);
+      await onDownloadFileProp(target.refType, target.refIndex, target.fileName);
+      playAppSound("success");
+    } catch (err: unknown) {
+      playAppSound("error");
+      const message = err instanceof Error ? err.message : "알 수 없는 오류";
+      addDelayedAlert(`다운로드 실패: ${message}`);
+    } finally {
+      setActiveTargetId(null);
+    }
+  };
+
+  const handleDownloadTarget =
+    onDownloadTargetProp ?? (onDownloadFileProp ? handleDownloadTargetLegacy : handleDownloadTargetDefault);
 
   const actorDisplaySource: UserDisplaySource | null =
     actorDisplaySourceProp ??
@@ -157,8 +220,8 @@ export function ExecutionResultDetailModal({
             submission={submission}
             viewerRole={viewerRole}
             actorDisplaySource={actorDisplaySource}
-            onDownloadFile={handleDownload}
-            downloadingIndex={downloadingIndex}
+            onDownloadTarget={handleDownloadTarget}
+            activeTargetId={activeTargetId}
             onMarkdownExport={handleMarkdownExport}
           />
         </div>

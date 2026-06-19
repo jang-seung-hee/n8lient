@@ -22,19 +22,21 @@ import {
   type ResultSectionKey,
   type ViewerRole,
 } from "./resultDetailTypes";
+import {
+  buildSubmissionDownloadTargets,
+  getDownloadTargetButtonLabel,
+  getDownloadTargetId,
+  type DownloadTarget,
+} from "./downloadTarget";
 
 export interface ExecutionResultDetailPanelProps {
   submission: Submission;
   viewerRole: ViewerRole;
   /** 실행자 표시용 사용자 정보 (미제공 시 submission.uid fallback) */
   actorDisplaySource?: UserDisplaySource | null;
-  /** 파일 다운로드 (user 경로 등). 미제공 시 다운로드 버튼 비활성 */
-  onDownloadFile?: (
-    refType: "original" | "result",
-    index: number,
-    fileName: string
-  ) => Promise<void>;
-  downloadingIndex?: { type: string; idx: number } | null;
+  /** 파일 다운로드·Drive 열기. 미제공 시 Storage 다운로드 버튼 비활성 */
+  onDownloadTarget?: (target: DownloadTarget) => void | Promise<void>;
+  activeTargetId?: string | null;
   /** MD 내보내기. 미제공 시 버튼 비활성 */
   onMarkdownExport?: () => void;
 }
@@ -85,17 +87,68 @@ function hasResultSummaryContent(submission: Submission): boolean {
   return submission.status === "success" && pr !== null;
 }
 
-function pickGoogleDriveSnapshotKeys(
-  settings: Record<string, string | number | boolean> | undefined
-): Record<string, string | number | boolean> {
-  if (!settings) return {};
-  const out: Record<string, string | number | boolean> = {};
-  for (const [key, value] of Object.entries(settings)) {
-    if (/googleDrive|optionalExport/i.test(key)) {
-      out[key] = value;
-    }
-  }
-  return out;
+function FileTargetRow({
+  target,
+  activeTargetId,
+  onDownloadTarget,
+  variant,
+}: {
+  target: DownloadTarget;
+  activeTargetId: string | null;
+  onDownloadTarget?: (target: DownloadTarget) => void | Promise<void>;
+  variant: "original" | "result" | "export";
+}) {
+  const targetId = getDownloadTargetId(target);
+  const isLoading = activeTargetId === targetId;
+  const isUnavailable = target.kind === "unavailable";
+  const canAct =
+    !isUnavailable &&
+    Boolean(onDownloadTarget) &&
+    activeTargetId === null &&
+    (target.kind === "optional_export" ? Boolean(target.url?.trim()) : true);
+
+  const borderClass =
+    variant === "export"
+      ? "border-blue-200 bg-blue-50"
+      : variant === "result"
+        ? "border-teal-200 bg-teal-50"
+        : "border-gray-200 bg-gray-50";
+
+  const textClass =
+    variant === "export"
+      ? "text-blue-900"
+      : variant === "result"
+        ? "text-teal-900"
+        : "text-gray-900";
+
+  const buttonBorderClass =
+    variant === "export"
+      ? "border-blue-300 text-blue-800"
+      : variant === "result"
+        ? "border-teal-300 text-teal-800"
+        : "border-gray-300 text-gray-700";
+
+  return (
+    <div
+      className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs ${borderClass}`}
+    >
+      <span className={`min-w-0 flex-1 truncate ${textClass}`}>{target.fileName}</span>
+      {isUnavailable ? (
+        <span className="shrink-0 text-[10.5px] text-gray-500">
+          {target.reason ?? "다운로드 불가"}
+        </span>
+      ) : (
+        <button
+          type="button"
+          disabled={!canAct}
+          onClick={() => onDownloadTarget?.(target)}
+          className={`shrink-0 rounded border bg-white px-2 py-0.5 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${buttonBorderClass}`}
+        >
+          {getDownloadTargetButtonLabel(target, isLoading)}
+        </button>
+      )}
+    </div>
+  );
 }
 
 interface SectionWrapperProps {
@@ -129,20 +182,19 @@ export function ExecutionResultDetailPanel({
   submission,
   viewerRole,
   actorDisplaySource,
-  onDownloadFile,
-  downloadingIndex = null,
+  onDownloadTarget,
+  activeTargetId = null,
   onMarkdownExport,
 }: ExecutionResultDetailPanelProps) {
   const retention = submission.retentionPolicySnapshot;
   const level = retention?.level || "full_archive";
   const optionalProvider = retention?.optionalExportProvider ?? "none";
-  const googleDriveKeys = pickGoogleDriveSnapshotKeys(submission.settingsSnapshot);
 
   const processorResult = submission.processorResult ?? null;
   const reportBodyText = getReportBodyText(submission);
   const structuredData = getStructuredData(submission);
-  const originalFileRefs = submission.originalFileRefs ?? [];
-  const resultRefs = submission.resultRefs ?? [];
+  const { originalTargets, resultStorageTargets, optionalExportTargets } =
+    buildSubmissionDownloadTargets(submission);
   const actorLabel = formatSubmissionActorLabel(submission, actorDisplaySource);
   const errorDisplay = resolveSubmissionErrorDisplay(submission);
 
@@ -267,7 +319,7 @@ export function ExecutionResultDetailPanel({
         );
 
       case "originalFiles": {
-        if (originalFileRefs.length === 0) return null;
+        if (originalTargets.length === 0) return null;
         return (
           <SectionWrapper
             key={sectionKey}
@@ -277,23 +329,14 @@ export function ExecutionResultDetailPanel({
             hasContent
           >
             <div className="flex flex-col gap-1">
-              {originalFileRefs.map((ref, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs"
-                >
-                  <span className="min-w-0 flex-1 truncate text-gray-900">{ref.fileName}</span>
-                  <button
-                    type="button"
-                    disabled={!onDownloadFile || downloadingIndex !== null}
-                    onClick={() => onDownloadFile?.("original", idx, ref.fileName)}
-                    className="shrink-0 rounded border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {downloadingIndex?.type === "original" && downloadingIndex?.idx === idx
-                      ? "다운 중..."
-                      : "📥 다운로드"}
-                  </button>
-                </div>
+              {originalTargets.map((target) => (
+                <FileTargetRow
+                  key={getDownloadTargetId(target)}
+                  target={target}
+                  activeTargetId={activeTargetId}
+                  onDownloadTarget={onDownloadTarget}
+                  variant="original"
+                />
               ))}
             </div>
           </SectionWrapper>
@@ -401,7 +444,7 @@ export function ExecutionResultDetailPanel({
       }
 
       case "resultFiles": {
-        if (resultRefs.length === 0) return null;
+        if (resultStorageTargets.length === 0) return null;
         return (
           <SectionWrapper
             key={sectionKey}
@@ -411,53 +454,51 @@ export function ExecutionResultDetailPanel({
             hasContent
           >
             <div className="flex flex-col gap-1">
-              {resultRefs.map((ref, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between gap-2 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-xs"
-                >
-                  <span className="min-w-0 flex-1 truncate text-teal-900">{ref.fileName}</span>
-                  <button
-                    type="button"
-                    disabled={!onDownloadFile || downloadingIndex !== null}
-                    onClick={() => onDownloadFile?.("result", idx, ref.fileName)}
-                    className="shrink-0 rounded border border-teal-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {downloadingIndex?.type === "result" && downloadingIndex?.idx === idx
-                      ? "다운 중..."
-                      : "📥 결과 다운"}
-                  </button>
-                </div>
+              {resultStorageTargets.map((target) => (
+                <FileTargetRow
+                  key={getDownloadTargetId(target)}
+                  target={target}
+                  activeTargetId={activeTargetId}
+                  onDownloadTarget={onDownloadTarget}
+                  variant="result"
+                />
               ))}
             </div>
           </SectionWrapper>
         );
       }
 
-      case "optionalExport":
+      case "optionalExport": {
+        if (optionalExportTargets.length === 0) return null;
         return (
-          <SectionWrapper key={sectionKey} sectionKey={sectionKey} viewerRole={viewerRole}>
-            <div className="flex flex-col gap-1.5 text-xs text-gray-700">
-              <div>
-                <strong>Export Provider:</strong>{" "}
-                {optionalProvider === "google_drive" ? (
-                  <span className="font-semibold text-blue-700">Google Drive</span>
-                ) : (
-                  <span className="text-gray-500">미사용 (none)</span>
-                )}
-              </div>
-              {Object.keys(googleDriveKeys).length > 0 ? (
-                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-2 font-mono text-[11px]">
-                  {formatResultDisplayValue(googleDriveKeys)}
-                </pre>
-              ) : (
-                <p className="italic text-gray-400">
-                  실행 시점 settingsSnapshot에 Optional Export 관련 키가 없습니다.
+          <SectionWrapper
+            key={sectionKey}
+            sectionKey={sectionKey}
+            viewerRole={viewerRole}
+            showWhenEmpty={false}
+            hasContent
+          >
+            <div className="flex flex-col gap-1.5">
+              {optionalProvider === "google_drive" && (
+                <p className="text-[11px] text-gray-500">
+                  Google Drive 보낸 파일입니다. 앱 Storage 다운로드와는 별도입니다.
                 </p>
               )}
+              <div className="flex flex-col gap-1">
+                {optionalExportTargets.map((target) => (
+                  <FileTargetRow
+                    key={getDownloadTargetId(target)}
+                    target={target}
+                    activeTargetId={activeTargetId}
+                    onDownloadTarget={onDownloadTarget}
+                    variant="export"
+                  />
+                ))}
+              </div>
             </div>
           </SectionWrapper>
         );
+      }
 
       case "actions":
         return (

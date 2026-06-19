@@ -1,5 +1,13 @@
 # 개발 작업 체크리스트
 
+## 2026-06-19: Gateway 보관 정책 상속/clamp 패치
+- [x] `resolveEffectiveRetentionLevel.ts` — live∩autoDoc contract, company allowedUserLevels, allowUserOverride
+- [x] `resolveRetentionPolicy.ts` — optional export는 full_archive만 허용, settings 정규화
+- [x] `server.ts` — 실행 시 effective level·optionalExportProvider를 finalSettings/n8n payload에 반영
+- [x] 케이스 A~D 단위 검증 스크립트 통과
+- [x] Gateway `npm run build`, 루트 `npx tsc --noEmit`, `npm run build` 통과
+- [ ] 후속: 프론트 UI 초과 설정 안내, Next execute route deprecate/동일 resolver 공유
+
 ## 2026-06-18: 운영 디버그 섹션 병합 및 전체 디버그 복사
 - [x] [12] debugInfo + [13] snapshots + [14] rawJson(operator) UI 병합 → `OpsDebugInfoSection`
 - [x] `buildDebugClipboardText.ts` — `---` 구분자 전체 디버그 복사
