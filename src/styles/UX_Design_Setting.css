@@ -529,29 +529,53 @@
   }
 }
 
-/* admin/operator 반응형 shell */
-.ux_responsive_admin_shell {
+/* admin/operator 반응형 shell (PC 스크롤 분리 구조) */
+.ux_admin_app_shell {
   display: flex;
   width: 100%;
-  min-width: 0;
-  max-width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f9fafb;
+}
+
+.ux_admin_sidebar_frame {
+  flex: 0 0 var(--ux-admin-sidebar-width);
+  width: var(--ux-admin-sidebar-width);
+  height: 100dvh;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
-.ux_sidebar_desktop {
-  flex: 0 0 var(--ux-admin-sidebar-width);
-  width: var(--ux-admin-sidebar-width);
-  height: 100vh;
-  position: sticky;
-  top: 0;
-}
-
-.ux_admin_main_column {
+.ux_admin_main_scroll {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
+@media (max-width: 1023px) {
+  .ux_admin_app_shell {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .ux_admin_sidebar_frame {
+    display: none;
+  }
+
+  .ux_admin_main_scroll {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    display: block;
+  }
+}
+
 
 .ux_admin_console_header {
   height: var(--ux-mobile-admin-header-height);
@@ -631,10 +655,6 @@
 }
 
 @media (max-width: 1023px) {
-  .ux_sidebar_desktop {
-    display: none;
-  }
-
   .ux_admin_menu_button {
     display: inline-flex;
   }
@@ -692,3 +712,175 @@
     border-radius: var(--ux-modal-radius);
   }
 }
+
+/* 공통 섹션 탭 스타일 */
+.ux_section_tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--ux-card-border-color);
+  margin-bottom: 16px;
+}
+
+.ux_section_tab {
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ux-text-color-muted);
+  font-size: var(--ux-font-size-body);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ux_section_tab:hover {
+  color: var(--ux-text-color-primary);
+}
+
+.ux_section_tab_active {
+  color: var(--ux-text-color-primary);
+  border-bottom-color: var(--ux-text-color-primary);
+}
+
+.ux_section_tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* 회사 정보(info) 2열 그리드 및 반응형 모바일 1열화 */
+.ux_info_grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  font-size: 13px;
+}
+
+.ux_info_grid_full {
+  grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+  .ux_info_grid {
+    grid-template-columns: 1fr;
+    gap: 12px 0;
+  }
+  .ux_info_grid_full {
+    grid-column: span 1;
+  }
+}
+
+/* 입력 Form 영역 2열 그리드 및 모바일 반응형 */
+.ux_form_grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  min-width: 0;
+}
+
+.ux_form_grid_full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 767px) {
+  .ux_form_grid {
+    grid-template-columns: 1fr;
+    gap: 12px 0;
+  }
+
+  .ux_form_grid_full {
+    grid-column: auto;
+  }
+}
+
+/* key/value 테이블형 2열 구조 스타일 */
+.ux_key_value_table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ux_key_value_table th,
+.ux_key_value_table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ux-card-border-color);
+  vertical-align: middle;
+  font-size: var(--ux-font-size-body);
+}
+
+.ux_key_value_table th {
+  width: 34%;
+  text-align: left;
+  font-weight: 600;
+  color: var(--ux-text-color-primary);
+  background: transparent;
+}
+
+.ux_key_value_table td {
+  color: var(--ux-text-color-primary);
+  word-break: break-word;
+}
+
+.ux_key_value_description_row td {
+  padding-top: 0;
+  padding-bottom: 14px;
+  color: var(--ux-text-color-muted);
+  font-size: var(--ux-font-size-caption);
+  line-height: var(--ux-line-height-body);
+  border-bottom: 1px solid var(--ux-card-border-color);
+}
+
+.ux_key_value_tech_key {
+  display: block;
+  margin-top: 3px;
+  color: var(--ux-text-color-subtle);
+  font-size: var(--ux-font-size-micro);
+  font-weight: 400;
+  font-family: monospace;
+}
+
+/* 실행 설정값 값 표시 박스 */
+.ux_key_value_value_box {
+  display: inline-block;
+  background-color: #f0f4f8; /* 은은한 파스텔톤 배경색 */
+  border: 1px solid #dbeafe; /* 옅은 파란색 계열 보더 */
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a; /* 선명한 다크 블루 */
+  word-break: break-all;
+  white-space: pre-wrap; /* 줄바꿈 및 공백 유지 */
+  max-width: 100%;
+}
+
+.ux_key_value_value_empty {
+  display: inline-block;
+  background-color: #f9fafb; /* 조금 더 연한 그레이 톤 */
+  border: 1px dashed #e5e7eb; /* 대시드 보더 */
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ux-text-color-muted); /* muted text */
+  word-break: break-all;
+}
+
+.ux_key_value_default_badge {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--ux-text-color-muted);
+  background-color: #f3f4f6;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+
+
+

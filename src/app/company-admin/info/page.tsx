@@ -22,6 +22,9 @@ export default function CompanyInfoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 수정 상태 토글 관리
+  const [isEditing, setIsEditing] = useState(false);
+
   // 통계 요약 상태
   const [contractCount, setContractCount] = useState<number>(0);
   const [activeAutomationCount, setActiveAutomationCount] = useState<number>(0);
@@ -82,6 +85,24 @@ export default function CompanyInfoPage() {
   useEffect(() => {
     loadCompanyInfo();
   }, [userDoc]);
+
+  // 기존 로드된 회사 정보 값으로 form state 복원 및 수정 화면 취소(뷰로 돌아감)
+  const handleResetForm = () => {
+    if (!info) return;
+    setForm({
+      companyDisplayName: info.companyDisplayName || "",
+      contactName: info.contactName || "",
+      contactPhone: info.contactPhone || "",
+      address: info.address || "",
+      homepageUrl: info.homepageUrl || "",
+      description: info.description || "",
+      defaultTimezone: info.defaultTimezone || "Asia/Seoul",
+      defaultReportEmail: info.defaultReportEmail || "",
+    });
+    setSaveSuccess(null);
+    setSaveError(null);
+    setIsEditing(false); // 수정 취소 후 조회 화면 복귀
+  };
 
   // 입력값 검증 및 저장 처리
   const handleSave = async (e: React.FormEvent) => {
@@ -147,7 +168,12 @@ export default function CompanyInfoPage() {
       const res = await updateCompanyProfile(db, userDoc.clientId, form);
       if (res.success) {
         setSaveSuccess("회사 정보가 성공적으로 저장되었습니다.");
-        loadCompanyInfo(); // 실시간 데이터 재로딩
+        // 기존 정보 state 동기화를 위해 정보를 새로 불러옵니다.
+        const updatedInfo = await getCompanyInfo(db, userDoc.clientId);
+        if (updatedInfo) {
+          setInfo(updatedInfo);
+        }
+        setIsEditing(false); // 저장 완료 후 조회 화면 복귀
       } else {
         setSaveError(res.message || "회사 정보를 저장하지 못했습니다. 입력값과 권한을 확인해 주세요.");
       }
@@ -183,44 +209,56 @@ export default function CompanyInfoPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* 타이틀 영역 */}
-      <div>
-        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
-          🏢 회사 프로필 관리
-        </h2>
-        <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
-          소속 회사의 대외 정보 및 알림 수신 설정을 안전하게 관리합니다.
-        </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* 타이틀 및 편집 버튼 영역 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
+            🏢 회사 프로필 관리
+          </h2>
+          <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+            소속 회사의 대외 정보 및 알림 수신 설정을 안전하게 관리합니다.
+          </p>
+        </div>
+        {!isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="ux_button ux_button_primary"
+            style={{ width: "120px" }}
+          >
+            ⚙️ 프로필 수정
+          </button>
+        )}
       </div>
 
       {/* 상태 메시지 배너 */}
       {saveSuccess && (
-        <div style={{ backgroundColor: "#d1fae5", border: "1px solid #10b981", color: "#065f46", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+        <div className="ux_alert ux_alert_success" style={{ margin: 0 }}>
           ✅ {saveSuccess}
         </div>
       )}
       {saveError && (
-        <div style={{ backgroundColor: "#fee2e2", border: "1px solid #ef4444", color: "#991b1b", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+        <div className="ux_alert ux_alert_danger" style={{ margin: 0 }}>
           ⚠️ {saveError}
         </div>
       )}
 
-      {/* 메인 콘텐츠 그리드 레이아웃 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-        
-        {/* 왼쪽 영역: 기본 및 관리자 정보 (읽기 전용 카드군) */}
+      {/* 화면 전환 */}
+      {!isEditing ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          
           {/* 1. 회사 기본 정보 카드 */}
-          <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-            <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+          <div className="ux_card">
+            <h3 className="ux_card_title" style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               🏢 회사 기본 정보 (읽기 전용)
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+            <div className="ux_info_grid">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>회사 공식 명칭</span>
                 <span style={{ fontWeight: 600, color: "#111111" }}>{info.companyName}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>회사 표시 별칭 (displayName)</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.companyDisplayName || "-"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>회사코드</span>
@@ -242,6 +280,30 @@ export default function CompanyInfoPage() {
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>대표 담당자명</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.contactName || "-"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>담당자 연락처</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.contactPhone || "-"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>회사 주소</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.address || "-"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>공식 홈페이지</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.homepageUrl || "-"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>회사 기본 알림 수신 이메일</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.defaultReportEmail || "-"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>기본 타임존</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>{info.defaultTimezone || "-"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>최초 등록일</span>
                 <span style={{ color: "#4b5563" }}>
                   {info.createdAt ? new Date(info.createdAt).toLocaleString() : "-"}
@@ -253,20 +315,25 @@ export default function CompanyInfoPage() {
                   {info.updatedAt ? new Date(info.updatedAt).toLocaleString() : "-"}
                 </span>
               </div>
+              <div className="ux_info_grid_full" style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
+                <span style={{ color: "#6b7280" }}>회사 소개 및 메모</span>
+                <div style={{ padding: "10px", backgroundColor: "#f9fafb", borderRadius: "6px", border: "1px solid #e5e7eb", color: "#374151" }}>
+                  {info.description || "등록된 소개글이 없습니다."}
+                </div>
+              </div>
             </div>
             
-            {/* 내부식별자 아코디언/작은 텍스트 */}
             <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px dashed #f3f4f6", fontSize: "11px", color: "#9ca3af" }}>
               내부 시스템 식별자(clientId): <span style={{ fontFamily: "monospace" }}>{info.clientId}</span>
             </div>
           </div>
 
           {/* 2. 회사 관리자 정보 카드 */}
-          <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-            <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+          <div className="ux_card">
+            <h3 className="ux_card_title" style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               🔑 소유 관리자 정보
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+            <div className="ux_info_grid">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>관리자 성명</span>
                 <span style={{ fontWeight: 600, color: "#111111" }}>{info.ownerAdminDisplayName || "-"}</span>
@@ -284,12 +351,12 @@ export default function CompanyInfoPage() {
             </div>
           </div>
 
-          {/* 3. 시스템/계약 정보 읽기 전용 카드 */}
-          <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-            <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+          {/* 3. 서비스 라이선스 및 자동화 계약 현황 카드 */}
+          <div className="ux_card">
+            <h3 className="ux_card_title" style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               📊 서비스 라이선스 및 자동화 계약 현황
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+            <div className="ux_info_grid">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>체결된 자동화 계약 수</span>
                 <span style={{ fontWeight: 600, color: "#111111" }}>{contractCount} 건</span>
@@ -304,16 +371,14 @@ export default function CompanyInfoPage() {
               </div>
             </div>
           </div>
-
         </div>
-
-        {/* 오른쪽 영역: 프로필 수정 카드 폼 */}
-        <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-          <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+      ) : (
+        /* 프로필 수정 카드 폼 */
+        <div className="ux_card">
+          <h3 className="ux_card_title" style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
             ⚙️ 프로필 정보 수정
           </h3>
-          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            
+          <form onSubmit={handleSave} className="ux_info_grid">
             {/* 회사 표시명 */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <label style={{ fontSize: "12.5px", fontWeight: 600, color: "#374151" }}>회사 표시 별칭 (displayName)</label>
@@ -322,7 +387,8 @@ export default function CompanyInfoPage() {
                 value={form.companyDisplayName}
                 onChange={(e) => setForm({ ...form, companyDisplayName: e.target.value })}
                 placeholder="예: 렌탈톡톡 부산지사"
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 10px", fontSize: "13px", outline: "none" }}
+                className="ux_input"
+                style={{ width: "100%" }}
               />
               <span style={{ fontSize: "11px", color: "#9ca3af" }}>실 가입 검증과 무관한 UI 상의 별칭입니다. (최대 80자)</span>
             </div>
@@ -335,7 +401,8 @@ export default function CompanyInfoPage() {
                 value={form.contactName}
                 onChange={(e) => setForm({ ...form, contactName: e.target.value })}
                 placeholder="대표 담당자의 성함을 입력하세요"
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 10px", fontSize: "13px", outline: "none" }}
+                className="ux_input"
+                style={{ width: "100%" }}
               />
             </div>
 
@@ -347,7 +414,8 @@ export default function CompanyInfoPage() {
                 value={form.contactPhone}
                 onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
                 placeholder="예: 010-1234-5678"
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 10px", fontSize: "13px", outline: "none" }}
+                className="ux_input"
+                style={{ width: "100%" }}
               />
             </div>
 
@@ -359,7 +427,8 @@ export default function CompanyInfoPage() {
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 placeholder="회사 사업장 주소"
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 10px", fontSize: "13px", outline: "none" }}
+                className="ux_input"
+                style={{ width: "100%" }}
               />
             </div>
 
@@ -371,7 +440,8 @@ export default function CompanyInfoPage() {
                 value={form.homepageUrl}
                 onChange={(e) => setForm({ ...form, homepageUrl: e.target.value })}
                 placeholder="https://example.com"
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 10px", fontSize: "13px", outline: "none" }}
+                className="ux_input"
+                style={{ width: "100%" }}
               />
             </div>
 
@@ -383,10 +453,11 @@ export default function CompanyInfoPage() {
                 value={form.defaultReportEmail}
                 onChange={(e) => setForm({ ...form, defaultReportEmail: e.target.value })}
                 placeholder="report@example.com"
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 10px", fontSize: "13px", outline: "none" }}
+                className="ux_input"
+                style={{ width: "100%" }}
               />
               <span style={{ fontSize: "11px", color: "#9ca3af" }}>
-                회사 공용 기본 리포트 이메일입니다. 워크플로우별 설정이 따로 있으면 해당 설정이 우선될 수 있습니다.
+                회사 공용 기본 이포트 이메일입니다.
               </span>
             </div>
 
@@ -396,7 +467,8 @@ export default function CompanyInfoPage() {
               <select
                 value={form.defaultTimezone}
                 onChange={(e) => setForm({ ...form, defaultTimezone: e.target.value })}
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 6px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff" }}
+                className="ux_select"
+                style={{ width: "100%" }}
               >
                 <option value="Asia/Seoul">Asia/Seoul (KST)</option>
                 <option value="UTC">UTC</option>
@@ -404,43 +476,40 @@ export default function CompanyInfoPage() {
             </div>
 
             {/* 회사 소개 */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div className="ux_info_grid_full" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <label style={{ fontSize: "12.5px", fontWeight: 600, color: "#374151" }}>회사 소개 및 메모</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="소속 회사에 대한 메모 또는 소개 내용"
-                style={{ height: "80px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "10px", fontSize: "13px", outline: "none", resize: "none" }}
+                className="ux_textarea"
+                style={{ height: "80px", width: "100%" }}
               />
             </div>
 
-            {/* 저장 버튼 */}
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                height: "38px",
-                backgroundColor: saving ? "#9ca3af" : "#2563eb",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                fontSize: "13.5px",
-                fontWeight: 600,
-                cursor: saving ? "not-allowed" : "pointer",
-                transition: "background-color 0.15s ease",
-                marginTop: "8px",
-              }}
-              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = "#1d4ed8"; }}
-              onMouseLeave={(e) => { if (!saving) e.currentTarget.style.backgroundColor = "#2563eb"; }}
-            >
-              {saving ? "저장 중..." : "💾 변경사항 저장"}
-            </button>
-
+            {/* 버튼 영역 */}
+            <div className="ux_info_grid_full" style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+              <button
+                type="submit"
+                disabled={saving}
+                className="ux_button ux_button_primary"
+                style={{ flex: 1 }}
+              >
+                {saving ? "저장 중..." : "💾 변경사항 저장"}
+              </button>
+              <button
+                type="button"
+                onClick={handleResetForm}
+                disabled={saving}
+                className="ux_button ux_button_secondary"
+                style={{ width: "100px" }}
+              >
+                ↩️ 취소
+              </button>
+            </div>
           </form>
         </div>
-
-      </div>
-
+      )}
     </div>
   );
 }

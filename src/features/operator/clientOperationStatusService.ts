@@ -36,6 +36,12 @@ export interface ClientOperationStatus {
       maskedEmail: string;
       role: string;
       approvalStatus: string;
+      stats?: {
+        totalCount: number;
+        successCount: number;
+        failedCount: number;
+        latestExecutedAt: string | null;
+      };
     }>;
   };
   contractSummary: {
@@ -195,14 +201,43 @@ export async function getClientOperationStatus(
       (r) => r.status === "cancelled" || r.status === "rejected"
     ).length;
 
-    // 사용자 목록 (마스킹 적용)
-    const formattedUsersList = usersList.map((u) => ({
-      uid: u.uid,
-      maskedName: maskDisplayName(u.displayName),
-      maskedEmail: maskEmail(u.email),
-      role: u.role,
-      approvalStatus: u.approvalStatus,
-    }));
+    // 사용자별 통계 집계용 맵 생성
+    const statsMap = new Map<string, { totalCount: number; successCount: number; failedCount: number; latestExecutedAt: string | null }>();
+    
+    // 각 사용자의 초기 통계값 세팅
+    usersList.forEach((u) => {
+      statsMap.set(u.uid, { totalCount: 0, successCount: 0, failedCount: 0, latestExecutedAt: null });
+    });
+
+    // submissionsList를 내림차순 정렬 상태로 순회하며 집계 (idx=0에 가까울수록 최신)
+    submissionsList.forEach((sub) => {
+      const uStats = statsMap.get(sub.uid);
+      if (uStats) {
+        uStats.totalCount++;
+        if (sub.status === "success") {
+          uStats.successCount++;
+        } else if (sub.status === "failed" || sub.status === "config_error") {
+          uStats.failedCount++;
+        }
+        // 내림차순이므로 처음 매칭되는 시간이 가장 최신 실행 시각
+        if (!uStats.latestExecutedAt) {
+          uStats.latestExecutedAt = sub.createdAt || null;
+        }
+      }
+    });
+
+    // 사용자 목록 (마스킹 적용 및 실행 통계 포함)
+    const formattedUsersList = usersList.map((u) => {
+      const uStats = statsMap.get(u.uid) || { totalCount: 0, successCount: 0, failedCount: 0, latestExecutedAt: null };
+      return {
+        uid: u.uid,
+        maskedName: maskDisplayName(u.displayName),
+        maskedEmail: maskEmail(u.email),
+        role: u.role,
+        approvalStatus: u.approvalStatus,
+        stats: uStats,
+      };
+    });
 
     // ----------------------------------------------------
     // [2] 계약 자동화 현황 집계
@@ -370,3 +405,102 @@ export async function getClientOperationStatus(
     throw error;
   }
 }
+
+export interface ClientErrorLogItem {
+  submissionId: string;
+  createdAt: string | null;
+  workflowKey: string;
+  workflowName: string;
+  status: string;
+  errorCode: string;
+  errorMessage: string;
+  maskedUser: string;
+  googleEmail: string;
+}
+
+export interface ClientErrorLogPage {
+  items: ClientErrorLogItem[];
+  nextCursor: any;
+  hasNext: boolean;
+}
+
+export async function fetchClientErrorLogsPage(
+  db: Firestore,
+  clientId: string,
+  pageSize: number,
+  startAfterDoc: any = null
+): Promise<ClientErrorLogPage> {
+  try {
+    const templatesSnap = await getDocs(collection(db, "workflowTemplates"));
+    const templatesMap = new Map<string, string>();
+    templatesSnap.forEach((doc) => {
+      const data = doc.data() as WorkflowTemplate;
+      templatesMap.set(data.workflowKey, data.name || data.shortName || data.workflowKey);
+    });
+
+    const usersQuery = query(collection(db, "users"), where("clientId", "==", clientId));
+    const usersSnap = await getDocs(usersQuery);
+    const userMap = new Map<string, { displayName: string; email: string }>();
+    usersSnap.forEach((doc) => {
+      const data = doc.data() as UserDoc;
+      userMap.set(data.uid, { displayName: data.displayName, email: data.email });
+    });
+
+    let q = query(
+      collection(db, "submissions"),
+      where("clientId", "==", clientId),
+      where("status", "in", ["failed", "config_error"]),
+      orderBy("createdAt", "desc"),
+      limit(pageSize + 1)
+    );
+
+    if (startAfterDoc) {
+      const { startAfter } = await import("firebase/firestore");
+      q = query(q, startAfter(startAfterDoc));
+    }
+
+    const snap = await getDocs(q);
+    const docs = snap.docs;
+    const hasNext = docs.length > pageSize;
+    const pageDocs = hasNext ? docs.slice(0, pageSize) : docs;
+
+    const items = pageDocs.map((doc) => {
+      const sub = doc.data() as Submission;
+      const workflowName = templatesMap.get(sub.workflowKey) || "알 수 없는 자동화";
+      const uInfo = userMap.get(sub.uid);
+      const maskedUser = uInfo 
+        ? `${maskDisplayName(uInfo.displayName)} (${maskEmail(uInfo.email)})`
+        : "알 수 없는 사용자";
+      const googleEmail = uInfo ? maskEmail(uInfo.email) : "N/A";
+
+      let errMsg = sub.error?.message || "상세 오류 메시지가 없습니다.";
+      if (errMsg.length > 80) {
+        errMsg = errMsg.slice(0, 80) + "...";
+      }
+
+      return {
+        submissionId: sub.submissionId,
+        createdAt: sub.createdAt || null,
+        workflowKey: sub.workflowKey,
+        workflowName,
+        status: sub.status,
+        errorCode: sub.error?.code || "N/A",
+        errorMessage: errMsg,
+        maskedUser,
+        googleEmail,
+      };
+    });
+
+    const nextCursor = hasNext ? docs[pageSize - 1] : null;
+
+    return {
+      items,
+      nextCursor,
+      hasNext,
+    };
+  } catch (error) {
+    console.error("[clientOperationStatusService] 에러 로그 페이징 조회 실패:", error);
+    throw error;
+  }
+}
+

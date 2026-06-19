@@ -1,4 +1,5 @@
 // 이 파일은 선택된 N8N 워크플로우의 상세 명세(기본 정보, 입력 스키마, 설정값 스키마)를 조회하는 서브 컴포넌트입니다.
+// 한국어 주석 표준을 준수합니다.
 
 "use client";
 
@@ -10,6 +11,7 @@ import {
   buildWorkflowTemplateExportFileName,
   downloadJsonAsFile,
 } from "@/features/operator/workflowTemplateImport";
+import { SectionTabs, type SectionTabItem } from "@/components/core/layout/SectionTabs";
 
 interface WorkflowDetailProps {
   template: WorkflowTemplate;
@@ -31,6 +33,15 @@ export function WorkflowDetail({
   onDeleteSuccess,
 }: WorkflowDetailProps) {
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("basic");
+
+  const tabs: SectionTabItem[] = [
+    { key: "basic", label: "기본 정보" },
+    { key: "input", label: "입력 설정" },
+    { key: "config", label: "설정 스키마" },
+    { key: "retention", label: "보관 정책" },
+    { key: "reference", label: "참조/진단" },
+  ];
 
   /**
    * 현재 상세보기 중인 워크플로우를 N8Lient 표준 Import JSON으로 다운로드합니다.
@@ -124,6 +135,20 @@ export function WorkflowDetail({
     guideMessage = "아무런 계약이나 배포, 실행 참조가 없습니다. 자유로운 수정 및 삭제가 가능합니다.";
   }
 
+  // 보관 레벨 한글 라벨 맵핑 함수
+  const getRetentionLevelLabel = (level: string) => {
+    switch (level) {
+      case "notify_only":
+        return "알림만 (notify_only)";
+      case "processed_result":
+        return "결과 보관 (processed_result)";
+      case "full_archive":
+        return "전체 보관 (full_archive)";
+      default:
+        return level || "-";
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 뒤로가기 및 액션 바 */}
@@ -159,60 +184,6 @@ export function WorkflowDetail({
         </div>
 
         <div style={{ display: "flex", gap: "8px" }}>
-          {/* Draft 삭제 버튼 추가 */}
-          {template.status === "draft" && (
-            <button
-              onClick={handleDeleteDraft}
-              disabled={deleting || hasProductionReferences}
-              style={{
-                backgroundColor: (deleting || hasProductionReferences) ? "#f3f4f6" : "#ef4444",
-                color: (deleting || hasProductionReferences) ? "#9ca3af" : "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "6px 14px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: (deleting || hasProductionReferences) ? "not-allowed" : "pointer",
-              }}
-              title={hasProductionReferences ? "운영 참조가 있어 삭제할 수 없습니다." : "테스트 이력이 함께 삭제됩니다."}
-            >
-              {deleting ? "삭제 중..." : "[Draft 삭제]"}
-            </button>
-          )}
-          <button
-            onClick={onCloneClick}
-            disabled={deleting}
-            style={{
-              backgroundColor: deleting ? "#f3f4f6" : "#eff6ff",
-              color: deleting ? "#9ca3af" : "#1d4ed8",
-              border: deleting ? "1px solid #e5e7eb" : "1px solid #bfdbfe",
-              borderRadius: "6px",
-              padding: "6px 14px",
-              fontSize: "12.5px",
-              fontWeight: 600,
-              cursor: deleting ? "not-allowed" : "pointer",
-            }}
-          >
-            📋 워크플로우 복제
-          </button>
-          {/* JSON 다운로드 버튼: 현재 명세를 N8Lient 표준 Import JSON으로 내보냅니다 */}
-          <button
-            onClick={handleDownloadJson}
-            disabled={deleting}
-            style={{
-              backgroundColor: deleting ? "#f3f4f6" : "#f0fdf4",
-              color: deleting ? "#9ca3af" : "#15803d",
-              border: deleting ? "1px solid #e5e7eb" : "1px solid #bbf7d0",
-              borderRadius: "6px",
-              padding: "6px 14px",
-              fontSize: "12.5px",
-              fontWeight: 600,
-              cursor: deleting ? "not-allowed" : "pointer",
-            }}
-            title="현재 워크플로우 명세를 N8Lient 표준 Import JSON 파일로 다운로드합니다."
-          >
-            ⬇️ JSON 다운로드
-          </button>
           <button
             onClick={onEditClick}
             disabled={deleting}
@@ -232,164 +203,283 @@ export function WorkflowDetail({
         </div>
       </div>
 
-      {/* 구조 잠금 안내 배너 노출 */}
-      {guideMessage && (
-        <div className={guideAlertClass} style={guideAlertStyle}>
-          💡 {guideMessage}
-        </div>
-      )}
+      {/* 탭 네비게이션 */}
+      <SectionTabs
+        items={tabs}
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="워크플로우 상세 섹션 탭"
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* 왼쪽 패널: 기본정보 & Webhook 설정 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div
-            style={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              padding: "20px",
-            }}
-          >
-            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
-              📌 기본 정보
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>워크플로우 명칭</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>{template.name}</span>
+      {/* 탭 콘텐츠 영역 */}
+      <div style={{ marginTop: "4px" }}>
+        
+        {/* 1. 기본 정보 탭 */}
+        {activeTab === "basic" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div
+              className="ux_panel"
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                🏢 워크플로우 기본 정보
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>워크플로우 명칭</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>{template.name}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>워크플로우 식별 Key</span>
+                  <span style={{ fontWeight: 600, color: "#111111", fontFamily: "monospace" }}>{template.workflowKey}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>줄임말 (UI 약어)</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>{template.shortName}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>버전</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>v{template.version}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#6b7280" }}>상태</span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      backgroundColor: template.status === "published" ? "#d1fae5" : "#f3f4f6",
+                      color: template.status === "published" ? "#065f46" : "#374151",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {template.status === "published" ? "배포 완료 (published)" : template.status === "disabled" ? "비활성" : "작성 중 (draft)"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
+                  <span style={{ color: "#6b7280" }}>워크플로우 설명</span>
+                  <p style={{ margin: 0, padding: "8px 10px", backgroundColor: "#f9fafb", borderRadius: "6px", color: "#374151", lineHeight: 1.4 }}>
+                    {template.description || "설명이 등록되지 않았습니다."}
+                  </p>
+                </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>줄임말 (UI 약어)</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>{template.shortName}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>버전</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>v{template.version}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ color: "#6b7280" }}>상태</span>
-                <span
+
+              {/* 기본 정보 하단 액션 영역 */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  borderTop: "1px solid #f3f4f6",
+                  paddingTop: "16px",
+                  marginTop: "8px",
+                }}
+              >
+                {template.status === "draft" && (
+                  <button
+                    onClick={handleDeleteDraft}
+                    disabled={deleting || hasProductionReferences}
+                    style={{
+                      backgroundColor: (deleting || hasProductionReferences) ? "#f3f4f6" : "#ef4444",
+                      color: (deleting || hasProductionReferences) ? "#9ca3af" : "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "6px 14px",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      cursor: (deleting || hasProductionReferences) ? "not-allowed" : "pointer",
+                    }}
+                    title={hasProductionReferences ? "운영 참조가 있어 삭제할 수 없습니다." : "테스트 이력이 함께 삭제됩니다."}
+                  >
+                    {deleting ? "삭제 중..." : "[Draft 삭제]"}
+                  </button>
+                )}
+                <button
+                  onClick={onCloneClick}
+                  disabled={deleting}
                   style={{
-                    fontSize: "11px",
+                    backgroundColor: deleting ? "#f3f4f6" : "#eff6ff",
+                    color: deleting ? "#9ca3af" : "#1d4ed8",
+                    border: deleting ? "1px solid #e5e7eb" : "1px solid #bfdbfe",
+                    borderRadius: "6px",
+                    padding: "6px 14px",
+                    fontSize: "12.5px",
                     fontWeight: 600,
-                    backgroundColor: template.status === "published" ? "#d1fae5" : "#f3f4f6",
-                    color: template.status === "published" ? "#065f46" : "#374151",
-                    padding: "2px 6px",
-                    borderRadius: "4px",
+                    cursor: deleting ? "not-allowed" : "pointer",
                   }}
                 >
-                  {template.status === "published" ? "배포 완료" : template.status === "disabled" ? "비활성" : "작성 중"}
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
-                <span style={{ color: "#6b7280" }}>워크플로우 설명</span>
-                <p style={{ margin: 0, padding: "8px 10px", backgroundColor: "#f9fafb", borderRadius: "6px", color: "#374151", lineHeight: 1.4 }}>
-                  {template.description || "설명이 등록되지 않았습니다."}
-                </p>
+                  📋 워크플로우 복제
+                </button>
+                <button
+                  onClick={handleDownloadJson}
+                  disabled={deleting}
+                  style={{
+                    backgroundColor: deleting ? "#f3f4f6" : "#f0fdf4",
+                    color: deleting ? "#9ca3af" : "#15803d",
+                    border: deleting ? "1px solid #e5e7eb" : "1px solid #bbf7d0",
+                    borderRadius: "6px",
+                    padding: "6px 14px",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    cursor: deleting ? "not-allowed" : "pointer",
+                  }}
+                  title="현재 워크플로우 명세를 N8Lient 표준 Import JSON 파일로 다운로드합니다."
+                >
+                  ⬇️ JSON 다운로드
+                </button>
               </div>
             </div>
-          </div>
 
+            {/* 구조 잠금 및 테스트 참조 안내 배너 노출 */}
+            {guideMessage && (
+              <div className={guideAlertClass} style={guideAlertStyle}>
+                💡 {guideMessage}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2. 입력 설정 탭 */}
+        {activeTab === "input" && (
           <div
+            className="ux_panel"
             style={{
               backgroundColor: "#ffffff",
               border: "1px solid #e5e7eb",
               borderRadius: "8px",
               padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
             }}
           >
-            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
-              🔗 Webhook 환경변수 맵핑 정보
+            <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+              📥 허용 입력 양식 (inputSchema)
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>n8n 서버 식별 Key</span>
-                <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>{template.n8nServerKey || "main"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#6b7280" }}>Webhook Secret 참조 ID</span>
-                <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>{template.webhookSecretId}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 오른쪽 패널: inputSchema & configSchema 목록 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div
-            style={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              padding: "20px",
-            }}
-          >
-            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
-              ⚙️ 허용 입력 양식 (inputSchema)
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>허용 입력 형태</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>{template.inputSchema?.acceptedInputTypes?.join(", ") || "없음"}</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>
+                  {template.inputSchema?.acceptedInputTypes?.join(", ") || "없음"}
+                </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>허용 파일 확장자</span>
                 <span style={{ fontWeight: 600, color: "#111111", fontFamily: "monospace" }}>
-                  {template.inputSchema?.allowedFileTypes?.join(", ") || "없음"}
+                  {template.inputSchema?.allowedFileTypes?.join(", ") || "제한 없음"}
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#6b7280" }}>최대 업로드 제한 크기</span>
-                <span style={{ fontWeight: 600, color: "#111111" }}>{template.inputSchema?.maxFileSizeMB || 50} MB</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>
+                  {template.inputSchema?.maxFileSizeMB ? `${template.inputSchema.maxFileSizeMB} MB` : "50 MB (기본값)"}
+                </span>
               </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>제목 입력 필수 여부</span>
+                <span style={{ fontWeight: 600, color: template.inputSchema?.titleRequired ? "#ef4444" : "#111111" }}>
+                  {template.inputSchema?.titleRequired ? "필수 입력" : "선택 사항"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280" }}>필수 입력 조건 모드</span>
+                <span style={{ fontWeight: 600, color: "#111111" }}>
+                  {template.inputSchema?.requiredInputMode === "none"
+                    ? "없음 (제한 없음)"
+                    : template.inputSchema?.requiredInputMode === "all"
+                    ? "모두 입력 필수"
+                    : "최소 1개 이상 입력 필수"}
+                </span>
+              </div>
+              {template.inputSchema?.requiredInputTypes && template.inputSchema.requiredInputTypes.length > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>필수 입력 필요 파일 타입</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>
+                    {template.inputSchema.requiredInputTypes.join(", ")}
+                  </span>
+                </div>
+              )}
+              {template.inputSchema?.maxFiles !== undefined && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>최대 허용 파일 수</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>
+                    {template.inputSchema.maxFiles} 개
+                  </span>
+                </div>
+              )}
             </div>
           </div>
+        )}
 
+        {/* 3. 설정 스키마 탭 */}
+        {activeTab === "config" && (
           <div
+            className="ux_panel"
             style={{
               backgroundColor: "#ffffff",
               border: "1px solid #e5e7eb",
               borderRadius: "8px",
               padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
             }}
           >
-            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               ⚙️ 설정값 맵핑 필드 (configSchema)
             </h3>
             <div className="ux_scroll_area">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #e5e7eb", color: "#6b7280" }}>
-                    <th style={{ padding: "8px 4px", fontWeight: 600 }}>설정 Key</th>
-                    <th style={{ padding: "8px 4px", fontWeight: 600 }}>라벨명</th>
-                    <th style={{ padding: "8px 4px", fontWeight: 600 }}>타입</th>
-                    <th style={{ padding: "8px 4px", fontWeight: 600 }}>필수</th>
+                  <tr style={{ borderBottom: "1px solid #e5e7eb", color: "#6b7280", backgroundColor: "#f9fafb" }}>
+                    <th style={{ padding: "10px 8px", fontWeight: 600 }}>설정 Key</th>
+                    <th style={{ padding: "10px 8px", fontWeight: 600 }}>라벨명</th>
+                    <th style={{ padding: "10px 8px", fontWeight: 600 }}>타입</th>
+                    <th style={{ padding: "10px 8px", fontWeight: 600 }}>필수</th>
+                    <th style={{ padding: "10px 8px", fontWeight: 600 }}>기본값</th>
                   </tr>
                 </thead>
                 <tbody>
                   {template.configSchema?.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ padding: "12px", textAlign: "center", color: "#9ca3af" }}>
+                      <td colSpan={5} style={{ padding: "16px", textAlign: "center", color: "#9ca3af" }}>
                         등록된 설정값 매핑 규격이 없습니다.
                       </td>
                     </tr>
                   ) : (
                     template.configSchema.map((field) => (
                       <tr key={field.key} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                        <td style={{ padding: "10px 4px", fontFamily: "monospace", fontWeight: 600 }}>{field.key}</td>
-                        <td style={{ padding: "10px 4px" }}>
+                        <td style={{ padding: "10px 8px", fontFamily: "monospace", fontWeight: 600 }}>{field.key}</td>
+                        <td style={{ padding: "10px 8px" }}>
                           <div>{field.label}</div>
                           {field.description && (
-                            <div style={{ fontSize: "10.5px", color: "#9ca3af", marginTop: "2px" }}>
-                              💡 {field.description}
+                            <div style={{ fontSize: "10.5px", color: "#9ca3af", marginTop: "2px" }} title={field.description}>
+                              💡 {field.description.length > 40 ? `${field.description.slice(0, 40)}...` : field.description}
                             </div>
                           )}
                         </td>
-                        <td style={{ padding: "10px 4px", color: "#4b5563" }}>{field.type}</td>
-                        <td style={{ padding: "10px 4px" }}>
+                        <td style={{ padding: "10px 8px", color: "#4b5563" }}>{field.type}</td>
+                        <td style={{ padding: "10px 8px" }}>
                           <span style={{ color: field.required ? "#ef4444" : "#9ca3af", fontWeight: field.required ? 600 : 400 }}>
                             {field.required ? "Y" : "N"}
                           </span>
+                        </td>
+                        <td style={{ padding: "10px 8px", color: "#6b7280" }}>
+                          {field.defaultValue !== undefined && field.defaultValue !== null
+                            ? String(field.defaultValue)
+                            : "-"}
+                          {field.defaultValueSource && (
+                            <span style={{ fontSize: "10px", color: "#2563eb", marginLeft: "4px" }}>
+                              ({field.defaultValueSource})
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -398,7 +488,224 @@ export function WorkflowDetail({
               </table>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* 4. 보관 정책 탭 */}
+        {activeTab === "retention" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            
+            {/* 4.1 기술적 지원 범위 */}
+            <div
+              className="ux_panel"
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                🛡️ 워크플로우 기술적 보관 능력 (retentionCapabilities)
+              </h3>
+              {template.retentionCapabilities ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>기술적 최대 지원 보관 레벨</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>
+                      {getRetentionLevelLabel(template.retentionCapabilities.maxLevel)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>지원 가능한 레벨 목록</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>
+                      {template.retentionCapabilities.supportedLevels?.map(getRetentionLevelLabel).join(", ") || "-"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>기본 보관 레벨</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>
+                      {getRetentionLevelLabel(template.retentionCapabilities.defaultLevel)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>결과 요약 데이터 저장 지원 여부</span>
+                    <span style={{ fontWeight: 600, color: template.retentionCapabilities.supportsProcessorResult ? "#10b981" : "#ef4444" }}>
+                      {template.retentionCapabilities.supportsProcessorResult ? "지원" : "미지원"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>원본 파일 참조 정보 저장 지원 여부</span>
+                    <span style={{ fontWeight: 600, color: template.retentionCapabilities.supportsOriginalFileRefs ? "#10b981" : "#ef4444" }}>
+                      {template.retentionCapabilities.supportsOriginalFileRefs ? "지원" : "미지원"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>결과 파일 참조 정보 저장 지원 여부</span>
+                    <span style={{ fontWeight: 600, color: template.retentionCapabilities.supportsResultRefs ? "#10b981" : "#ef4444" }}>
+                      {template.retentionCapabilities.supportsResultRefs ? "지원" : "미지원"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>이메일 알림 전송 지원 여부</span>
+                    <span style={{ fontWeight: 600, color: template.retentionCapabilities.supportsEmailNotification ? "#10b981" : "#ef4444" }}>
+                      {template.retentionCapabilities.supportsEmailNotification ? "지원" : "미지원"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: "13px", color: "#9ca3af", textAlign: "center", padding: "12px 0" }}>
+                  설정된 기술적 보관 능력 스키마 정보가 없습니다. (하위 호환)
+                </div>
+              )}
+            </div>
+
+            {/* 4.2 오퍼레이터 정책 제한 */}
+            <div
+              className="ux_panel"
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                🔒 오퍼레이터 계약 제한 정책 (operatorRetentionPolicy)
+              </h3>
+              {template.operatorRetentionPolicy ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>허용 보관 레벨</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>
+                      {template.operatorRetentionPolicy.allowedLevels?.map(getRetentionLevelLabel).join(", ") || "-"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>계약 기본 레벨</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>
+                      {getRetentionLevelLabel(template.operatorRetentionPolicy.defaultLevel)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>고객사 오버라이드(변경) 허용 여부</span>
+                    <span style={{ fontWeight: 600, color: template.operatorRetentionPolicy.allowCompanyOverride ? "#10b981" : "#ef4444" }}>
+                      {template.operatorRetentionPolicy.allowCompanyOverride ? "허용" : "차단"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>일반 사용자 오버라이드(변경) 허용 여부</span>
+                    <span style={{ fontWeight: 600, color: template.operatorRetentionPolicy.allowUserOverride ? "#10b981" : "#ef4444" }}>
+                      {template.operatorRetentionPolicy.allowUserOverride ? "허용" : "차단"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: "13px", color: "#9ca3af", textAlign: "center", padding: "12px 0" }}>
+                  설정된 오퍼레이터 제한 정책 정보가 없습니다. (하위 호환)
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 5. 참조/진단 탭 */}
+        {activeTab === "reference" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            
+            {/* 5.1 연동 키 맵핑 정보 */}
+            <div
+              className="ux_panel"
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                🔗 Webhook 환경변수 맵핑 정보
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>n8n 서버 식별 Key</span>
+                  <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>
+                    {template.n8nServerKey || "main"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>Webhook Secret 참조 ID</span>
+                  <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>
+                    {template.webhookSecretId}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 5.2 진단 및 사용량 통계 요약 */}
+            <div
+              className="ux_panel"
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 className="ux_card_title" style={{ margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                🛠️ 워크플로우 진단 및 참조 통계
+              </h3>
+              {usageSummary ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>전체 계약 수 (Client Contracts)</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>{usageSummary.clientContractCount} 건</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>회사 등록 수 (Client Automations)</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>{usageSummary.clientAutomationCount} 건</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>전체 실행 횟수 (Submissions)</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>{usageSummary.submissionCount} 회</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>사용자별 개인 설정 수 (User Settings)</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>{usageSummary.userSettingCount} 건</span>
+                  </div>
+                  <div style={{ borderTop: "1px dashed #e5e7eb", paddingTop: "8px", marginTop: "4px" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>운영 참조 보유 여부</span>
+                    <span style={{ fontWeight: 600, color: hasProductionReferences ? "#d97706" : "#111111" }}>
+                      {hasProductionReferences ? "보유 (구조 변경 제한됨)" : "없음"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#6b7280" }}>테스트 참조 보유 여부</span>
+                    <span style={{ fontWeight: 600, color: "#111111" }}>
+                      {hasTestReferences ? "보유" : "없음"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: "13px", color: "#9ca3af", textAlign: "center", padding: "12px 0" }}>
+                  참조/진단 정보를 불러오지 못했거나 요약 데이터가 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

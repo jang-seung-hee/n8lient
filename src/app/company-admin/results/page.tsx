@@ -1,17 +1,20 @@
 // 이 파일은 회사 관리자가 소속 구성원들의 모든 자동화 실행 결과 로그를 조회하는 화면입니다.
+// 한국어 주석 표준을 준수합니다.
 
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
-import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
+import { ExecutionLogSearchBar } from "@/components/results/ExecutionLogSearchBar";
+import { ExecutionLogTable } from "@/components/results/ExecutionLogTable";
+import { mapSubmissionToRow } from "@/components/results/executionLogViewModel";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
 import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
-import { SubmissionList } from "@/components/core/submission/SubmissionList";
 import { subscribeCompanySubmissions } from "@/features/submission/submissionQueryService";
 import { filterSubmissions } from "@/common/submission/submissionFilters";
+import { doc, getDoc } from "firebase/firestore";
 import type { Submission, SubmissionStatus } from "@/types/n8lient";
 
 const PAGE_SIZE = 20;
@@ -23,6 +26,7 @@ export default function AdminResults() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("-");
 
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,20 +59,26 @@ export default function AdminResults() {
     return () => unsubscribe();
   }, [userDoc?.clientId]);
 
-  const filterFields: FilterField[] = [
-    {
-      key: "status",
-      label: "상태",
-      options: [
-        { value: "success", label: "성공" },
-        { value: "processing", label: "처리중" },
-        { value: "failed", label: "실패" },
-        { value: "queued", label: "대기" },
-        { value: "skipped", label: "제외됨" },
-        { value: "config_error", label: "설정오류" },
-      ],
-    },
-  ];
+  // 소속 회사명 단건 조회
+  useEffect(() => {
+    const clientId = userDoc?.clientId;
+    if (!clientId) return;
+
+    const fetchCompanyName = async () => {
+      try {
+        const clientRef = doc(db, "clients", clientId);
+        const snap = await getDoc(clientRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          setCompanyName(data.companyName || data.companyDisplayName || "회사명 없음");
+        }
+      } catch (err) {
+        console.error("[AdminResults] 회사 정보 로드 실패:", err);
+      }
+    };
+
+    fetchCompanyName();
+  }, [userDoc?.clientId]);
 
   const handleFilterChange = (query: string, filterValues: Record<string, string>) => {
     setSearchQuery(query);
@@ -86,10 +96,12 @@ export default function AdminResults() {
 
   const actorDisplaySource = useSubmissionActorDisplaySource(activeSubmission);
 
-  // 클라이언트 사이드 필터링 적용
+  // 클라이언트 사이드 필터링 적용 (실패 단계 및 실패 위치 필터 추가 반영)
   const filteredList = filterSubmissions(submissions, {
     searchQuery,
     status: filters.status as SubmissionStatus | "all",
+    errorPhase: filters.errorPhase as any,
+    errorSource: filters.errorSource as any,
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
@@ -105,10 +117,15 @@ export default function AdminResults() {
 
   const actorLabelByUid = useSubmissionActorLabelMap(pagedLogs);
 
+  // Submission 객체 리스트를 ExecutionLogRow 리스트로 매핑 변환
+  const tableRows = useMemo(() => {
+    return pagedLogs.map((log) => mapSubmissionToRow(log, undefined, companyName));
+  }, [pagedLogs, companyName]);
+
   // 필터·검색 변경 시 1페이지로 초기화
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filters.status]);
+  }, [searchQuery, filters.status, filters.errorPhase, filters.errorSource]);
 
   // 결과 건수 감소 시 현재 페이지 보정
   useEffect(() => {
@@ -129,9 +146,7 @@ export default function AdminResults() {
       </div>
 
       {/* 검색 및 필터 UI */}
-      <ListSearchFilterBar
-        searchPlaceholder="실행 ID, 워크플로우 Key, 실행명 검색..."
-        filterFields={filterFields}
+      <ExecutionLogSearchBar
         onChange={handleFilterChange}
       />
 
@@ -148,10 +163,9 @@ export default function AdminResults() {
           </div>
         ) : (
           <>
-            <SubmissionList
-              submissions={pagedLogs}
-              onRowClick={handleRowClick}
-              viewMode="company_admin"
+            <ExecutionLogTable
+              rows={tableRows}
+              onRowClick={(row) => handleRowClick(row.raw)}
               actorLabelByUid={actorLabelByUid}
             />
             {filteredList.length > 0 && (

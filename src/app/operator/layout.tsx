@@ -52,14 +52,14 @@ export default function OperatorLayout({ children }: OperatorLayoutProps) {
   }
 
   return (
-    <div className="ux_responsive_admin_shell" style={{ minHeight: "100vh", backgroundColor: "#f9fafb" }}>
+    <div className="ux_admin_app_shell">
       {/* PC 전용 sidebar */}
-      <div className="ux_sidebar_desktop">
+      <aside className="ux_admin_sidebar_frame">
         <OperatorSidebar />
-      </div>
+      </aside>
 
       {/* 본문 영역 */}
-      <div className="ux_admin_main_column">
+      <main className="ux_admin_main_scroll">
         <header className="ux_admin_console_header">
           <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
             <button
@@ -95,13 +95,10 @@ export default function OperatorLayout({ children }: OperatorLayoutProps) {
           <OperatorSidebar fullWidth onNavigate={closeSidebar} />
         </SidebarDrawer>
 
-        <main
-          className="ux_page_shell"
-          style={{ flex: 1, boxSizing: "border-box", overflowY: "auto", minWidth: 0 }}
-        >
+        <div className="ux_page_shell">
           <div className="ux_content_body">{children}</div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

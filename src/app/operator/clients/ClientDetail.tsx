@@ -11,6 +11,12 @@ import { collection, query, where, limit, getDocs } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore";
 import { ClientAdminPanel } from "./components/ClientAdminPanel";
 import { ClientOperationStatusSection } from "./components/ClientOperationStatusSection";
+import { SectionTabs, type SectionTabItem } from "@/components/core/layout/SectionTabs";
+import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
+import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
+import type { Submission } from "@/types/n8lient";
+
+
 
 interface ClientDetailProps {
   client: ClientDoc;
@@ -36,6 +42,38 @@ export function ClientDetail({
 }: ClientDetailProps) {
   const [adminInfo, setAdminInfo] = useState<AdminInfo | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("basic");
+
+  // 오류 상세 모달 제어용 상태
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const actorDisplaySource = useSubmissionActorDisplaySource(selectedSubmission);
+
+  const tabs: SectionTabItem[] = [
+    { key: "basic", label: "기본 정보" },
+    { key: "operation", label: "운영 요약" },
+    { key: "users", label: "소속 사용자" },
+    { key: "errors", label: "오류 로그" },
+  ];
+
+
+  // 오류 상세 단건 조회 및 모달 열기 핸들러
+  const handleViewSubmission = async (submissionId: string) => {
+    try {
+      const { doc, getDoc } = await import("firebase/firestore");
+      const subRef = doc(db, "submissions", submissionId);
+      const snap = await getDoc(subRef);
+      if (snap.exists()) {
+        setSelectedSubmission(snap.data() as Submission);
+        setIsLogModalOpen(true);
+      } else {
+        alert("해당 실행 이력 정보를 찾을 수 없습니다.");
+      }
+    } catch (err: any) {
+      console.error("[ClientDetail] 실행 이력 단건 조회 실패:", err);
+      alert("실행 이력을 불러오는 중 오류가 발생했습니다: " + err.message);
+    }
+  };
 
   // ownerAdminUid가 있으면 users 컬렉션에서 관리자 정보 조회
   useEffect(() => {
@@ -116,128 +154,181 @@ export function ClientDetail({
         </button>
       </div>
 
-      {/* 정보 영역 레이아웃 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-        {/* 왼쪽: 회사 마스터 정보 */}
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-          }}
-        >
-          <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
-            🏢 기본 정보
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#6b7280" }}>고객사명</span>
-              <span style={{ fontWeight: 600, color: "#111111" }}>{client.companyName}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#6b7280" }}>고객사 식별 ID</span>
-              <span style={{ fontWeight: 600, color: "#111111", fontFamily: "monospace" }}>{client.clientId}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#6b7280" }}>가입용 회사코드</span>
-              <span style={{ fontWeight: 600, color: "#1d4ed8", fontFamily: "monospace" }}>{client.companyCode}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "#6b7280" }}>운영 상태</span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  backgroundColor: client.status === "active" ? "#d1fae5" : "#fee2e2",
-                  color: client.status === "active" ? "#065f46" : "#991b1b",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                }}
-              >
-                {client.status === "active" ? "정상 가동 (active)" : "가동 정지 (suspended)"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 오른쪽: 시스템 설정 & 폴더 구성 */}
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-          }}
-        >
-          <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
-            ⚙️ 시스템 및 자원 설정
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
-            {/* 소유자 관리자 정보 */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <span style={{ color: "#6b7280" }}>소유자 관리자</span>
-              {client.ownerAdminUid ? (
-                adminLoading ? (
-                  <span style={{ color: "#9ca3af", fontSize: "12px" }}>조회 중...</span>
-                ) : adminInfo ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ fontWeight: 600, color: "#111111" }}>
-                      {adminInfo.displayName}
-                    </span>
-                    <span style={{ color: "#4b5563", fontSize: "12px" }}>{adminInfo.email}</span>
-                    <span style={{ color: "#9ca3af", fontFamily: "monospace", fontSize: "11px" }}>
-                      UID: {client.ownerAdminUid.slice(0, 12)}...
-                    </span>
-                  </div>
-                ) : (
-                  <div>
-                    <span style={{ color: "#9ca3af", fontFamily: "monospace", fontSize: "12px" }}>
-                      {client.ownerAdminUid.slice(0, 12)}... (이름 조회 불가)
-                    </span>
-                  </div>
-                )
-              ) : (
-                <span style={{ color: "#9ca3af" }}>미지정</span>
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#6b7280" }}>기본 타임존</span>
-              <span style={{ fontWeight: 600, color: "#111111" }}>{client.defaultTimezone}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#6b7280" }}>기본 보고서 수신메일</span>
-              <span style={{ fontWeight: 600, color: "#111111" }}>{client.defaultReportEmail}</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
-              <span style={{ color: "#6b7280" }}>공용 구글 드라이브 루트 폴더 ID</span>
-              <p style={{ margin: 0, padding: "8px 10px", backgroundColor: "#f9fafb", borderRadius: "6px", color: "#374151", fontFamily: "monospace", fontSize: "12px", wordBreak: "break-all" }}>
-                {client.defaultDriveRootFolderId || "폴더 ID가 설정되지 않았습니다."}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 회사 관리자 최초 등록 승인 및 제거 관리 패널 */}
-      <ClientAdminPanel
-        client={client}
-        db={db}
-        operatorUid={operatorUid}
-        onRefresh={onRefresh}
+      {/* 탭 네비게이션 */}
+      <SectionTabs
+        items={tabs}
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="고객사 상세 정보 탭"
       />
 
-      {/* 고객사 마스터 운영 현황 섹션 */}
-      <ClientOperationStatusSection
-        clientId={client.clientId}
-        db={db}
-      />
+      {/* 탭 본문 영역 */}
+      {activeTab === "basic" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }} id="tabpanel-basic" role="tabpanel" aria-labelledby="tab-basic">
+          {/* 정보 영역 레이아웃 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            {/* 왼쪽: 회사 마스터 정보 */}
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                🏢 기본 정보
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>고객사명</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>{client.companyName}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>고객사 식별 ID</span>
+                  <span style={{ fontWeight: 600, color: "#111111", fontFamily: "monospace" }}>{client.clientId}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>가입용 회사코드</span>
+                  <span style={{ fontWeight: 600, color: "#1d4ed8", fontFamily: "monospace" }}>{client.companyCode}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#6b7280" }}>운영 상태</span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      backgroundColor: client.status === "active" ? "#d1fae5" : "#fee2e2",
+                      color: client.status === "active" ? "#065f46" : "#991b1b",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {client.status === "active" ? "정상 가동 (active)" : "가동 정지 (suspended)"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 오른쪽: 시스템 설정 & 폴더 구성 */}
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: 0, borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+                ⚙️ 시스템 및 자원 설정
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
+                {/* 소유자 관리자 정보 */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{ color: "#6b7280" }}>소유자 관리자</span>
+                  {client.ownerAdminUid ? (
+                    adminLoading ? (
+                      <span style={{ color: "#9ca3af", fontSize: "12px" }}>조회 중...</span>
+                    ) : adminInfo ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontWeight: 600, color: "#111111" }}>
+                          {adminInfo.displayName}
+                        </span>
+                        <span style={{ color: "#4b5563", fontSize: "12px" }}>{adminInfo.email}</span>
+                        <span style={{ color: "#9ca3af", fontFamily: "monospace", fontSize: "11px" }}>
+                          UID: {client.ownerAdminUid.slice(0, 12)}...
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span style={{ color: "#9ca3af", fontFamily: "monospace", fontSize: "12px" }}>
+                          {client.ownerAdminUid.slice(0, 12)}... (이름 조회 불가)
+                        </span>
+                      </div>
+                    )
+                  ) : (
+                    <span style={{ color: "#9ca3af" }}>미지정</span>
+                  )}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>기본 타임존</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>{client.defaultTimezone}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6b7280" }}>기본 보고서 수신메일</span>
+                  <span style={{ fontWeight: 600, color: "#111111" }}>{client.defaultReportEmail}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
+                  <span style={{ color: "#6b7280" }}>공용 구글 드라이브 루트 폴더 ID</span>
+                  <p style={{ margin: 0, padding: "8px 10px", backgroundColor: "#f9fafb", borderRadius: "6px", color: "#374151", fontFamily: "monospace", fontSize: "12px", wordBreak: "break-all" }}>
+                    {client.defaultDriveRootFolderId || "폴더 ID가 설정되지 않았습니다."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 회사 관리자 최초 등록 승인 및 제거 관리 패널 */}
+          <ClientAdminPanel
+            client={client}
+            db={db}
+            operatorUid={operatorUid}
+            onRefresh={onRefresh}
+          />
+        </div>
+      )}
+
+      {activeTab === "operation" && (
+        <div id="tabpanel-operation" role="tabpanel" aria-labelledby="tab-operation">
+          {/* 고객사 마스터 운영 현황 섹션 (운영 요약) */}
+          <ClientOperationStatusSection
+            clientId={client.clientId}
+            db={db}
+            mode="overview"
+          />
+        </div>
+      )}
+
+      {activeTab === "users" && (
+        <div id="tabpanel-users" role="tabpanel" aria-labelledby="tab-users">
+          {/* 고객사 마스터 소속 사용자 섹션 */}
+          <ClientOperationStatusSection
+            clientId={client.clientId}
+            db={db}
+            mode="users"
+          />
+        </div>
+      )}
+
+      {activeTab === "errors" && (
+        <div id="tabpanel-errors" role="tabpanel" aria-labelledby="tab-errors">
+          {/* 고객사 마스터 오류 로그 섹션 */}
+          <ClientOperationStatusSection
+            clientId={client.clientId}
+            db={db}
+            mode="errors"
+            onViewSubmission={handleViewSubmission}
+          />
+        </div>
+      )}
+      {isLogModalOpen && selectedSubmission && (
+        <ExecutionResultDetailModal
+          isOpen={isLogModalOpen}
+          onClose={() => {
+            setIsLogModalOpen(false);
+            setSelectedSubmission(null);
+          }}
+          submission={selectedSubmission}
+          viewerRole="operator"
+          actorDisplaySource={actorDisplaySource}
+        />
+      )}
     </div>
   );
 }

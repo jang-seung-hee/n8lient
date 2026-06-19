@@ -11,15 +11,44 @@ import {
   getClientOperationStatus,
   type ClientOperationStatus,
 } from "@/features/operator/clientOperationStatusService";
+import { ClientUserStatsTable } from "./ClientUserStatsTable";
+import { ClientErrorLogTable } from "./ClientErrorLogTable";
+
+
+function formatCompactDateTime(value: unknown): string {
+  let date: Date | null = null;
+
+  if (value instanceof Date) {
+    date = value;
+  } else if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
+    date = value.toDate();
+  } else if (typeof value === "string" || typeof value === "number") {
+    date = new Date(value);
+  }
+
+  if (!date || Number.isNaN(date.getTime())) return "-";
+
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+
+  return `${yy}${mm}${dd} ${hh}:${mi}`;
+}
 
 interface ClientOperationStatusSectionProps {
   clientId: string;
   db: Firestore;
+  mode?: "overview" | "users" | "errors";
+  onViewSubmission?: (submissionId: string) => void;
 }
 
 export function ClientOperationStatusSection({
   clientId,
   db,
+  mode = "overview",
+  onViewSubmission,
 }: ClientOperationStatusSectionProps) {
   const [data, setData] = useState<ClientOperationStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,8 +70,20 @@ export function ClientOperationStatusSection({
   };
 
   useEffect(() => {
-    loadStatus();
-  }, [clientId, db]);
+    if (mode !== "errors") {
+      loadStatus();
+    }
+  }, [clientId, db, mode]);
+
+  if (mode === "errors") {
+    return (
+      <ClientErrorLogTable
+        clientId={clientId}
+        db={db}
+        onViewSubmission={onViewSubmission}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -100,6 +141,17 @@ export function ClientOperationStatusSection({
 
   const { userSummary, contractSummary, submissionSummary, recentErrors } = data;
 
+  if (mode === "users") {
+    return (
+      <ClientUserStatsTable
+        usersList={userSummary.usersList}
+      />
+    );
+  }
+
+
+
+  // overview 모드 (기본값)
   return (
     <div
       style={{
@@ -255,47 +307,8 @@ export function ClientOperationStatusSection({
         ℹ️ {submissionSummary.basisLabel}
       </div>
 
-      {/* 사내 사용자 및 계약 세부 목록 (2열 구성) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "4px" }}>
-        
-        {/* 사용자 목록 패널 */}
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: "6px", padding: "16px" }}>
-          <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: "0 0 10px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "6px" }}>
-            👥 소속 사용자 목록
-          </h4>
-          {userSummary.usersList.length === 0 ? (
-            <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0, padding: "8px 0" }}>사용자 없음</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "150px", overflowY: "auto" }}>
-              {userSummary.usersList.slice(0, 10).map((user) => (
-                <div key={user.uid} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "4px 0" }}>
-                  <span style={{ fontWeight: 600, color: "#374151" }}>
-                    {user.maskedName} ({user.maskedEmail})
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      backgroundColor: user.role === "company_admin" ? "#dbeafe" : "#f3f4f6",
-                      color: user.role === "company_admin" ? "#1e40af" : "#4b5563",
-                    }}
-                  >
-                    {user.role === "company_admin" ? "관리자" : "일반"}
-                  </span>
-                </div>
-              ))}
-              {userSummary.usersList.length > 10 && (
-                <div style={{ fontSize: "11px", color: "#9ca3af", textAlign: "center", paddingTop: "4px" }}>
-                  ...외 {userSummary.usersList.length - 10}명의 사용자가 더 존재합니다. (최대 10명 표시)
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 활성 자동화 목록 패널 */}
+      {/* 활성 자동화 목록 패널 (단일 열 배치) */}
+      <div style={{ marginTop: "4px" }}>
         <div style={{ border: "1px solid #e5e7eb", borderRadius: "6px", padding: "16px" }}>
           <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: "0 0 10px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "6px" }}>
             ⚙️ 설정된 자동화 목록
@@ -346,57 +359,7 @@ export function ClientOperationStatusSection({
             </div>
           )}
         </div>
-
       </div>
-
-      {/* 4. 최근 오류 목록 (테이블) */}
-      <div style={{ border: "1px solid #e5e7eb", borderRadius: "6px", padding: "16px", marginTop: "4px" }}>
-        <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: "0 0 10px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "6px" }}>
-          🚨 최근 오류 발생 내역 (최대 5건)
-        </h4>
-        {recentErrors.length === 0 ? (
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0, padding: "8px 0", textAlign: "center" }}>
-            최근 오류 없음
-          </p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e5e7eb", color: "#4b5563", fontWeight: 600 }}>
-                  <th style={{ padding: "6px 8px" }}>발생 시각</th>
-                  <th style={{ padding: "6px 8px" }}>워크플로우명</th>
-                  <th style={{ padding: "6px 8px" }}>에러코드</th>
-                  <th style={{ padding: "6px 8px" }}>에러 메시지</th>
-                  <th style={{ padding: "6px 8px" }}>실행 사용자</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentErrors.map((err) => (
-                  <tr key={err.submissionId} style={{ borderBottom: "1px solid #f3f4f6", color: "#374151" }}>
-                    <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>
-                      {err.createdAt ? new Date(err.createdAt).toLocaleString() : "-"}
-                    </td>
-                    <td style={{ padding: "8px 8px" }}>
-                      <div style={{ fontWeight: 600 }}>{err.workflowName}</div>
-                      <div style={{ fontSize: "10.5px", color: "#9ca3af" }}>{err.workflowKey}</div>
-                    </td>
-                    <td style={{ padding: "8px 8px", fontFamily: "monospace", color: "#b91c1c", fontWeight: 600 }}>
-                      {err.errorCode}
-                    </td>
-                    <td style={{ padding: "8px 8px", color: "#4b5563", maxWidth: "250px", wordBreak: "break-all" }}>
-                      {err.errorMessage}
-                    </td>
-                    <td style={{ padding: "8px 8px", color: "#4b5563" }}>
-                      {err.maskedUser}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
     </div>
   );
 }

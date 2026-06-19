@@ -1,66 +1,25 @@
 // 이 파일은 시스템 운영자가 플랫폼 전체에서 발생한 n8n 실행 이력 로그를 조회하는 화면입니다.
+// 한국어 주석 표준을 준수합니다.
 
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
-import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
-import { SubmissionList } from "@/components/core/submission/SubmissionList";
+import { ExecutionLogSearchBar } from "@/components/results/ExecutionLogSearchBar";
+import { ExecutionLogTable } from "@/components/results/ExecutionLogTable";
+import { mapSubmissionToRow } from "@/components/results/executionLogViewModel";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
 import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
 import { subscribeOperatorSubmissions } from "@/features/submission/submissionQueryService";
 import { filterSubmissions } from "@/common/submission/submissionFilters";
+import { getClientsList } from "@/features/operator/operatorService";
 import type { 
   Submission, 
   SubmissionStatus, 
   ExecutionFailurePhase, 
   ExecutionFailureSource 
 } from "@/types/n8lient";
-
-const filterFields: FilterField[] = [
-  {
-    key: "status",
-    label: "실행 상태",
-    options: [
-      { value: "success", label: "성공" },
-      { value: "processing", label: "처리중" },
-      { value: "failed", label: "실패" },
-      { value: "queued", label: "대기" },
-      { value: "skipped", label: "처리 제외" },
-      { value: "config_error", label: "설정 오류" },
-    ],
-  },
-  {
-    key: "errorPhase",
-    label: "실패 단계",
-    options: [
-      { value: "APP_VALIDATE", label: "APP_VALIDATE" },
-      { value: "API_ROUTE_VALIDATE", label: "API_ROUTE_VALIDATE" },
-      { value: "API_ROUTE_GATEWAY_CALL", label: "API_ROUTE_GATEWAY_CALL" },
-      { value: "GATEWAY_VALIDATE", label: "GATEWAY_VALIDATE" },
-      { value: "GATEWAY_STORAGE", label: "GATEWAY_STORAGE" },
-      { value: "GATEWAY_N8N_CALL", label: "GATEWAY_N8N_CALL" },
-      { value: "N8N_WORKFLOW", label: "N8N_WORKFLOW" },
-      { value: "N8N_EMAIL", label: "N8N_EMAIL" },
-      { value: "N8N_CALLBACK", label: "N8N_CALLBACK" },
-      { value: "GATEWAY_CALLBACK", label: "GATEWAY_CALLBACK" },
-      { value: "FIRESTORE_UPDATE", label: "FIRESTORE_UPDATE" },
-    ],
-  },
-  {
-    key: "errorSource",
-    label: "실패 위치",
-    options: [
-      { value: "app", label: "app" },
-      { value: "api_route", label: "api_route" },
-      { value: "gateway", label: "gateway" },
-      { value: "n8n", label: "n8n" },
-      { value: "callback", label: "callback" },
-      { value: "firestore", label: "firestore" },
-    ],
-  },
-];
 
 const PAGE_SIZE = 20;
 
@@ -69,6 +28,7 @@ export default function OperatorLogs() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clientsMap, setClientsMap] = useState<Map<string, string>>(new Map());
 
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,7 +39,7 @@ export default function OperatorLogs() {
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Firestore 구독
+  // Firestore 구독 (submissions)
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeOperatorSubmissions(
@@ -97,6 +57,21 @@ export default function OperatorLogs() {
     );
 
     return () => unsubscribe();
+  }, []);
+
+  // 전체 고객사(clients) 정보 조회 후 clientId -> companyName 맵 생성
+  useEffect(() => {
+    getClientsList(db)
+      .then((list) => {
+        const map = new Map<string, string>();
+        list.forEach((c) => {
+          map.set(c.clientId, c.companyName || c.companyDisplayName || "회사명 없음");
+        });
+        setClientsMap(map);
+      })
+      .catch((err) => {
+        console.error("[OperatorLogs] clients 로드 실패:", err);
+      });
   }, []);
 
   // 검색 및 필터 변경 이벤트 핸들러
@@ -137,6 +112,11 @@ export default function OperatorLogs() {
 
   const actorLabelByUid = useSubmissionActorLabelMap(pagedLogs);
 
+  // Submission 객체 리스트를 ExecutionLogRow 리스트로 매핑 변환
+  const tableRows = useMemo(() => {
+    return pagedLogs.map((log) => mapSubmissionToRow(log, clientsMap));
+  }, [pagedLogs, clientsMap]);
+
   // 필터·검색 변경 시 1페이지로 초기화
   useEffect(() => {
     setCurrentPage(1);
@@ -161,9 +141,7 @@ export default function OperatorLogs() {
       </div>
 
       {/* 공통 검색/필터 바 탑재 */}
-      <ListSearchFilterBar
-        searchPlaceholder="실행 ID, Key, UID, 고객사 ID, 이메일, 에러코드 검색..."
-        filterFields={filterFields}
+      <ExecutionLogSearchBar
         onChange={handleFilterChange}
       />
 
@@ -181,10 +159,9 @@ export default function OperatorLogs() {
           </div>
         ) : (
           <>
-            <SubmissionList
-              submissions={pagedLogs}
-              onRowClick={handleRowClick}
-              viewMode="operator"
+            <ExecutionLogTable
+              rows={tableRows}
+              onRowClick={(row) => handleRowClick(row.raw)}
               actorLabelByUid={actorLabelByUid}
             />
             {filteredList.length > 0 && (

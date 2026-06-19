@@ -360,57 +360,63 @@ export default function CompanyAutomationForm({
           </h4>
         )}
 
-        {schemaFields.map((field) => (
-          <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
-              {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
-            </label>
-            {field.description && (
-              <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
-                💡 {field.description}
-              </span>
-            )}
+        <div className="ux_form_grid">
+          {schemaFields.map((field) => (
+            <div
+              key={field.key}
+              className={field.type === "textarea" ? "ux_form_grid_full" : undefined}
+              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+            >
+              <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
+                {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
+              </label>
+              {field.description && (
+                <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
+                  💡 {field.description}
+                </span>
+              )}
 
-            {field.type === "boolean" ? (
-              <select
-                className="ux_select_compact"
-                value={String(formSettings[field.key])}
-                onChange={(e) => handleFieldChange(field.key, e.target.value === "true")}
-              >
-                <option value="false">False (비활성)</option>
-                <option value="true">True (활성)</option>
-              </select>
-            ) : field.type === "select" && field.options ? (
-              <select
-                className="ux_select_compact"
-                value={String(formSettings[field.key])}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              >
-                {field.options.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            ) : isGoogleDriveFolderIdConfigKey(field.key) ? (
-              <GoogleDriveFolderIdInput
-                value={String(formSettings[field.key] ?? "")}
-                onChange={(v) => handleFieldChange(field.key, v)}
-                placeholder={field.placeholder || `${field.label} ID 또는 Google Drive 폴더 링크`}
-                required={field.required}
-              />
-            ) : (
-              <input
-                type={field.type === "email" ? "email" : field.type === "number" ? "number" : "text"}
-                className="ux_input_compact"
-                value={String(formSettings[field.key] ?? "")}
-                onChange={(e) => handleFieldChange(field.key, field.type === "number" ? Number(e.target.value) : e.target.value)}
-                placeholder={field.placeholder || `${field.label} 입력`}
-                required={field.required}
-              />
-            )}
-          </div>
-        ))}
+              {field.type === "boolean" ? (
+                <select
+                  className="ux_select_compact"
+                  value={String(formSettings[field.key])}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value === "true")}
+                >
+                  <option value="false">False (비활성)</option>
+                  <option value="true">True (활성)</option>
+                </select>
+              ) : field.type === "select" && field.options ? (
+                <select
+                  className="ux_select_compact"
+                  value={String(formSettings[field.key])}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                >
+                  {field.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : isGoogleDriveFolderIdConfigKey(field.key) ? (
+                <GoogleDriveFolderIdInput
+                  value={String(formSettings[field.key] ?? "")}
+                  onChange={(v) => handleFieldChange(field.key, v)}
+                  placeholder={field.placeholder || `${field.label} ID 또는 Google Drive 폴더 링크`}
+                  required={field.required}
+                />
+              ) : (
+                <input
+                  type={field.type === "email" ? "email" : field.type === "number" ? "number" : "text"}
+                  className="ux_input_compact"
+                  value={String(formSettings[field.key] ?? "")}
+                  onChange={(e) => handleFieldChange(field.key, field.type === "number" ? Number(e.target.value) : e.target.value)}
+                  placeholder={field.placeholder || `${field.label} 입력`}
+                  required={field.required}
+                />
+              )}
+            </div>
+          ))}
+        </div>
 
         <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
           <button
