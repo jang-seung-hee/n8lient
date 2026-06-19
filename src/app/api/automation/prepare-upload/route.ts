@@ -5,6 +5,12 @@ import crypto from "crypto";
 import { validateExecution } from "@/common/validation/validateExecution";
 import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 
+const normalizeOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 function getWebhookConfig(serverKey: string, webhookSecretId: string): { url: string } | null {
   const serverEnvKey = serverKey.toUpperCase().replace(/-/g, "_");
   const webhookEnvKey = webhookSecretId.toUpperCase().replace(/-/g, "_");
@@ -56,6 +62,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "승인된 사용자만 실행 요청이 가능합니다." }, { status: 403 });
     }
     const clientId: string = userDoc.clientId;
+
+    // Firestore clients 컬렉션에서 실제 회사명 조회
+    const clientSnap = await db.collection("clients").doc(clientId).get();
+    const clientDoc = clientSnap.exists ? clientSnap.data() : null;
+    const rawCompanyName = clientDoc?.companyName || null;
+    const companyName = normalizeOptionalString(rawCompanyName);
+    const userEmail = normalizeOptionalString(userDoc.email);
 
     // 4. clientAutomations/{automationId} 검증
     const autoSnap = await db.collection("clientAutomations").doc(automationId).get();
@@ -259,6 +272,15 @@ export async function POST(req: NextRequest) {
       input: submissionData.input,
       requestedAt: now.toISOString(),
       callbackUrl: `${baseUrl}/api/automation/callback`,
+      companyName,
+      userEmail,
+      clientName: companyName,
+      googleEmail: userEmail,
+      authorId: userEmail,
+      meta: {
+        companyName,
+        userEmail,
+      },
     };
 
     const sessionData = {

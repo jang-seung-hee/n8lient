@@ -130,6 +130,12 @@ function buildCompletionNotice(
   };
 }
 
+const normalizeOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 // n8n Webhook URL/Token 조회 헬퍼 (Base URL + Path 조합)
 function getWebhookConfig(
   serverKey: string,
@@ -246,6 +252,13 @@ export async function POST(req: NextRequest) {
     }
 
     const clientId: string = userDoc.clientId;
+
+    // Firestore clients 컬렉션에서 실제 회사명 조회
+    const clientSnap = await db.collection("clients").doc(clientId).get();
+    const clientDoc = clientSnap.exists ? clientSnap.data() : null;
+    const rawCompanyName = clientDoc?.companyName || null;
+    const companyName = normalizeOptionalString(rawCompanyName);
+    const userEmail = normalizeOptionalString(userDoc.email);
 
     // ── 4. clientAutomations/{automationId} 유효성 검증 ──────────────────
     const autoSnap = await db.collection("clientAutomations").doc(automationId).get();
@@ -541,6 +554,15 @@ export async function POST(req: NextRequest) {
       input: n8nInput,
       requestedAt: now.toISOString(),
       callbackUrl: `${baseUrl}/api/automation/callback`,
+      companyName,
+      userEmail,
+      clientName: companyName,
+      googleEmail: userEmail,
+      authorId: userEmail,
+      meta: {
+        companyName,
+        userEmail,
+      },
     };
 
     let n8nSuccess = false;

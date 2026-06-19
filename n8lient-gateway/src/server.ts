@@ -94,6 +94,12 @@ const upload = multer({
 /**
  * n8n Webhook URL 조립 헬퍼 함수
  */
+const normalizeOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 /**
  * 안내 모달용 completionNotice 조립 헬퍼 함수
  */
@@ -324,6 +330,13 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       return res.status(403).json({ success: false, error: "승인 완료된 사용자만 실행 요청이 가능합니다." });
     }
     const clientId = userDoc.clientId;
+
+    // Firestore clients 컬렉션에서 실제 회사명 조회
+    const clientSnap = await db.collection("clients").doc(clientId).get();
+    const clientDoc = clientSnap.exists ? clientSnap.data() : null;
+    const rawCompanyName = clientDoc?.companyName || null;
+    const companyName = normalizeOptionalString(rawCompanyName);
+    const userEmail = normalizeOptionalString(userDoc.email);
 
     // 2. clientAutomations/{automationId} 검증
     const autoSnap = await db.collection("clientAutomations").doc(automationId).get();
@@ -705,6 +718,15 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       retentionPolicy,
       requestedAt: now.toISOString(),
       callbackUrl: `${gatewayBaseUrl.replace(/\/$/, "")}/api/automation/callback`,
+      companyName,
+      userEmail,
+      clientName: companyName,
+      googleEmail: userEmail,
+      authorId: userEmail,
+      meta: {
+        companyName,
+        userEmail,
+      },
     };
 
     const n8nServerToken = process.env[`N8N_SERVER_${n8nServerKey.toUpperCase().replace(/-/g, "_")}_TOKEN`] || "";
