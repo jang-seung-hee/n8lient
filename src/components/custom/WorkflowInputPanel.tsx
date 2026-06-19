@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { siteConfig } from "@/config/siteConfig";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
+import { ALLOWED_AUDIO_EXTENSIONS, ALLOWED_IMAGE_EXTENSIONS } from "@/common/validation/validateExecution";
 
 interface WorkflowInputPanelProps {
   acceptedInputTypes: Array<"text" | "file" | "audio" | "image">;
@@ -516,16 +517,29 @@ export default function WorkflowInputPanel({
       )}
 
       {/* 가이드 메시지 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid #f3f4f6", paddingTop: "6px" }}>
-        <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
-          ⚠️ 업로드 제한: 단일 파일 최대 **{maxLimitMB}MB** 이하만 전송 가능합니다.
-        </p>
-        {allowedFileTypes && allowedFileTypes.length > 0 && (
+      {activeTab !== "text" && activeTab !== null && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid #f3f4f6", paddingTop: "6px" }}>
           <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
-            허용 확장자: {allowedFileTypes.join(", ")}
+            ⚠️ 업로드 제한: 단일 파일 최대 **{maxLimitMB}MB** 이하만 전송 가능합니다.
           </p>
-        )}
-      </div>
+          <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
+            허용 확장자: {(() => {
+              // 1순위: inputSchema에 allowedFileTypes가 명시되어 있을 때 최우선 사용
+              if (allowedFileTypes && allowedFileTypes.length > 0) {
+                return allowedFileTypes.map((ext) => ext.replace(/^\./, "").trim()).join(", ");
+              }
+              // 2순위: 미지정 시 탭 종류별 공통 상수 fallback
+              if (activeTab === "audio") {
+                return ALLOWED_AUDIO_EXTENSIONS.join(", ");
+              }
+              if (activeTab === "image") {
+                return ALLOWED_IMAGE_EXTENSIONS.join(", ");
+              }
+              return "허용 확장자 정보를 불러오지 못했습니다.";
+            })()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

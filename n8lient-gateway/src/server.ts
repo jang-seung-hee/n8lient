@@ -94,6 +94,127 @@ const upload = multer({
 /**
  * n8n Webhook URL 조립 헬퍼 함수
  */
+/**
+ * 안내 모달용 completionNotice 조립 헬퍼 함수
+ */
+function buildCompletionNotice(
+  finalSettings: Record<string, any>,
+  templateDoc: any,
+  retentionPolicy: any
+) {
+  // 1. 이메일 주소 탐색
+  let email: string | null = null;
+  const emailKeys = ["reportEmailTo", "resultEmailTo", "emailTo", "reportEmail", "email", "accountantEmail"];
+  for (const key of emailKeys) {
+    const val = finalSettings[key];
+    if (typeof val === "string" && val.trim() !== "") {
+      email = val.trim();
+      break;
+    }
+  }
+
+  // fallback A: configSchema에서 type === "email"인 key 룩업
+  if (!email && templateDoc.configSchema) {
+    const emailFieldByType = templateDoc.configSchema.find((f: any) => f.type === "email");
+    if (emailFieldByType) {
+      const val = finalSettings[emailFieldByType.key];
+      if (typeof val === "string" && val.trim() !== "") {
+        email = val.trim();
+      }
+    }
+  }
+
+  // fallback B: configSchema에서 label에 "이메일" 포함된 field.key 룩업
+  if (!email && templateDoc.configSchema) {
+    const emailFieldByLabel = (templateDoc.configSchema as any[]).find(
+      (f) => typeof f.label === "string" && f.label.includes("이메일") && !emailKeys.includes(f.key)
+    );
+    if (emailFieldByLabel) {
+      const val = finalSettings[emailFieldByLabel.key];
+      if (typeof val === "string" && val.trim() !== "") {
+        email = val.trim();
+      }
+    }
+  }
+
+  // [진단] 이메일 추출 전수 로그 (development only)
+  if (process.env.NODE_ENV === "development") {
+    console.debug("[buildCompletionNotice-email-diagnosis]", {
+      emailKeysChecked: emailKeys.map(k => ({ key: k, value: finalSettings[k] })),
+      configSchemaFields: (templateDoc.configSchema || []).map((f: any) => ({ key: f.key, type: f.type, label: f.label, valueInSettings: finalSettings[f.key] })),
+      resolvedEmail: email,
+    });
+  }
+
+  const emailConfigured = email !== null && email !== "";
+
+  // 2. 보관 정책 및 구글 드라이브 여부 판정
+  const level = retentionPolicy?.level || "full_archive";
+  
+  // emailWillSend 판정
+  const emailEnabled = retentionPolicy?.emailEnabled !== false;
+  const emailWillSend = emailConfigured && emailEnabled;
+
+  const isGoogleDriveEnabled =
+    retentionPolicy?.optionalExportProvider === "google_drive" ||
+    finalSettings["googleDriveEnabled"] === true ||
+    finalSettings["optionalExportProvider"] === "google_drive" ||
+    (retentionPolicy?.optionalExport?.enabled === true && retentionPolicy?.optionalExport?.provider === "google_drive");
+
+  let message = "";
+  if (emailWillSend) {
+    let messageText = "";
+    if (level === "notify_only") {
+      messageText = `"${email}"으로 결과가 전송될 예정입니다.`;
+    } else if (level === "processed_result") {
+      messageText = `"${email}"으로 결과가 전송되고, 데이터베이스에도 저장될 예정입니다.`;
+    } else if (level === "full_archive") {
+      if (isGoogleDriveEnabled) {
+        messageText = `"${email}"으로 결과가 전송되고, 데이터베이스와 스토리지 그리고 구글 드라이브에 저장될 예정입니다.`;
+      } else {
+        messageText = `"${email}"으로 결과가 전송되고, 데이터베이스와 스토리지에 파일까지 저장될 예정입니다.`;
+      }
+    } else {
+      messageText = `"${email}"으로 결과가 전송될 예정입니다.`;
+    }
+    message = `실행 요청이 완료되었습니다.\n${messageText}\n\n워크플로우 처리가 성공하면 설정된 결과보고 방식에 따라 결과가 전달됩니다.\n단, 워크플로우 실패 시에는 결과 화면에서만 확인할 수 있습니다.`;
+  } else if (emailConfigured && !emailEnabled) {
+    message = `실행 요청이 완료되었습니다.\n결과보고 이메일 주소는 설정되어 있으나, 현재 이메일 전송 정책이 비활성화되어 있습니다.\n처리 결과는 결과 화면에서 확인해 주세요.\n\n단, 워크플로우 실패 시에는 결과 화면에서만 확인할 수 있습니다.`;
+  } else {
+    // 이메일 주소 자체가 없음
+    message = `실행 요청이 완료되었습니다.\n결과보고 이메일이 설정되어 있지 않아, 처리 결과는 결과 화면에서 확인해 주세요.\n\n단, 워크플로우 실패 시에는 결과 화면에서만 확인할 수 있습니다.`;
+  }
+
+  const debugInfo = process.env.NODE_ENV === "development"
+    ? {
+        finalSettingsKeys: Object.keys(finalSettings ?? {}),
+        emailCandidates: emailKeys.map(k => `${k}: ${finalSettings[k]}`),
+        resolvedEmail: email,
+        emailConfigured,
+        emailWillSend,
+        retentionLevel: level,
+        optionalExportProvider: retentionPolicy?.optionalExportProvider || finalSettings["optionalExportProvider"] || null,
+      }
+    : undefined;
+
+  if (process.env.NODE_ENV === "development") {
+    console.debug("[execute-completion-notice]", debugInfo);
+  }
+
+  return {
+    title: "실행 요청 완료",
+    emailConfigured,
+    emailWillSend,
+    emailTo: email,
+    retentionLevel: level,
+    databaseEnabled: level !== "notify_only",
+    storageEnabled: level === "full_archive",
+    googleDriveEnabled: isGoogleDriveEnabled,
+    message,
+    ...(debugInfo ? { debugCompletionNotice: debugInfo } : {}),
+  };
+}
+
 function getWebhookConfig(serverKey: string, webhookSecretId: string): { url: string } | null {
   // 1. n8nServerKey 및 webhookSecretId 값 유효성 및 형식 검증
   if (!serverKey || !webhookSecretId) {
@@ -275,6 +396,24 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
     }
     const fallbackKeys = Object.keys(finalSettings).filter((k) => !mergedKeys.includes(k));
     const settingsMergeSummary = { hasUserSetting, mergedKeys, fallbackKeys };
+
+    if (process.env.NODE_ENV === "development") {
+      console.debug("[execute-final-settings-email-value]", {
+        userId: uid,
+        clientId,
+        workflowKey,
+        finalSettingsReportEmailTo: finalSettings?.reportEmailTo,
+        finalSettingsResultEmailTo: finalSettings?.resultEmailTo,
+        finalSettingsEmailTo: finalSettings?.emailTo,
+        finalSettingsReportEmail: finalSettings?.reportEmail,
+        finalSettingsEmail: finalSettings?.email,
+        finalSettingsAccountantEmail: finalSettings?.accountantEmail,
+        finalSettingsEmailEnabled: finalSettings?.emailEnabled,
+        finalSettingsKeys: Object.keys(finalSettings ?? {}),
+        hasUserSetting,
+        mergedKeys,
+      });
+    }
 
     // 4. workflowTemplates 조회 및 n8n Webhook 정보 획득
     const templateSnap = await db.collection("workflowTemplates").doc(workflowKey).get();
@@ -600,7 +739,8 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
 
       if (n8nResponse.status >= 200 && n8nResponse.status < 300) {
         console.log(`[execute] n8n Webhook 호출 성공. Status: ${n8nResponse.status}`);
-        return res.status(200).json({ success: true, submissionId });
+        const completionNotice = buildCompletionNotice(finalSettings, templateDoc, retentionPolicy);
+        return res.status(200).json({ success: true, submissionId, completionNotice });
       } else {
         throw new Error(`n8n 서버 응답 실패 (HTTP ${n8nResponse.status})`);
       }

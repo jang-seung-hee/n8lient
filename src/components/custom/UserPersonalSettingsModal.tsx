@@ -56,6 +56,43 @@ export default function UserPersonalSettingsModal({
         setPersonalSettings({});
         setUserPreferredLevel("");
       }
+
+      // [진단] Firestore userAutomationSettings 원본값 전수 출력
+      if (process.env.NODE_ENV === "development") {
+        const emailRelatedFields = (currentTemplate.configSchema || []).filter(
+          (f: any) => f.type === "email" || (typeof f.label === "string" && f.label.includes("이메일"))
+        );
+        console.debug("[UserPersonalSettingsModal-load-diagnosis]", {
+          uid,
+          clientId,
+          automationId: currentAuto.automationId,
+          workflowKey: currentAuto.workflowKey,
+          docId: `${uid}_${currentAuto.automationId}`,
+          firestoreRawSettings: settingsData?.settings ?? null,
+          personalSettingsAfterLoad: settingsData?.settings ?? {},
+          emailFieldsInConfigSchema: emailRelatedFields.map((f: any) => ({
+            key: f.key,
+            type: f.type,
+            label: f.label,
+            valueFromFirestore: settingsData?.settings?.[f.key],
+          })),
+        });
+
+        console.debug("[execute-final-settings-email-value]", {
+          userId: uid,
+          clientId,
+          workflowKey: currentAuto.workflowKey,
+          finalSettingsReportEmailTo: settingsData?.settings?.reportEmailTo,
+          finalSettingsResultEmailTo: settingsData?.settings?.resultEmailTo,
+          finalSettingsEmailTo: settingsData?.settings?.emailTo,
+          finalSettingsReportEmail: settingsData?.settings?.reportEmail,
+          finalSettingsEmail: settingsData?.settings?.email,
+          finalSettingsAccountantEmail: settingsData?.settings?.accountantEmail,
+          finalSettingsEmailEnabled: settingsData?.settings?.emailEnabled,
+          finalSettingsKeys: Object.keys(settingsData?.settings ?? {}),
+          hasUserSetting: !!settingsData,
+        });
+      }
     } catch (err) {
       console.error("[UserPersonalSettingsModal] 개인 설정 로드 실패:", err);
     } finally {

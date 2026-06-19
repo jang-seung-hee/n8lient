@@ -2,8 +2,11 @@
 // AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
 // Source: src/common/validation/validateExecution.ts
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ALLOWED_IMAGE_EXTENSIONS = exports.ALLOWED_AUDIO_EXTENSIONS = void 0;
 exports.resolveFileType = resolveFileType;
 exports.validateExecution = validateExecution;
+exports.ALLOWED_AUDIO_EXTENSIONS = ["webm", "mp3", "m4a", "wav", "ogg", "aac", "flac"];
+exports.ALLOWED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"];
 /**
  * 파일 정보와 MIME type, 확장자를 기준으로 제공된 파일의 인풋 타입을 판별합니다.
  * @param file 검사할 파일 객체
@@ -13,11 +16,11 @@ function resolveFileType(file) {
     const fileName = (file.name || "").toLowerCase();
     const ext = fileName.split(".").pop() || "";
     // 1. audio 판별
-    if (mimeType.startsWith("audio/") || ["webm", "mp3", "m4a", "wav", "ogg", "aac", "flac"].includes(ext)) {
+    if (mimeType.startsWith("audio/") || exports.ALLOWED_AUDIO_EXTENSIONS.includes(ext)) {
         return "audio";
     }
     // 2. image 판별
-    if (mimeType.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"].includes(ext)) {
+    if (mimeType.startsWith("image/") || exports.ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
         return "image";
     }
     // 3. 일반 file 판별

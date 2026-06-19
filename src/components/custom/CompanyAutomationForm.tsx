@@ -49,7 +49,7 @@ export default function CompanyAutomationForm({
   const [formEnabled, setFormEnabled] = useState(true);
   const [formNoticeText, setFormNoticeText] = useState("");
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
-  
+
   // [v2.6] 회사 보관 정책 관련 상태 선언
   const [companyDefaultLevel, setCompanyDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
   const [coAllowedUserLevels, setCoAllowedUserLevels] = useState<("notify_only" | "processed_result" | "full_archive")[]>([
@@ -125,7 +125,7 @@ export default function CompanyAutomationForm({
     playAppSound("click");
     try {
       setSubmitting(true);
-      
+
       const opPolicy = template.operatorRetentionPolicy || {
         allowedLevels: ["notify_only", "processed_result", "full_archive"],
         defaultLevel: "full_archive",
@@ -254,7 +254,7 @@ export default function CompanyAutomationForm({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>공지사항</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>사용방법 안내</label>
           <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
             사용자가 이 워크플로우를 실행하기 전에 확인할 안내 문구입니다. 비워두면 사용자 화면에 표시되지 않습니다.
           </span>
@@ -301,7 +301,7 @@ export default function CompanyAutomationForm({
           return (
             <div style={{ backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: 0 }}>🛡️ 회사 보관 정책 (Company Policy)</h4>
-              
+
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>회사 기본 보관 레벨</label>
                 <select

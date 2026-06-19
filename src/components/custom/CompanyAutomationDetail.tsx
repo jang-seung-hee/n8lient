@@ -27,7 +27,7 @@ export default function CompanyAutomationDetail({
   const [toggleLoading, setToggleLoading] = useState(false);
   const [disableReason, setDisableReason] = useState("");
   const [toggleError, setToggleError] = useState<string | null>(null);
-  
+
   // 탭 상태 관리
   const [activeTab, setActiveTab] = useState("basic");
 
@@ -250,8 +250,15 @@ export default function CompanyAutomationDetail({
             </div>
           )}
 
-          {/* 공지사항 섹션 */}
-          {noticeText && <AutomationNoticeBox noticeText={noticeText} />}
+          {/* 사용방법 안내 섹션 */}
+          {noticeText && (
+            <AutomationNoticeBox
+              noticeText={noticeText}
+              workflowKey={automation?.workflowKey || contract.workflowKey}
+              userId={automation?.createdBy}
+              updatedAt={automation?.updatedAt}
+            />
+          )}
         </div>
       )}
 
@@ -298,7 +305,7 @@ export default function CompanyAutomationDetail({
                             } else {
                               // 2. 저장값이 없고 field.defaultValue 또는 기본 option 값이 존재하는지 체크
                               let defaultVal = field.defaultValue;
-                              
+
                               if (
                                 defaultVal === undefined ||
                                 defaultVal === null ||
@@ -428,7 +435,7 @@ export default function CompanyAutomationDetail({
                                 val === null ||
                                 val === undefined ||
                                 (typeof val === "string" && val.trim() === "");
-                              
+
                               const displayVal = isEmpty ? "빈값" : String(val);
 
                               return (

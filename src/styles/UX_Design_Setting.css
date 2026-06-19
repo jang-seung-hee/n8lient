@@ -881,6 +881,51 @@
   white-space: nowrap;
 }
 
+.ux_button_submit_large {
+  min-height: 44px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* 실행 완료 안내 모달용 핵심 키워드 강조 클래스 */
+.ux_notice_highlight_email,
+.ux_notice_highlight_database,
+.ux_notice_highlight_storage,
+.ux_notice_highlight_drive,
+.ux_notice_highlight_result {
+  display: inline;
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.ux_notice_highlight_email {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.ux_notice_highlight_database {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.ux_notice_highlight_storage {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.ux_notice_highlight_drive {
+  color: #6d28d9;
+  background: #ede9fe;
+}
+
+.ux_notice_highlight_result {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+
 
 
 

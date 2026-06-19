@@ -62,6 +62,9 @@ export type ExecutionValidationResult = {
   };
 };
 
+export const ALLOWED_AUDIO_EXTENSIONS = ["webm", "mp3", "m4a", "wav", "ogg", "aac", "flac"];
+export const ALLOWED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"];
+
 /**
  * 파일 정보와 MIME type, 확장자를 기준으로 제공된 파일의 인풋 타입을 판별합니다.
  * @param file 검사할 파일 객체
@@ -72,12 +75,12 @@ export function resolveFileType(file: ExecutionFileLike): "audio" | "image" | "f
   const ext = fileName.split(".").pop() || "";
 
   // 1. audio 판별
-  if (mimeType.startsWith("audio/") || ["webm", "mp3", "m4a", "wav", "ogg", "aac", "flac"].includes(ext)) {
+  if (mimeType.startsWith("audio/") || ALLOWED_AUDIO_EXTENSIONS.includes(ext)) {
     return "audio";
   }
 
   // 2. image 판별
-  if (mimeType.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"].includes(ext)) {
+  if (mimeType.startsWith("image/") || ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
     return "image";
   }
 

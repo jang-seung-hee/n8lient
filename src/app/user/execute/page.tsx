@@ -8,13 +8,14 @@ import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { getActiveAutomations, getUserAutomationSettings } from "@/features/user/userService";
 import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from "@/types/n8lient";
+import { DEFAULT_RETENTION_POLICY } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
 import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsModal";
 import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
 import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
 import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { validateExecution } from "@/common/validation/validateExecution";
 import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettings";
@@ -41,7 +42,12 @@ export default function UserExecute() {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [validationDebug, setValidationDebug] = useState<any>(null);
-  
+
+  const router = useRouter();
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completeModalMessage, setCompleteModalMessage] = useState("");
+  const [completeModalNotice, setCompleteModalNotice] = useState<any | null>(null);
+
   // 녹음 오작동 방지용 상태 및 ref
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -57,6 +63,121 @@ export default function UserExecute() {
       timeoutIdsRef.current.forEach((id) => clearTimeout(id));
     };
   }, []);
+
+  const handleGoHome = () => {
+    timeoutIdsRef.current.forEach((id) => clearTimeout(id));
+    router.push("/user");
+  };
+
+  const renderCompletionNoticeMessage = () => {
+    if (!completeModalNotice) {
+      return (
+        <span style={{ whiteSpace: "pre-wrap" }}>
+          {completeModalMessage}
+        </span>
+      );
+    }
+
+    const {
+      emailTo,
+      emailConfigured,
+      emailWillSend,
+      retentionLevel,
+      databaseEnabled,
+      storageEnabled,
+      googleDriveEnabled,
+    } = completeModalNotice;
+
+    const failureWarning = (
+      <>
+        단, 워크플로우 실패 시에는{" "}
+        <span className="ux_notice_highlight_result">결과 화면</span>
+        에서만 확인할 수 있습니다.
+      </>
+    );
+
+    if (emailWillSend && emailTo) {
+      let storageText: React.ReactNode = null;
+      if (retentionLevel === "notify_only") {
+        storageText = "으로 결과가 전송될 예정입니다.";
+      } else if (retentionLevel === "processed_result" || (databaseEnabled && !storageEnabled)) {
+        storageText = (
+          <>
+            으로 결과가 전송되고,{" "}
+            <span className="ux_notice_highlight_database">데이터베이스</span>
+            에도 저장될 예정입니다.
+          </>
+        );
+      } else if (retentionLevel === "full_archive" || storageEnabled) {
+        if (googleDriveEnabled) {
+          storageText = (
+            <>
+              으로 결과가 전송되고,{" "}
+              <span className="ux_notice_highlight_database">데이터베이스</span>
+              와{" "}
+              <span className="ux_notice_highlight_storage">스토리지</span>
+              {" "}그리고{" "}
+              <span className="ux_notice_highlight_drive">구글 드라이브</span>
+              에 저장될 예정입니다.
+            </>
+          );
+        } else {
+          storageText = (
+            <>
+              으로 결과가 전송되고,{" "}
+              <span className="ux_notice_highlight_database">데이터베이스</span>
+              와{" "}
+              <span className="ux_notice_highlight_storage">스토리지</span>
+              에 파일까지 저장될 예정입니다.
+            </>
+          );
+        }
+      } else {
+        storageText = "으로 결과가 전송될 예정입니다.";
+      }
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p style={{ margin: 0 }}>실행 요청이 완료되었습니다.</p>
+          <p style={{ margin: 0 }}>
+            <span className="ux_notice_highlight_email">"{emailTo}"</span>
+            {storageText}
+          </p>
+          <p style={{ margin: 0 }}>
+            워크플로우 처리가 성공하면 설정된 결과보고 방식에 따라 결과가 전달됩니다.
+          </p>
+          <p style={{ margin: 0 }}>{failureWarning}</p>
+        </div>
+      );
+    } else if (emailConfigured && !emailWillSend) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p style={{ margin: 0 }}>실행 요청이 완료되었습니다.</p>
+          <p style={{ margin: 0 }}>
+            결과보고 이메일 주소는 설정되어 있으나, 현재 이메일 전송 정책이 비활성화되어 있습니다.
+          </p>
+          <p style={{ margin: 0 }}>
+            처리 결과는{" "}
+            <span className="ux_notice_highlight_result">결과 화면</span>
+            에서 확인해 주세요.
+          </p>
+          <p style={{ margin: 0 }}>{failureWarning}</p>
+        </div>
+      );
+    } else {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p style={{ margin: 0 }}>실행 요청이 완료되었습니다.</p>
+          <p style={{ margin: 0 }}>
+            결과보고 이메일이 설정되어 있지 않아, 처리 결과는{" "}
+            <span className="ux_notice_highlight_result">결과 화면</span>
+            에서 확인해 주세요.
+          </p>
+          <p style={{ margin: 0 }}>{failureWarning}</p>
+        </div>
+      );
+    }
+  };
 
   const addDelayedAlert = (message: string, delay = 150) => {
     const id = setTimeout(() => {
@@ -116,7 +237,7 @@ export default function UserExecute() {
 
   useEffect(() => {
     if (authLoading) return;
-    
+
     if (!user || !userDoc) {
       setLoading(false);
       return;
@@ -231,9 +352,9 @@ export default function UserExecute() {
           inputType: resolvedInputType
         }
       };
-      
+
       formData.append("payload", JSON.stringify(payload));
-      
+
       if (selectedFile) {
         formData.append("file_0", selectedFile);
       }
@@ -255,7 +376,25 @@ export default function UserExecute() {
         setInputType(null);
         setValidationDebug(null);
         playAppSound("success");
-        addDelayedAlert(`실행 요청이 성공적으로 전달되었습니다.\n요청 ID: ${data.submissionId}\n\n처리 결과는 [N8N 워크플로우 실행 로그] 탭에서 확인하실 수 있습니다.`);
+
+        const notice = data.completionNotice;
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[execute-response-completion-notice]", {
+            completionNotice: data?.completionNotice,
+            fallbackUsed: !data?.completionNotice?.message,
+          });
+          console.debug("[execute-response-raw]", data);
+        }
+        const fallbackMessage = `실행 요청이 완료되었습니다.\n결과보고 이메일이 설정되어 있지 않아, 처리 결과는 결과 화면에서 확인해 주세요.\n\n단, 워크플로우 실패 시에는 결과 화면에서만 확인할 수 있습니다.`;
+        setCompleteModalNotice(notice ?? null);
+        setCompleteModalMessage(notice?.message ?? fallbackMessage);
+        setShowCompleteModal(true);
+
+        // 10초 지연 후 홈으로 자동 이동
+        const timerId = setTimeout(() => {
+          router.push("/user");
+        }, 10000) as any;
+        timeoutIdsRef.current.push(timerId);
       } else {
         playAppSound("error");
         if (data.missingFields || data.source) {
@@ -399,22 +538,6 @@ export default function UserExecute() {
                     </option>
                   ))}
                 </select>
-                {currentAuto && (
-                  <p
-                    style={{
-                      fontSize: "11px",
-                      color: "#6b7280",
-                      margin: "4px 0 0 0",
-                      lineHeight: 1.4,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={currentAuto.workflowKey}
-                  >
-                    Key: {currentAuto.workflowKey}
-                  </p>
-                )}
               </div>
               <button
                 type="button"
@@ -436,19 +559,15 @@ export default function UserExecute() {
                 🛠️ 내 설정
               </button>
             </div>
-            <p className="ux_micro_text" style={{ margin: "4px 0 0 0", lineHeight: 1.4 }}>
-              💡 개인 설정을 저장하면 회사 기본값보다 우선 적용됩니다. 비워둔 값은 회사 기본값을 사용합니다.
-            </p>
           </div>
 
           {currentAuto?.noticeText?.trim() && (
-            <AutomationNoticeBox noticeText={currentAuto.noticeText} />
-          )}
-
-          {currentTemplate?.description && (
-            <p className="ux_caption" style={{ margin: "0 0 4px 0", lineHeight: 1.4 }}>
-              💡 {currentTemplate.description}
-            </p>
+            <AutomationNoticeBox
+              noticeText={currentAuto.noticeText}
+              workflowKey={currentAuto.workflowKey}
+              userId={user.uid}
+              updatedAt={currentAuto.updatedAt}
+            />
           )}
 
           {(() => {
@@ -456,7 +575,7 @@ export default function UserExecute() {
             return (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
-                  실행 제목{isTitleRequired ? " *" : ""}
+                  제목{isTitleRequired ? " *" : ""}
                 </label>
                 <input
                   type="text"
@@ -472,7 +591,7 @@ export default function UserExecute() {
 
           {currentTemplate?.inputSchema && (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>실행 입력 값</label>
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>내용작성</label>
               <WorkflowInputPanel
                 acceptedInputTypes={currentTemplate.inputSchema.acceptedInputTypes}
                 allowedFileTypes={currentTemplate.inputSchema.allowedFileTypes}
@@ -491,9 +610,8 @@ export default function UserExecute() {
           {isRecording ? (
             <button
               type="submit"
-              className="ux_button ux_button_danger"
+              className="ux_button ux_button_danger ux_button_submit_large"
               style={{
-                height: "38px",
                 width: "100%",
                 marginTop: "8px",
                 borderRadius: "6px",
@@ -510,10 +628,9 @@ export default function UserExecute() {
           ) : (
             <button
               type="submit"
-              className="ux_button ux_button_primary"
+              className="ux_button ux_button_primary ux_button_submit_large"
               disabled={submitting}
               style={{
-                height: "38px",
                 width: "100%",
                 marginTop: "8px",
                 borderRadius: "6px",
@@ -522,7 +639,7 @@ export default function UserExecute() {
                 transition: "background-color 0.15s ease",
               }}
             >
-              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "🚀 N8N 워크플로우 실행 요청 제출"}
+              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "실행하기"}
             </button>
           )}
         </form>
@@ -569,6 +686,72 @@ export default function UserExecute() {
 
       {showModal && currentAuto && currentTemplate && user && userDoc?.clientId && (
         <UserPersonalSettingsModal isOpen={showModal} onClose={() => { setShowModal(false); if (selectedAutoId) loadUserSettings(selectedAutoId); }} db={db} uid={user.uid} clientId={userDoc.clientId} currentAuto={currentAuto} currentTemplate={currentTemplate} />
+      )}
+
+      {showCompleteModal && (
+        <div className="ux_modal_overlay" style={{ backdropFilter: "blur(4px)" }}>
+          <div
+            className="ux_modal_panel"
+            style={{
+              backgroundColor: "#ffffff",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+              border: "1px solid #e5e7eb",
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 className="ux_card_title" style={{ fontSize: "16px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                🎉 실행 요청 완료
+              </h3>
+              <button
+                type="button"
+                onClick={handleGoHome}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "20px",
+                  color: "#9ca3af",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+                aria-label="닫기"
+              >
+                ×
+              </button>
+            </div>
+            <div>
+              <div className="ux_body_text" style={{ fontSize: "14px", lineHeight: 1.6, margin: 0 }}>
+                {renderCompletionNoticeMessage()}
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px", borderTop: "1px solid #f3f4f6", paddingTop: "12px" }}>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="ux_button ux_button_secondary"
+                  onClick={handleGoHome}
+                  style={{ borderRadius: "6px" }}
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  className="ux_button ux_button_primary"
+                  onClick={handleGoHome}
+                  style={{ borderRadius: "6px", border: "none" }}
+                >
+                  홈으로 이동
+                </button>
+              </div>
+              <span className="ux_micro_text" style={{ color: "#9ca3af" }}>
+                ⏱️ 잠시 후 홈으로 이동합니다.
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
