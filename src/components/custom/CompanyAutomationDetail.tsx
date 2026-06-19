@@ -89,33 +89,27 @@ export default function CompanyAutomationDetail({
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
           <button
+            className="ux_button_compact ux_button_secondary"
             onClick={onBack}
             style={{
               height: "34px",
               padding: "0 12px",
-              backgroundColor: "#ffffff",
-              color: "#4b5563",
-              border: "1px solid #d1d5db",
               borderRadius: "6px",
               fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
+              color: "#4b5563",
             }}
           >
             ⬅️ 목록으로
           </button>
           <button
+            className="ux_button_compact ux_button_primary"
             onClick={onEdit}
             style={{
               height: "34px",
               padding: "0 12px",
-              backgroundColor: "#111111",
-              color: "#ffffff",
-              border: "none",
               borderRadius: "6px",
               fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
+              border: "none",
             }}
           >
             ⚙️ 설정 편집
@@ -125,25 +119,25 @@ export default function CompanyAutomationDetail({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
         <div>
-          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>workflowKey</span>
+          <span className="ux_caption" style={{ fontWeight: 500 }}>workflowKey</span>
           <p style={{ fontSize: "14px", fontWeight: 600, color: "#111111", margin: "4px 0 0 0", fontFamily: "monospace" }}>
             {contract.workflowKey}
           </p>
         </div>
         <div>
-          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>설정 상태</span>
+          <span className="ux_caption" style={{ fontWeight: 500 }}>설정 상태</span>
           <p style={{ fontSize: "14px", fontWeight: 600, color: automation ? "#059669" : "#dc2626", margin: "4px 0 0 0" }}>
             {automation ? "설정 완료" : "⚠️ 설정 미완료"}
           </p>
         </div>
         <div>
-          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>사용자 활성 상태</span>
+          <span className="ux_caption" style={{ fontWeight: 500 }}>사용자 활성 상태</span>
           <p style={{ fontSize: "14px", fontWeight: 600, color: automation?.enabled ? "#059669" : "#dc2626", margin: "4px 0 0 0" }}>
             {automation?.enabled ? "노출 및 활성화됨" : "비활성화됨"}
           </p>
         </div>
         <div>
-          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>직원 사용</span>
+          <span className="ux_caption" style={{ fontWeight: 500 }}>직원 사용</span>
           <p style={{ fontSize: "14px", fontWeight: 600, margin: "4px 0 0 0" }}>
             {!automation ? (
               <span style={{ color: "#9ca3af" }}>-</span>
@@ -155,7 +149,7 @@ export default function CompanyAutomationDetail({
           </p>
         </div>
         <div>
-          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>최종 수정 일시</span>
+          <span className="ux_caption" style={{ fontWeight: 500 }}>최종 수정 일시</span>
           <p style={{ fontSize: "14px", fontWeight: 500, color: "#111111", margin: "4px 0 0 0" }}>
             {automation?.updatedAt ? new Date(automation.updatedAt).toLocaleString() : "-"}
           </p>
@@ -164,21 +158,20 @@ export default function CompanyAutomationDetail({
 
       {automation && (
         <div
+          className={isEmployeeDisabled ? "ux_alert ux_alert_warning" : "ux_alert ux_alert_success"}
           style={{
-            backgroundColor: isEmployeeDisabled ? "#fffbeb" : "#f0fdf4",
-            border: `1px solid ${isEmployeeDisabled ? "#fcd34d" : "#bbf7d0"}`,
-            borderRadius: "8px",
             padding: "16px",
             display: "flex",
             flexDirection: "column",
             gap: "12px",
+            border: isEmployeeDisabled ? undefined : "1px solid #bbf7d0",
           }}
         >
           <div>
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#374151" }}>
+            <span className="ux_label" style={{ fontSize: "13px" }}>
               👥 직원에게 사용함 / 사용 안함
             </span>
-            <p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0 0 0", lineHeight: 1.5 }}>
+            <p className="ux_help_text" style={{ margin: "4px 0 0 0" }}>
               오퍼레이터 매핑·활성 상태와 별도로, 회사 직원의 실행·목록 노출만 제어합니다. 기존 실행 기록은 유지됩니다.
             </p>
           </div>
@@ -240,31 +233,21 @@ export default function CompanyAutomationDetail({
       {noticeText && <AutomationNoticeBox noticeText={noticeText} />}
 
       {template?.description && (
-        <div style={{ backgroundColor: "#f9fafb", borderRadius: "6px", padding: "12px", border: "1px solid #f3f4f6" }}>
-          <span style={{ fontSize: "12px", color: "#4b5563", fontWeight: 600 }}>N8N 워크플로우 설명</span>
-          <p style={{ fontSize: "13px", color: "#4b5563", margin: "4px 0 0 0", lineHeight: 1.5 }}>
+        <div className="ux_alert ux_alert_muted" style={{ borderRadius: "6px" }}>
+          <span className="ux_card_title" style={{ fontWeight: 600 }}>N8N 워크플로우 설명</span>
+          <p className="ux_body_text" style={{ margin: "4px 0 0 0" }}>
             {template.description}
           </p>
         </div>
       )}
 
-      <div
-        style={{
-          backgroundColor: "#eff6ff",
-          border: "1px solid #bfdbfe",
-          borderRadius: "6px",
-          padding: "12px",
-          fontSize: "12.5px",
-          color: "#1e3a8a",
-          lineHeight: 1.5,
-        }}
-      >
+      <div className="ux_alert ux_alert_info" style={{ borderRadius: "6px", fontSize: "12.5px", lineHeight: 1.5 }}>
         ℹ️ <strong>개인 설정 우선 적용 안내</strong><br />
         이 값은 회사 공용 기본값입니다. 사용자가 개인 설정을 저장하면 개인 설정이 우선 적용되고, 비어 있는 값은 회사 기본값을 사용합니다.
       </div>
 
       <div>
-        <h4 style={{ fontSize: "13px", fontWeight: 600, color: "#374151", margin: "0 0 8px 0" }}>
+        <h4 className="ux_card_title" style={{ fontSize: "13px", margin: "0 0 8px 0" }}>
           📁 회사 공용 기본 설정값
         </h4>
         {!automation || !automation.settings || Object.keys(automation.settings).length === 0 ? (

@@ -42,16 +42,13 @@ export default function UserProfile() {
 
   return (
     <div style={{ boxSizing: "border-box", minWidth: 0 }}>
-      <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", marginBottom: "16px" }}>
+      <h2 className="ux_section_title" style={{ marginBottom: "16px" }}>
         👤 내 정보
       </h2>
 
       <div
+        className="ux_card"
         style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          padding: "16px",
           display: "flex",
           flexDirection: "column",
           gap: "16px",
@@ -87,7 +84,7 @@ export default function UserProfile() {
 
         {/* 기본 이름 및 이메일 */}
         <div style={{ textAlign: "center" }}>
-          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", margin: "0 0 4px 0" }}>
+          <h3 className="ux_section_title" style={{ margin: "0 0 4px 0" }}>
             {user.displayName || "이름 없음"}
           </h3>
           <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>{user.email}</p>

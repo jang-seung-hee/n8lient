@@ -17,42 +17,28 @@ export default function WorkWikiData() {
   );
 
   return (
-    <div style={{ padding: "12px", boxSizing: "border-box" }}>
-      <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#111111", marginBottom: "12px" }}>
+    <div style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 }}>
+      <h2 className="ux_section_title" style={{ fontSize: "15px" }}>
         📖 사내 업무위키 정보 (Mock)
       </h2>
 
       <input
         type="text"
+        className="ux_input_compact"
         placeholder="카테고리, 제목 또는 위키 내용 검색"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          height: "36px",
-          borderRadius: "6px",
-          border: "1px solid #e5e7eb",
-          padding: "0 10px",
-          fontSize: "13px",
-          marginBottom: "12px",
-          outline: "none",
-          boxSizing: "border-box",
-        }}
       />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 }}>
         {filtered.map((wiki) => (
           <div
             key={wiki.id}
-            style={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              padding: "10px 12px",
-            }}
+            className="ux_card_compact"
+            style={{ padding: "10px 12px" }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", alignItems: "center", gap: "8px", minWidth: 0, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, flex: "1 1 auto" }}>
                 <span
                   style={{
                     fontSize: "9px",
@@ -65,13 +51,13 @@ export default function WorkWikiData() {
                 >
                   {wiki.category}
                 </span>
-                <span style={{ fontSize: "13px", fontWeight: 600, color: "#111111" }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "#111111", wordBreak: "break-word" }}>
                   {wiki.title}
                 </span>
               </div>
               <span style={{ fontSize: "11px", color: "#9ca3af" }}>{wiki.lastUpdated}</span>
             </div>
-            <p style={{ fontSize: "12px", color: "#4b5563", margin: 0, lineHeight: 1.4 }}>
+            <p style={{ fontSize: "12px", color: "#4b5563", margin: 0, lineHeight: 1.4, wordBreak: "break-word" }}>
               {wiki.content}
             </p>
           </div>

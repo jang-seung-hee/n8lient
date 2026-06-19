@@ -299,10 +299,10 @@ export default function OperatorTemplates() {
       {/* 상단 헤더 영역 */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+          <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
             📂 N8N 워크플로우 마스터
           </h2>
-          <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+          <p className="ux_caption" style={{ margin: 0 }}>
             플랫폼 전체에 제공되는 N8N 워크플로우 명세의 inputSchema 및 설정 요구사항 스키마를 정의합니다.
           </p>
         </div>
@@ -355,7 +355,7 @@ export default function OperatorTemplates() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px", fontSize: "13.5px", color: "#374151", lineHeight: 1.6 }}>
-              <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", padding: "14px", borderRadius: "8px" }}>
+              <div className="ux_alert ux_alert_info">
                 <p style={{ margin: "0 0 6px 0", fontWeight: 700, color: "#1d4ed8", fontSize: "14px" }}>🎯 최종 웹훅 주소 조합 요약 예시</p>
                 <p style={{ margin: 0, fontFamily: "monospace", fontSize: "13px", fontWeight: 700, color: "#b91c1c" }}>
                   https://n8n.rentaltalk.kr/webhook/n8lient-idea-catcher
@@ -412,16 +412,12 @@ export default function OperatorTemplates() {
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px" }}>
               <button
+                className="ux_button ux_button_primary"
                 onClick={() => setShowHelpModal(false)}
                 style={{
-                  backgroundColor: "#111111",
-                  color: "#ffffff",
-                  border: "none",
                   borderRadius: "6px",
                   padding: "8px 16px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
+                  border: "none",
                 }}
               >
                 닫기
@@ -432,13 +428,13 @@ export default function OperatorTemplates() {
       )}
 
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+        <div className="ux_alert ux_alert_danger">
           ⚠️ {error}
         </div>
       )}
 
       {/* 가이드 안내 영역 */}
-      <div style={{ backgroundColor: "#f3f4f6", borderLeft: "4px solid #111111", padding: "12px 16px", borderRadius: "4px", fontSize: "12.5px", color: "#4b5563", lineHeight: 1.5 }}>
+      <div className="ux_alert ux_alert_muted" style={{ borderLeft: "4px solid #111111", borderRadius: "4px", fontSize: "12.5px", lineHeight: 1.5 }}>
         <p style={{ margin: "0 0 4px 0", fontWeight: 700 }}>🔒 보안 및 일관성 보호 가이드</p>
         <p style={{ margin: "0 0 4px 0" }}>• Webhook URL은 보안상 Firestore에 저장하지 않습니다. N8N 워크플로우 명세에는 <code style={{ fontFamily: "monospace", backgroundColor: "#e5e7eb", padding: "2px 4px", borderRadius: "2px" }}>n8nServerKey</code>와 <code style={{ fontFamily: "monospace", backgroundColor: "#e5e7eb", padding: "2px 4px", borderRadius: "2px" }}>webhookSecretId</code> 같은 참조값만 저장하며, 실제 URL 및 토큰은 서버리스 실행 게이트웨이의 환경변수/Secret 저장소에서 관리합니다.</p>
         <p style={{ margin: "0 0 4px 0" }}>• 배포 완료(<code style={{ color: "#065f46", fontWeight: 600 }}>published</code>) 상태의 기존 워크플로우는 기존 회사 설정값과의 충돌을 방지하기 위해 <code style={{ fontWeight: 600 }}>workflowKey</code> 및 기존 설정 필드 <code style={{ fontWeight: 600 }}>key</code>의 수정/삭제가 제한됩니다.</p>
@@ -492,13 +488,8 @@ export default function OperatorTemplates() {
 
             return (
               <div
+                className={displayDiagnostics.severity === "error" ? "ux_alert ux_alert_danger" : "ux_alert ux_alert_warning"}
                 style={{
-                  backgroundColor: displayDiagnostics.severity === "error" ? "#fee2e2" : "#ffedd5",
-                  border: displayDiagnostics.severity === "error" ? "1px solid #fca5a5" : "1px solid #fed7aa",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  fontSize: "13px",
-                  color: displayDiagnostics.severity === "error" ? "#991b1b" : "#9a3412",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",

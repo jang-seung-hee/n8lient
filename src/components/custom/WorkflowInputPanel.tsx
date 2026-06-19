@@ -371,11 +371,12 @@ export default function WorkflowInputPanel({
         {activeTab === "text" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <textarea
+              className="ux_textarea"
               value={textVal}
               onChange={handleTextChange}
               placeholder="워크플로우 처리에 필요한 추가 설명이나 텍스트 정보를 입력해 주세요."
               disabled={submitting}
-              style={{ minHeight: "80px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "8px 10px", fontSize: "13px", color: "#111111", outline: "none", resize: "vertical", boxSizing: "border-box", width: "100%" }}
+              style={{ minHeight: "80px", borderRadius: "6px", border: "1px solid #e5e7eb" }}
             />
           </div>
         )}
@@ -402,17 +403,19 @@ export default function WorkflowInputPanel({
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
+                className="ux_button ux_button_secondary"
                 onClick={() => imageInputRef.current?.click()}
                 disabled={submitting}
-                style={{ flex: 1, height: "36px", fontSize: "13px", fontWeight: 600, border: "1px solid #d1d5db", borderRadius: "6px", backgroundColor: "#ffffff", color: "#374151", cursor: "pointer" }}
+                style={{ flex: 1, borderRadius: "6px" }}
               >
                 🖼️ 이미지 선택
               </button>
               <button
                 type="button"
+                className="ux_button ux_button_secondary"
                 onClick={() => cameraInputRef.current?.click()}
                 disabled={submitting}
-                style={{ flex: 1, height: "36px", fontSize: "13px", fontWeight: 600, border: "1px solid #d1d5db", borderRadius: "6px", backgroundColor: "#ffffff", color: "#374151", cursor: "pointer" }}
+                style={{ flex: 1, borderRadius: "6px" }}
               >
                 📸 카메라 촬영
               </button>
@@ -448,23 +451,25 @@ export default function WorkflowInputPanel({
                   {!isRecording ? (
                     <button
                       type="button"
+                      className="ux_button ux_button_danger"
                       onClick={() => {
                         playAppSound("click");
                         startRecording();
                       }}
                       disabled={submitting}
-                      style={{ height: "36px", padding: "0 12px", fontSize: "13px", fontWeight: 600, border: "none", borderRadius: "6px", backgroundColor: "#ef4444", color: "#ffffff", cursor: "pointer" }}
+                      style={{ borderRadius: "6px", border: "none", backgroundColor: "#ef4444" }}
                     >
                       🎙️ 녹음 시작
                     </button>
                   ) : (
                     <button
                       type="button"
+                      className="ux_button ux_button_primary"
                       onClick={() => {
                         // 녹음 정지 시에는 click 효과음 대신 success 효과음이 stopRecording 내부에서 재생됨 (소리가 겹치거나 마이크에 들어가지 않도록 정밀 대응)
                         stopRecording();
                       }}
-                      style={{ height: "36px", padding: "0 12px", fontSize: "13px", fontWeight: 600, border: "none", borderRadius: "6px", backgroundColor: "#111111", color: "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+                      style={{ borderRadius: "6px", border: "none" }}
                     >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ef4444", animation: "pulse 1.5s infinite" }}></span>
                       정지 ({formatTime(recordingTime)})

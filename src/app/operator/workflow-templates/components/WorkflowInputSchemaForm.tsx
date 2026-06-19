@@ -72,7 +72,7 @@ export default function WorkflowInputSchemaForm({
           ...getDiagnosticStyles("inputSchema.acceptedInputTypes", diagnostics)
         }}
       >
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+        <span className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
           허용 입력 형태 (다중 선택 가능)
         </span>
         <div style={{ display: "flex", gap: "16px", fontSize: "13px" }}>
@@ -101,22 +101,17 @@ export default function WorkflowInputSchemaForm({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
             허용 파일 확장자 (쉼표 구분)
           </label>
           <input
             type="text"
+            className="ux_input_compact"
             value={allowedFileTypesStr}
             onChange={(e) => setAllowedFileTypesStr(e.target.value)}
             placeholder="pdf, jpg, png, xlsx"
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("inputSchema.allowedFileTypes", diagnostics)
@@ -129,20 +124,15 @@ export default function WorkflowInputSchemaForm({
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>최대 파일 크기 (MB)</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>최대 파일 크기 (MB)</label>
           <input
             type="number"
+            className="ux_input_compact"
             value={maxFileSizeMB}
             onChange={(e) => setMaxFileSizeMB(Number(e.target.value))}
             required
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("inputSchema.maxFileSizeMB", diagnostics)
@@ -182,20 +172,15 @@ export default function WorkflowInputSchemaForm({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginTop: "4px" }}>
         {/* requiredInputMode select */}
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
             필수 입력 조건 방식 (requiredInputMode)
           </label>
           <select
+            className="ux_select_compact"
             value={requiredInputMode}
-            onChange={(e) => setRequiredInputMode(e.target.value as any)}
+            onChange={(e) => setRequiredInputMode(e.target.value as "none" | "at_least_one" | "all")}
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("inputSchema.requiredInputMode", diagnostics)
@@ -214,23 +199,18 @@ export default function WorkflowInputSchemaForm({
 
         {/* maxFiles input */}
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
             최대 업로드 파일 수 (maxFiles)
           </label>
           <input
             type="number"
+            className="ux_input_compact"
             value={maxFiles}
             onChange={(e) => setMaxFiles(Number(e.target.value))}
             min={0}
             required
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("inputSchema.maxFiles", diagnostics)
@@ -259,7 +239,7 @@ export default function WorkflowInputSchemaForm({
           ...getDiagnosticStyles("inputSchema.requiredInputTypes", diagnostics)
         }}
       >
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+        <span className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
           필수 입력 타입 목록 (requiredInputTypes)
         </span>
         <div style={{ display: "flex", gap: "16px", fontSize: "13px" }}>

@@ -94,16 +94,16 @@ export function WorkflowImportPanel({
     fileInputRef.current?.click();
   };
 
-  // 진단 결과 레벨별 배경색 및 텍스트 컬러 지정
-  const getBadgeStyles = (level: "ok" | "warning" | "error") => {
+  // 진단 결과 레벨별 배지 클래스
+  const getBadgeMeta = (level: "ok" | "warning" | "error") => {
     switch (level) {
       case "error":
-        return { bg: "#fee2e2", color: "#b91c1c", label: "오류 (Error)" };
+        return { className: "ux_badge ux_badge_danger", label: "오류 (Error)" };
       case "warning":
-        return { bg: "#ffedd5", color: "#c2410c", label: "확인 필요 (Warning)" };
+        return { className: "ux_badge ux_badge_warning", label: "확인 필요 (Warning)" };
       case "ok":
       default:
-        return { bg: "#eff6ff", color: "#1d4ed8", label: "정상 (Ok)" };
+        return { className: "ux_badge ux_badge_info", label: "정상 (Ok)" };
     }
   };
 
@@ -111,7 +111,7 @@ export function WorkflowImportPanel({
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 타이틀 및 가이드 영역 */}
       <div>
-        <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+        <h2 className="ux_section_title" style={{ margin: "0 0 4px 0" }}>
           📂 N8Lient 표준 Import JSON 불러오기
         </h2>
         <p style={{ fontSize: "12.5px", color: "#6b7280", margin: 0 }}>
@@ -159,16 +159,12 @@ export function WorkflowImportPanel({
             Import 파일이 없으신가요?
           </span>
           <button
+            className="ux_button ux_button_secondary"
             onClick={onDirectCreate}
             style={{
-              backgroundColor: "#ffffff",
-              color: "#111111",
-              border: "1px solid #d1d5db",
               borderRadius: "6px",
               padding: "6px 14px",
               fontSize: "12.5px",
-              fontWeight: 600,
-              cursor: "pointer",
             }}
           >
             ✏️ 빈 폼으로 직접 등록하기
@@ -178,16 +174,7 @@ export function WorkflowImportPanel({
 
       {/* 파싱/처리 도중 오류 발생 시 표시 */}
       {error && (
-        <div
-          style={{
-            backgroundColor: "#fee2e2",
-            border: "1px solid #fca5a5",
-            borderRadius: "8px",
-            padding: "12px 16px",
-            fontSize: "13px",
-            color: "#b91c1c",
-          }}
-        >
+        <div className="ux_alert ux_alert_danger">
           ⚠️ {error}
         </div>
       )}
@@ -222,34 +209,26 @@ export function WorkflowImportPanel({
             </div>
             <div style={{ flex: 1, minWidth: "100px" }}>
               <div style={{ fontSize: "12px", color: "#6b7280" }}>전체 진단 상태</div>
-              <div
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  display: "inline-block",
-                  marginTop: "2px",
-                  padding: "2px 8px",
-                  borderRadius: "4px",
-                  backgroundColor: getBadgeStyles(draft.diagnostics.severity).bg,
-                  color: getBadgeStyles(draft.diagnostics.severity).color,
-                }}
+              <span
+                className={getBadgeMeta(draft.diagnostics.severity).className}
+                style={{ fontSize: "12px", fontWeight: 800, marginTop: "2px", padding: "2px 8px", borderRadius: "4px" }}
               >
-                {getBadgeStyles(draft.diagnostics.severity).label}
-              </div>
+                {getBadgeMeta(draft.diagnostics.severity).label}
+              </span>
             </div>
           </div>
 
           {/* 2. 경고 고지 안내 문구 */}
           {draft.diagnostics.severity === "error" ? (
-            <div style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "12px", borderRadius: "6px", fontSize: "12.5px" }}>
+            <div className="ux_alert ux_alert_danger" style={{ fontSize: "12.5px" }}>
               <strong>⚠️ 안내:</strong> 현재 명세서 검증 결과에 수정이 필요한 오류가 존재합니다. 폼에 반영하여 이동한 뒤 빨간색 표시 항목을 정상적으로 수정해야 최종 저장이 활성화됩니다.
             </div>
           ) : draft.diagnostics.requiresWarningConfirmation ? (
-            <div style={{ backgroundColor: "#ffedd5", color: "#9a3412", padding: "12px", borderRadius: "6px", fontSize: "12.5px" }}>
+            <div className="ux_alert ux_alert_warning" style={{ fontSize: "12.5px" }}>
               <strong>💡 안내:</strong> 일부 검토 경고(주황색) 항목이 있습니다. 폼으로 이동하여 설정값을 확인하고 필요에 따라 다듬어 주십시오.
             </div>
           ) : (
-            <div style={{ backgroundColor: "#ecfdf5", color: "#065f46", padding: "12px", borderRadius: "6px", fontSize: "12.5px" }}>
+            <div className="ux_alert ux_alert_success" style={{ fontSize: "12.5px" }}>
               <strong>✓ 안내:</strong> 정합성 충돌 및 오류가 없는 안전한 명세서입니다. 아래 버튼을 눌러 등록 폼에 반영하십시오.
             </div>
           )}
@@ -275,7 +254,7 @@ export function WorkflowImportPanel({
                   </thead>
                   <tbody>
                     {draft.diagnostics.items.map((item, idx) => {
-                      const badge = getBadgeStyles(item.level);
+                      const badge = getBadgeMeta(item.level);
                       return (
                         <tr key={idx} style={{ borderBottom: "1px solid #f3f4f6" }}>
                           <td style={{ padding: "10px 12px", fontFamily: "monospace", color: "#374151" }}>
@@ -283,14 +262,8 @@ export function WorkflowImportPanel({
                           </td>
                           <td style={{ padding: "10px 12px" }}>
                             <span
-                              style={{
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                backgroundColor: badge.bg,
-                                color: badge.color,
-                              }}
+                              className={badge.className}
+                              style={{ fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}
                             >
                               {item.level === "error" ? "오류" : "확인 필요"}
                             </span>
@@ -310,22 +283,19 @@ export function WorkflowImportPanel({
           {/* 4. 액션 버튼 영역 */}
           <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
             <button
+              className="ux_button ux_button_primary"
               onClick={() => onApplyDraft(draft)}
               style={{
                 flex: 1,
                 height: "38px",
-                backgroundColor: "#111111",
-                color: "#ffffff",
                 borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: 600,
                 border: "none",
-                cursor: "pointer",
               }}
             >
               🚀 등록 폼에 적용 및 이동
             </button>
             <button
+              className="ux_button ux_button_secondary"
               onClick={() => {
                 setDraft(null);
                 setFileName(null);
@@ -333,14 +303,8 @@ export function WorkflowImportPanel({
               }}
               style={{
                 height: "38px",
-                backgroundColor: "#ffffff",
-                color: "#374151",
-                border: "1px solid #d1d5db",
                 borderRadius: "6px",
                 padding: "0 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
               }}
             >
               다시 올리기
@@ -352,17 +316,13 @@ export function WorkflowImportPanel({
       {/* 하단 뒤로가기 버튼 */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
         <button
+          className="ux_button ux_button_secondary"
           onClick={onCancel}
           style={{
             height: "38px",
             backgroundColor: "#f3f4f6",
-            color: "#374151",
-            border: "1px solid #d1d5db",
             borderRadius: "6px",
             padding: "0 16px",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
           }}
         >
           목록으로 돌아가기

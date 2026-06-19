@@ -209,17 +209,14 @@ export function WorkflowForm({
         <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
           <button
             type="submit"
+            className="ux_button ux_button_primary"
             disabled={loading}
             style={{
               flex: 1,
               height: "38px",
-              backgroundColor: loading ? "#4b5563" : "#111111",
-              color: "#ffffff",
               borderRadius: "6px",
-              fontSize: "13px",
-              fontWeight: 600,
-              border: "none",
-              cursor: loading ? "not-allowed" : "pointer",
+              backgroundColor: loading ? "#4b5563" : undefined,
+              border: loading ? "none" : undefined,
             }}
           >
             {loading
@@ -231,17 +228,13 @@ export function WorkflowForm({
 
           <button
             type="button"
+            className="ux_button ux_button_secondary"
             onClick={onCancel}
             style={{
               height: "38px",
               backgroundColor: "#f3f4f6",
-              color: "#374151",
-              border: "1px solid #d1d5db",
               borderRadius: "6px",
               padding: "0 14px",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
             }}
           >
             취소

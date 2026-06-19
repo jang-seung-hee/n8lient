@@ -152,10 +152,10 @@ export default function OperatorLogs() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div>
-        <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           📂 플랫폼 전체 실행 로그 모니터링
         </h2>
-        <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+        <p className="ux_caption" style={{ margin: 0 }}>
           모든 등록된 회사 고객사들의 n8n 실행 트랜잭션 최근 500건 로그입니다.
         </p>
       </div>
@@ -168,20 +168,13 @@ export default function OperatorLogs() {
       />
 
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+        <div className="ux_alert ux_alert_danger">
           ⚠️ {error}
         </div>
       )}
 
       {/* 테이블 리스트 */}
-      <div
-        style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
+      <div className="ux_card_compact" style={{ padding: 0, overflow: "hidden" }}>
         {loading && submissions.length === 0 ? (
           <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
             플랫폼 로그를 불러오는 중...
@@ -213,16 +206,15 @@ export default function OperatorLogs() {
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <button
                     type="button"
+                    className="ux_button_compact ux_button_secondary"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
                     style={{
                       padding: "6px 12px",
                       fontSize: "12px",
-                      border: "1px solid #d1d5db",
                       borderRadius: "6px",
                       backgroundColor: currentPage <= 1 ? "#f3f4f6" : "#ffffff",
                       color: currentPage <= 1 ? "#9ca3af" : "#374151",
-                      cursor: currentPage <= 1 ? "not-allowed" : "pointer",
                     }}
                   >
                     이전
@@ -232,16 +224,15 @@ export default function OperatorLogs() {
                   </span>
                   <button
                     type="button"
+                    className="ux_button_compact ux_button_secondary"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage >= totalPages}
                     style={{
                       padding: "6px 12px",
                       fontSize: "12px",
-                      border: "1px solid #d1d5db",
                       borderRadius: "6px",
                       backgroundColor: currentPage >= totalPages ? "#f3f4f6" : "#ffffff",
                       color: currentPage >= totalPages ? "#9ca3af" : "#374151",
-                      cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
                     }}
                   >
                     다음

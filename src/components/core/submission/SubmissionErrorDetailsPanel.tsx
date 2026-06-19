@@ -74,12 +74,13 @@ export function SubmissionErrorDetailsPanel({
 
   return (
     <div
+      className={embedded ? undefined : "ux_alert ux_alert_muted"}
       style={{
-        backgroundColor: embedded ? "transparent" : "#f8fafc",
-        border: embedded ? "none" : "1px solid #e2e8f0",
-        padding: embedded ? 0 : "10px",
+        padding: embedded ? 0 : undefined,
+        border: embedded ? "none" : undefined,
         borderRadius: embedded ? 0 : "6px",
         marginTop: embedded ? 0 : "12px",
+        backgroundColor: embedded ? "transparent" : undefined,
       }}
     >
       <div
@@ -109,7 +110,7 @@ export function SubmissionErrorDetailsPanel({
             }}
           >
             <span style={{ fontSize: "10px", color: "#64748b" }}>{expanded ? "▼" : "▶"}</span>
-            <h4 style={{ fontSize: "11.5px", fontWeight: 700, color: "#475569", margin: 0 }}>
+            <h4 className="ux_micro_text" style={{ fontWeight: 700, color: "#475569", margin: 0 }}>
               🔍 상세 디버깅 정보
             </h4>
           </button>
@@ -126,7 +127,7 @@ export function SubmissionErrorDetailsPanel({
       </div>
 
       {showContent && (
-        <div style={{ marginTop: "8px", fontSize: "11px", color: "#475569" }}>
+        <div className="ux_micro_text" style={{ marginTop: "8px", color: "#475569" }}>
           {failed ? (
             errorDetails ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
@@ -167,10 +168,10 @@ export function SubmissionErrorDetailsPanel({
                   </div>
                 )}
                 <div
+                  className="ux_alert ux_alert_muted"
                   style={{
                     marginTop: "4px",
                     padding: "6px",
-                    backgroundColor: "#f1f5f9",
                     borderRadius: "4px",
                     borderLeft: "3px solid #cbd5e1",
                   }}

@@ -25,6 +25,7 @@ export default function AutomationNoticeBox({ noticeText }: AutomationNoticeBoxP
       <div
         role={needsFullView ? "button" : undefined}
         tabIndex={needsFullView ? 0 : undefined}
+        className="ux_alert ux_alert_warning"
         onClick={needsFullView ? () => setShowModal(true) : undefined}
         onKeyDown={
           needsFullView
@@ -37,15 +38,12 @@ export default function AutomationNoticeBox({ noticeText }: AutomationNoticeBoxP
             : undefined
         }
         style={{
-          backgroundColor: "#fffbeb",
-          border: "1px solid #fde68a",
-          borderRadius: "8px",
           padding: "10px 12px",
           cursor: needsFullView ? "pointer" : "default",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-          <span style={{ fontSize: "12px", fontWeight: 700, color: "#92400e" }}>📢 공지사항</span>
+          <span className="ux_card_title" style={{ fontSize: "12px" }}>📢 공지사항</span>
           {needsFullView && (
             <button
               type="button"
@@ -99,16 +97,17 @@ export default function AutomationNoticeBox({ noticeText }: AutomationNoticeBoxP
             }}
           >
             <div
+              className="ux_alert ux_alert_warning"
               style={{
                 padding: "16px 20px",
                 borderBottom: "1px solid #f3f4f6",
+                borderRadius: 0,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                backgroundColor: "#fffbeb",
               }}
             >
-              <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#92400e", margin: 0 }}>공지사항</h3>
+              <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>공지사항</h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
@@ -141,18 +140,9 @@ export default function AutomationNoticeBox({ noticeText }: AutomationNoticeBoxP
             <div style={{ padding: "12px 20px 16px", borderTop: "1px solid #f3f4f6", textAlign: "right" }}>
               <button
                 type="button"
+                className="ux_button ux_button_primary"
                 onClick={() => setShowModal(false)}
-                style={{
-                  height: "36px",
-                  padding: "0 16px",
-                  backgroundColor: "#111111",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
+                style={{ borderRadius: "6px", border: "none" }}
               >
                 닫기
               </button>

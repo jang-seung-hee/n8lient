@@ -59,15 +59,14 @@ export function ListSearchFilterBar({
 
   return (
     <div
+      className="ux_info_box"
       style={{
         display: "flex",
         gap: "10px",
         alignItems: "center",
-        backgroundColor: "#f9fafb",
-        border: "1px solid #e5e7eb",
-        borderRadius: "6px",
         padding: "8px 12px",
         marginBottom: "16px",
+        borderRadius: "6px",
         flexWrap: "wrap",
       }}
     >
@@ -75,21 +74,10 @@ export function ListSearchFilterBar({
       <div style={{ flex: 1, minWidth: "200px", position: "relative" }}>
         <input
           type="text"
+          className="ux_input_compact"
           value={searchQuery}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
-          style={{
-            width: "100%",
-            height: "36px",
-            border: "1px solid #d1d5db",
-            borderRadius: "6px",
-            padding: "0 10px",
-            fontSize: "13px",
-            outline: "none",
-            backgroundColor: "#ffffff",
-            color: "#111111",
-            boxSizing: "border-box",
-          }}
         />
       </div>
 
@@ -97,20 +85,10 @@ export function ListSearchFilterBar({
       {filterFields.map((field) => (
         <div key={field.key} style={{ minWidth: "120px" }}>
           <select
+            className="ux_select_compact"
             value={filterValues[field.key] || ""}
             onChange={(e) => handleFilterChange(field.key, e.target.value)}
-            style={{
-              width: "100%",
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
-              backgroundColor: "#ffffff",
-              color: "#111111",
-              cursor: "pointer",
-            }}
+            style={{ cursor: "pointer" }}
           >
             <option value="">전체 ({field.label})</option>
             {field.options.map((opt) => (

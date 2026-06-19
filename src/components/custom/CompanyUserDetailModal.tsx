@@ -66,7 +66,7 @@ export function CompanyUserDetailModal({ isOpen, onClose, user }: CompanyUserDet
             backgroundColor: "#f9fafb",
           }}
         >
-          <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#111111", margin: 0 }}>
+          <h3 className="ux_section_title" style={{ margin: 0 }}>
             👤 사내 사용자 상세 정보
           </h3>
           <button
@@ -198,17 +198,13 @@ export function CompanyUserDetailModal({ isOpen, onClose, user }: CompanyUserDet
           }}
         >
           <button
+            className="ux_button ux_button_primary"
             onClick={onClose}
             style={{
-              height: "36px",
               backgroundColor: "#2563eb",
-              color: "#ffffff",
               border: "none",
               borderRadius: "6px",
               padding: "0 16px",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
               transition: "background-color 0.15s ease",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1d4ed8")}

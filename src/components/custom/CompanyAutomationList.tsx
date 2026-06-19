@@ -106,10 +106,9 @@ export default function CompanyAutomationList({
         </div>
       ) : (
         <div
+          className="ux_card"
           style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "6px",
+            padding: 0,
             boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
@@ -175,14 +174,8 @@ export default function CompanyAutomationList({
                 </span>
                 <span>
                   <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      backgroundColor: auto?.enabled ? "#d1fae5" : "#fee2e2",
-                      color: auto?.enabled ? "#065f46" : "#991b1b",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                    }}
+                    className={auto?.enabled ? "ux_badge ux_badge_success" : "ux_badge ux_badge_danger"}
+                    style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px" }}
                   >
                     {auto?.enabled ? "활성화" : "비활성화"}
                   </span>
@@ -192,27 +185,15 @@ export default function CompanyAutomationList({
                     <span style={{ fontSize: "11px", color: "#9ca3af" }}>-</span>
                   ) : auto.companyDisabled === true ? (
                     <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        backgroundColor: "#fef3c7",
-                        color: "#92400e",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                      }}
+                      className="ux_badge ux_badge_warning"
+                      style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px" }}
                     >
                       사용 안함
                     </span>
                   ) : (
                     <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        backgroundColor: "#dbeafe",
-                        color: "#1e40af",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                      }}
+                      className="ux_badge ux_badge_info"
+                      style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px" }}
                     >
                       사용함
                     </span>
@@ -223,16 +204,12 @@ export default function CompanyAutomationList({
                 </span>
                 <div style={{ textAlign: "right" }}>
                   <button
+                    className="ux_button_compact ux_button_secondary"
                     onClick={() => onSelectContract(contract)}
                     style={{
                       fontSize: "11px",
-                      fontWeight: 600,
-                      backgroundColor: "#ffffff",
-                      border: "1px solid #d1d5db",
                       padding: "4px 8px",
                       borderRadius: "4px",
-                      cursor: "pointer",
-                      color: "#374151",
                       boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
                       transition: "all 0.15s ease",
                     }}

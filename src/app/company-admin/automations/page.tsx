@@ -68,10 +68,10 @@ export default function AdminAutomations() {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <div>
-          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+          <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
             ⚙️ N8N 워크플로우 설정 관리
           </h2>
-          <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+          <p className="ux_caption" style={{ margin: 0 }}>
             회사별 계약된 N8N 워크플로우의 기본 설정값을 관리합니다.
           </p>
         </div>
@@ -83,16 +83,16 @@ export default function AdminAutomations() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div>
-        <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           ⚙️ N8N 워크플로우 설정 관리
         </h2>
-        <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+        <p className="ux_caption" style={{ margin: 0 }}>
           회사별 계약된 N8N 워크플로우의 Google Drive 폴더 ID, 시트 ID 등의 회사 공용 기본값(Fallback)을 관리합니다.
         </p>
       </div>
 
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+        <div className="ux_alert ux_alert_danger">
           ⚠️ {error}
         </div>
       )}

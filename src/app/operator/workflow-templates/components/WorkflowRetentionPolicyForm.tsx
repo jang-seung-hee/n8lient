@@ -89,20 +89,19 @@ export default function WorkflowRetentionPolicyForm({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+            <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
               워크플로우 최대 보관 지원 단계 (maxLevel) *
             </label>
             <select
+              className="ux_select_compact"
               value={maxLevel}
-              onChange={(e: any) => setMaxLevel(e.target.value)}
+              onChange={(e) => setMaxLevel(e.target.value as RetentionLevel)}
               disabled={isStructureLocked}
               style={{
                 height: "32px",
-                border: "1px solid #d1d5db",
+                fontSize: "12px",
                 borderRadius: "6px",
                 padding: "0 6px",
-                fontSize: "12px",
-                outline: "none",
                 backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                 color: isStructureLocked ? "#9ca3af" : "#111111",
               }}
@@ -117,18 +116,17 @@ export default function WorkflowRetentionPolicyForm({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>기본 지원 레벨</label>
+            <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>기본 지원 레벨</label>
             <select
+              className="ux_select_compact"
               value={capsDefaultLevel}
-              onChange={(e: any) => setCapsDefaultLevel(e.target.value)}
+              onChange={(e) => setCapsDefaultLevel(e.target.value as RetentionLevel)}
               disabled={isStructureLocked}
               style={{
                 height: "32px",
-                border: "1px solid #d1d5db",
+                fontSize: "12px",
                 borderRadius: "6px",
                 padding: "0 6px",
-                fontSize: "12px",
-                outline: "none",
                 backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                 color: isStructureLocked ? "#9ca3af" : "#111111",
                 ...getDiagnosticStyles("retentionCapabilities.defaultLevel", diagnostics)
@@ -149,7 +147,7 @@ export default function WorkflowRetentionPolicyForm({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <span style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+            <span className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
             기술적 지원 레벨 (다중 선택)
           </span>
           <div style={{ display: "flex", gap: "12px", fontSize: "12px" }}>
@@ -279,16 +277,16 @@ export default function WorkflowRetentionPolicyForm({
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "#14532d" }}>오퍼레이터 기본 지정 레벨</label>
             <select
+              className="ux_select_compact"
               value={opDefaultLevel}
-              onChange={(e: any) => setOpDefaultLevel(e.target.value)}
+              onChange={(e) => setOpDefaultLevel(e.target.value as RetentionLevel)}
               disabled={isStructureLocked}
               style={{
                 height: "32px",
-                border: "1px solid #bbf7d0",
+                fontSize: "12px",
                 borderRadius: "6px",
                 padding: "0 6px",
-                fontSize: "12px",
-                outline: "none",
+                border: "1px solid #bbf7d0",
                 backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                 color: isStructureLocked ? "#9ca3af" : "#111111",
                 ...getDiagnosticStyles("operatorRetentionPolicy.defaultLevel", diagnostics)

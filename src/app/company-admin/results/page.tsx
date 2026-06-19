@@ -120,10 +120,10 @@ export default function AdminResults() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div>
-        <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           📜 N8N 워크플로우 실행 로그
         </h2>
-        <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+        <p className="ux_caption" style={{ margin: 0 }}>
           소속 직원들의 N8N 워크플로우 실행 요청 및 최종 응답 결과 기록입니다. 로그 행을 클릭하여 실행 상세 내역을 볼 수 있습니다.
         </p>
       </div>
@@ -136,19 +136,12 @@ export default function AdminResults() {
       />
 
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px" }}>
+        <div className="ux_alert ux_alert_danger">
           ⚠️ {error}
         </div>
       )}
 
-      <div
-        style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
+      <div className="ux_card_compact" style={{ padding: 0, overflow: "hidden" }}>
         {loading && submissions.length === 0 ? (
           <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
             실행 로그를 불러오는 중...

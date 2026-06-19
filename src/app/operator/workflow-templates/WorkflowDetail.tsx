@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Firestore } from "firebase/firestore";
 import type { WorkflowTemplate, WorkflowTemplateUsageSummary } from "@/types/n8lient";
 import {
@@ -84,30 +84,43 @@ export function WorkflowDetail({
   const hasProductionSubmissions = (usageSummary?.productionSubmissionCount ?? 0) > 0;
 
   let badgeText = "참조 없음";
-  let badgeBg = "#eff6ff";
-  let badgeColor = "#1d4ed8";
   let guideMessage = "";
+  let badgeClass = "ux_badge ux_badge_info";
+  let badgeStyle: CSSProperties = { fontSize: "11px", padding: "2px 8px", borderRadius: "12px" };
+  let guideAlertClass = "ux_alert ux_alert_info";
+  let guideAlertStyle: CSSProperties = { borderRadius: "6px", fontSize: "13px", lineHeight: 1.5, fontWeight: 500 };
 
   if (hasProductionReferences) {
     badgeText = "운영 참조 있음";
-    badgeBg = "#ffedd5";
-    badgeColor = "#c2410c";
+    badgeClass = "ux_badge ux_badge_warning";
+    guideAlertClass = "ux_alert ux_alert_warning";
     guideMessage = "이 워크플로우 마스터는 회사 매핑이나 운영 계약 등의 참조가 존재하여 식별/구조 필드를 변경할 수 없으며 삭제가 불가합니다.";
   } else if (hasProductionSubmissions) {
     badgeText = "실행 이력 있음";
-    badgeBg = "#fee2e2";
-    badgeColor = "#b91c1c";
+    badgeClass = "ux_badge ux_badge_danger";
+    guideAlertClass = "ux_alert ux_alert_danger";
     guideMessage = "운영 자동화 실행 이력이 존재합니다. 구조 변경이 필요하다면 복제 기능을 이용해 새 버전으로 등록하는 것을 권장합니다.";
   } else if (hasTestReferences) {
     badgeText = "테스트 참조 있음";
-    badgeBg = "#f3e8ff";
-    badgeColor = "#6b21a8";
+    badgeClass = "ux_badge";
+    badgeStyle = {
+      ...badgeStyle,
+      backgroundColor: "#f3e8ff",
+      color: "#6b21a8",
+    };
+    guideAlertClass = "ux_alert";
+    guideAlertStyle = {
+      ...guideAlertStyle,
+      backgroundColor: "#f3e8ff",
+      border: "1px solid #e9d5ff",
+      color: "#6b21a8",
+    };
     guideMessage = "테스트 계약, 테스트 배포 설정 또는 테스트 실행 이력이 존재합니다. Draft 워크플로우를 삭제할 경우 관련 테스트 참조 데이터가 함께 일괄 정리됩니다. 구조 수정은 가능합니다.";
   } else {
     // 참조 없음
     badgeText = "참조 없음";
-    badgeBg = "#eff6ff";
-    badgeColor = "#1d4ed8";
+    badgeClass = "ux_badge ux_badge_info";
+    guideAlertClass = "ux_alert ux_alert_info";
     guideMessage = "아무런 계약이나 배포, 실행 참조가 없습니다. 자유로운 수정 및 삭제가 가능합니다.";
   }
 
@@ -132,23 +145,14 @@ export function WorkflowDetail({
           </button>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111111", margin: 0 }}>
+              <h2 className="ux_section_title" style={{ margin: 0 }}>
                 {template.name} 상세 명세
               </h2>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  backgroundColor: badgeBg,
-                  color: badgeColor,
-                  padding: "2px 8px",
-                  borderRadius: "12px",
-                }}
-              >
+              <span className={badgeClass} style={badgeStyle}>
                 {badgeText}
               </span>
             </div>
-            <p style={{ fontSize: "12px", color: "#6b7280", margin: "2px 0 0 0" }}>
+            <p className="ux_caption" style={{ margin: "2px 0 0 0" }}>
               Key: {template.workflowKey} · v{template.version}
             </p>
           </div>
@@ -230,18 +234,7 @@ export function WorkflowDetail({
 
       {/* 구조 잠금 안내 배너 노출 */}
       {guideMessage && (
-        <div
-          style={{
-            backgroundColor: badgeBg,
-            border: `1px solid ${badgeColor}33`,
-            color: badgeColor,
-            padding: "12px 16px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            lineHeight: 1.5,
-            fontWeight: 500,
-          }}
-        >
+        <div className={guideAlertClass} style={guideAlertStyle}>
           💡 {guideMessage}
         </div>
       )}
@@ -257,7 +250,7 @@ export function WorkflowDetail({
               padding: "20px",
             }}
           >
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               📌 기본 정보
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
@@ -305,7 +298,7 @@ export function WorkflowDetail({
               padding: "20px",
             }}
           >
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               🔗 Webhook 환경변수 맵핑 정보
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
@@ -331,7 +324,7 @@ export function WorkflowDetail({
               padding: "20px",
             }}
           >
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               ⚙️ 허용 입력 양식 (inputSchema)
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
@@ -360,7 +353,7 @@ export function WorkflowDetail({
               padding: "20px",
             }}
           >
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               ⚙️ 설정값 맵핑 필드 (configSchema)
             </h3>
             <div className="ux_scroll_area">

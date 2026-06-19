@@ -10,14 +10,144 @@
   --ux-page-padding-mobile-x: 12px;
   --ux-page-padding-mobile-y: 12px;
 
-  /* 기본 UI 값 — 1차에서는 선언만 하고 과도하게 치환하지 않는다 */
-  --ux-font-size-body: 13px;
+  /* Typography */
   --ux-font-size-page-title: 20px;
   --ux-font-size-section-title: 16px;
+  --ux-font-size-card-title: 14px;
+  --ux-font-size-body: 13px;
+  --ux-font-size-caption: 12px;
+  --ux-font-size-micro: 11px;
+
+  --ux-font-weight-page-title: 700;
+  --ux-font-weight-section-title: 700;
+  --ux-font-weight-card-title: 600;
+  --ux-font-weight-label: 600;
+
+  --ux-text-color-primary: #111827;
+  --ux-text-color-secondary: #374151;
+  --ux-text-color-muted: #6b7280;
+  --ux-text-color-subtle: #9ca3af;
+
+  --ux-line-height-title: 1.35;
+  --ux-line-height-body: 1.5;
+
+  /* Form Field label/help — typography 변수 참조 */
+  --ux-label-font-size: var(--ux-font-size-body);
+  --ux-label-color: var(--ux-text-color-secondary);
+  --ux-help-text-font-size: var(--ux-font-size-caption);
+  --ux-help-text-color: var(--ux-text-color-muted);
 
   --ux-card-radius: 8px;
   --ux-card-padding: 16px;
+  --ux-card-padding-compact: 12px;
+  --ux-card-radius-soft: 12px;
   --ux-card-gap: 16px;
+
+  --ux-card-bg: #ffffff;
+  --ux-card-border-color: #e5e7eb;
+  --ux-card-border: 1px solid var(--ux-card-border-color);
+
+  --ux-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ux-card-shadow-soft: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  /* Notice / Info Box */
+  --ux-info-box-padding: 12px;
+  --ux-info-box-radius: 8px;
+  --ux-info-box-bg: #f9fafb;
+  --ux-info-box-border: 1px solid #e5e7eb;
+
+  /* Form Field */
+  --ux-input-height: 38px;
+  --ux-input-height-compact: 34px;
+  --ux-input-padding-x: 10px;
+  --ux-input-padding-y: 0;
+
+  --ux-input-font-size: 13px;
+  --ux-input-radius: 8px;
+
+  --ux-input-bg: #ffffff;
+  --ux-input-border-color: #d1d5db;
+  --ux-input-border: 1px solid var(--ux-input-border-color);
+
+  --ux-input-focus-border-color: #111827;
+  --ux-input-placeholder-color: #9ca3af;
+
+  --ux-textarea-min-height: 88px;
+  --ux-textarea-padding-y: 10px;
+
+  /* Button — siteConfig.theme.colors.primary (#111111) 기준 */
+  --ux-button-height: 36px;
+  --ux-button-height-compact: 30px;
+  --ux-button-padding-x: 14px;
+  --ux-button-padding-x-compact: 10px;
+  --ux-button-radius: 8px;
+  --ux-button-font-size: 13px;
+  --ux-button-font-weight: 600;
+
+  --ux-button-primary-bg: #111111;
+  --ux-button-primary-color: #ffffff;
+  --ux-button-primary-border: 1px solid #111111;
+
+  --ux-button-secondary-bg: #ffffff;
+  --ux-button-secondary-color: #374151;
+  --ux-button-secondary-border: 1px solid #d1d5db;
+
+  --ux-button-danger-bg: #dc2626;
+  --ux-button-danger-color: #ffffff;
+  --ux-button-danger-border: 1px solid #dc2626;
+
+  --ux-button-ghost-bg: transparent;
+  --ux-button-ghost-color: #374151;
+  --ux-button-ghost-border: 1px solid transparent;
+
+  --ux-button-disabled-opacity: 0.55;
+
+  /* Alert */
+  --ux-alert-padding: 12px;
+  --ux-alert-radius: 8px;
+  --ux-alert-font-size: 13px;
+
+  --ux-alert-info-bg: #eff6ff;
+  --ux-alert-info-border: 1px solid #bfdbfe;
+  --ux-alert-info-color: #1e40af;
+
+  --ux-alert-success-bg: #ecfdf5;
+  --ux-alert-success-border: 1px solid #a7f3d0;
+  --ux-alert-success-color: #047857;
+
+  --ux-alert-warning-bg: #fffbeb;
+  --ux-alert-warning-border: 1px solid #fde68a;
+  --ux-alert-warning-color: #92400e;
+
+  --ux-alert-danger-bg: #fef2f2;
+  --ux-alert-danger-border: 1px solid #fecaca;
+  --ux-alert-danger-color: #b91c1c;
+
+  --ux-alert-muted-bg: #f9fafb;
+  --ux-alert-muted-border: 1px solid #e5e7eb;
+  --ux-alert-muted-color: #4b5563;
+
+  /* Badge */
+  --ux-badge-height: 22px;
+  --ux-badge-padding-x: 8px;
+  --ux-badge-radius: 999px;
+  --ux-badge-font-size: 12px;
+  --ux-badge-font-weight: 600;
+
+  --ux-badge-default-bg: #f3f4f6;
+  --ux-badge-default-color: #374151;
+
+  --ux-badge-success-bg: #d1fae5;
+  --ux-badge-success-color: #065f46;
+
+  --ux-badge-warning-bg: #fef3c7;
+  --ux-badge-warning-color: #92400e;
+
+  --ux-badge-danger-bg: #fee2e2;
+  --ux-badge-danger-color: #991b1b;
+
+  --ux-badge-info-bg: #dbeafe;
+  --ux-badge-info-color: #1d4ed8;
 
   --ux-sidebar-width: 240px;
   --ux-header-height: 52px;
@@ -83,6 +213,309 @@
   max-width: 100%;
   overflow-x: auto;
   min-width: 0;
+}
+
+/* Card / Panel — 카드·박스·패널 SSOT */
+.ux_card {
+  background: var(--ux-card-bg);
+  border: var(--ux-card-border);
+  border-radius: var(--ux-card-radius);
+  padding: var(--ux-card-padding);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.ux_card_compact {
+  background: var(--ux-card-bg);
+  border: var(--ux-card-border);
+  border-radius: var(--ux-card-radius);
+  padding: var(--ux-card-padding-compact);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.ux_panel {
+  background: var(--ux-card-bg);
+  border: var(--ux-card-border);
+  border-radius: var(--ux-card-radius-soft);
+  padding: var(--ux-card-padding);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.ux_info_box {
+  background: var(--ux-info-box-bg);
+  border: var(--ux-info-box-border);
+  border-radius: var(--ux-info-box-radius);
+  padding: var(--ux-info-box-padding);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Form Field — input/select/textarea SSOT */
+.ux_input,
+.ux_select {
+  width: 100%;
+  height: var(--ux-input-height);
+  padding: var(--ux-input-padding-y) var(--ux-input-padding-x);
+  font-size: var(--ux-input-font-size);
+  border: var(--ux-input-border);
+  border-radius: var(--ux-input-radius);
+  background: var(--ux-input-bg);
+  color: #111111;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.ux_input::placeholder,
+.ux_textarea::placeholder {
+  color: var(--ux-input-placeholder-color);
+}
+
+.ux_input:focus,
+.ux_select:focus,
+.ux_textarea:focus {
+  outline: none;
+  border-color: var(--ux-input-focus-border-color);
+}
+
+.ux_input_compact,
+.ux_select_compact {
+  width: 100%;
+  height: var(--ux-input-height-compact);
+  padding: 0 var(--ux-input-padding-x);
+  font-size: var(--ux-input-font-size);
+  border: var(--ux-input-border);
+  border-radius: var(--ux-input-radius);
+  background: var(--ux-input-bg);
+  color: #111111;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.ux_input_compact:focus,
+.ux_select_compact:focus {
+  outline: none;
+  border-color: var(--ux-input-focus-border-color);
+}
+
+.ux_textarea {
+  width: 100%;
+  min-height: var(--ux-textarea-min-height);
+  padding: var(--ux-textarea-padding-y) var(--ux-input-padding-x);
+  font-size: var(--ux-input-font-size);
+  border: var(--ux-input-border);
+  border-radius: var(--ux-input-radius);
+  background: var(--ux-input-bg);
+  color: #111111;
+  box-sizing: border-box;
+  resize: vertical;
+  min-width: 0;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.ux_label {
+  display: block;
+  font-size: var(--ux-font-size-body);
+  font-weight: var(--ux-font-weight-label);
+  color: var(--ux-text-color-secondary);
+  line-height: var(--ux-line-height-body);
+}
+
+.ux_help_text {
+  font-size: var(--ux-font-size-caption);
+  color: var(--ux-text-color-muted);
+  line-height: var(--ux-line-height-body);
+}
+
+/* Typography — 제목·본문·캡션 SSOT */
+.ux_page_title {
+  font-size: var(--ux-font-size-page-title);
+  font-weight: var(--ux-font-weight-page-title);
+  color: var(--ux-text-color-primary);
+  line-height: var(--ux-line-height-title);
+  margin: 0;
+}
+
+.ux_section_title {
+  font-size: var(--ux-font-size-section-title);
+  font-weight: var(--ux-font-weight-section-title);
+  color: var(--ux-text-color-primary);
+  line-height: var(--ux-line-height-title);
+  margin: 0;
+}
+
+.ux_card_title {
+  font-size: var(--ux-font-size-card-title);
+  font-weight: var(--ux-font-weight-card-title);
+  color: var(--ux-text-color-primary);
+  line-height: var(--ux-line-height-title);
+  margin: 0;
+}
+
+.ux_body_text {
+  font-size: var(--ux-font-size-body);
+  color: var(--ux-text-color-secondary);
+  line-height: var(--ux-line-height-body);
+}
+
+.ux_caption {
+  font-size: var(--ux-font-size-caption);
+  color: var(--ux-text-color-muted);
+  line-height: var(--ux-line-height-body);
+}
+
+.ux_micro_text {
+  font-size: var(--ux-font-size-micro);
+  color: var(--ux-text-color-muted);
+  line-height: var(--ux-line-height-body);
+}
+
+/* Button — 버튼 SSOT */
+.ux_button {
+  height: var(--ux-button-height);
+  padding: 0 var(--ux-button-padding-x);
+  border-radius: var(--ux-button-radius);
+  font-size: var(--ux-button-font-size);
+  font-weight: var(--ux-button-font-weight);
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-width: 0;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.ux_button_compact {
+  height: var(--ux-button-height-compact);
+  padding: 0 var(--ux-button-padding-x-compact);
+  border-radius: var(--ux-button-radius);
+  font-size: var(--ux-button-font-size);
+  font-weight: var(--ux-button-font-weight);
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-width: 0;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.ux_button_primary {
+  background: var(--ux-button-primary-bg);
+  color: var(--ux-button-primary-color);
+  border: var(--ux-button-primary-border);
+}
+
+.ux_button_secondary {
+  background: var(--ux-button-secondary-bg);
+  color: var(--ux-button-secondary-color);
+  border: var(--ux-button-secondary-border);
+}
+
+.ux_button_danger {
+  background: var(--ux-button-danger-bg);
+  color: var(--ux-button-danger-color);
+  border: var(--ux-button-danger-border);
+}
+
+.ux_button_ghost {
+  background: var(--ux-button-ghost-bg);
+  color: var(--ux-button-ghost-color);
+  border: var(--ux-button-ghost-border);
+}
+
+.ux_button:disabled,
+.ux_button_compact:disabled {
+  opacity: var(--ux-button-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* Alert — 상태 안내 박스 SSOT */
+.ux_alert {
+  padding: var(--ux-alert-padding);
+  border-radius: var(--ux-alert-radius);
+  font-size: var(--ux-alert-font-size);
+  box-sizing: border-box;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.ux_alert_info {
+  background: var(--ux-alert-info-bg);
+  border: var(--ux-alert-info-border);
+  color: var(--ux-alert-info-color);
+}
+
+.ux_alert_success {
+  background: var(--ux-alert-success-bg);
+  border: var(--ux-alert-success-border);
+  color: var(--ux-alert-success-color);
+}
+
+.ux_alert_warning {
+  background: var(--ux-alert-warning-bg);
+  border: var(--ux-alert-warning-border);
+  color: var(--ux-alert-warning-color);
+}
+
+.ux_alert_danger {
+  background: var(--ux-alert-danger-bg);
+  border: var(--ux-alert-danger-border);
+  color: var(--ux-alert-danger-color);
+}
+
+.ux_alert_muted {
+  background: var(--ux-alert-muted-bg);
+  border: var(--ux-alert-muted-border);
+  color: var(--ux-alert-muted-color);
+}
+
+/* Badge — 상태 배지 SSOT */
+.ux_badge {
+  min-height: var(--ux-badge-height);
+  padding: 0 var(--ux-badge-padding-x);
+  border-radius: var(--ux-badge-radius);
+  font-size: var(--ux-badge-font-size);
+  font-weight: var(--ux-badge-font-weight);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.ux_badge_default {
+  background: var(--ux-badge-default-bg);
+  color: var(--ux-badge-default-color);
+}
+
+.ux_badge_success {
+  background: var(--ux-badge-success-bg);
+  color: var(--ux-badge-success-color);
+}
+
+.ux_badge_warning {
+  background: var(--ux-badge-warning-bg);
+  color: var(--ux-badge-warning-color);
+}
+
+.ux_badge_danger {
+  background: var(--ux-badge-danger-bg);
+  color: var(--ux-badge-danger-color);
+}
+
+.ux_badge_info {
+  background: var(--ux-badge-info-bg);
+  color: var(--ux-badge-info-color);
 }
 
 /* 모바일 기준 */

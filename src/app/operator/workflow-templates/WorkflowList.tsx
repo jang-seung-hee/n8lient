@@ -78,22 +78,18 @@ export function WorkflowList({
             플랫폼 전체에서 제공되는 자동화 명세 목록입니다. 각 항목을 클릭하여 상세 스키마 조회가 가능합니다.
           </p>
         </div>
-        <button
-          onClick={onCreateClick}
-          style={{
-            backgroundColor: "#111111",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: "6px",
-            padding: "8px 16px",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            transition: "background-color 0.15s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#242424")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#111111")}
-        >
+          <button
+            className="ux_button ux_button_primary"
+            onClick={onCreateClick}
+            style={{
+              borderRadius: "6px",
+              padding: "8px 16px",
+              border: "none",
+              transition: "background-color 0.15s ease",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#242424")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#111111")}
+          >
           ➕ 새 워크플로우 등록
         </button>
       </div>
@@ -106,13 +102,7 @@ export function WorkflowList({
       />
 
       {/* 테이블 리스트 */}
-      <div
-        style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-        }}
-      >
+      <div className="ux_card_compact" style={{ padding: 0 }}>
         <div className="ux_scroll_area">
         <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
           <thead>
@@ -159,14 +149,14 @@ export function WorkflowList({
                   <td style={{ padding: "14px 16px", color: "#4b5563" }}>v{template.version}</td>
                   <td style={{ padding: "14px 16px" }}>
                     <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        backgroundColor: template.status === "published" ? "#d1fae5" : template.status === "disabled" ? "#fee2e2" : "#f3f4f6",
-                        color: template.status === "published" ? "#065f46" : template.status === "disabled" ? "#991b1b" : "#374151",
-                        padding: "2px 6px",
-                        borderRadius: "999px",
-                      }}
+                      className={
+                        template.status === "published"
+                          ? "ux_badge ux_badge_success"
+                          : template.status === "disabled"
+                            ? "ux_badge ux_badge_danger"
+                            : "ux_badge ux_badge_default"
+                      }
+                      style={{ fontSize: "11px", padding: "2px 6px" }}
                     >
                       {template.status === "published" ? "배포 완료" : template.status === "disabled" ? "비활성" : "작성 중"}
                     </span>

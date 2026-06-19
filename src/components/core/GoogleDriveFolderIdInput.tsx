@@ -63,6 +63,7 @@ export function GoogleDriveFolderIdInput({
     <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%" }}>
       <input
         type="text"
+        className="ux_input_compact"
         value={value}
         onChange={(e) => {
           setHint(null);
@@ -74,15 +75,7 @@ export function GoogleDriveFolderIdInput({
         required={required}
         disabled={disabled}
         style={{
-          height: "36px",
-          border: `1px solid ${fieldError ? "#fca5a5" : "#d1d5db"}`,
-          borderRadius: "6px",
-          padding: "0 8px",
-          fontSize: "13px",
-          outline: "none",
-          color: "#111111",
-          boxSizing: "border-box",
-          width: "100%",
+          ...(fieldError ? { borderColor: "#fca5a5" } : {}),
           ...style,
         }}
       />

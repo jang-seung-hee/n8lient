@@ -328,12 +328,12 @@ export default function UserExecute() {
 
   return (
     <div style={{ boxSizing: "border-box", minWidth: 0 }}>
-      <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", marginBottom: "16px" }}>
+      <h2 className="ux_section_title" style={{ marginBottom: "16px" }}>
         🚀 N8N 워크플로우 실행 요청
       </h2>
 
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px", marginBottom: "16px" }}>
+        <div className="ux_alert ux_alert_danger" style={{ marginBottom: "16px" }}>
           ⚠️ {error}
           <button
             onClick={() => setError(null)}
@@ -345,7 +345,7 @@ export default function UserExecute() {
       )}
 
       {success && (
-        <div style={{ backgroundColor: "#d1fae5", color: "#065f46", border: "1px solid #a7f3d0", borderRadius: "6px", padding: "10px 12px", fontSize: "13px", marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="ux_alert ux_alert_success" style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>✅ 실행 요청이 성공적으로 전달되었습니다. (처리 중)</span>
           <button
             onClick={() => setSuccess(false)}
@@ -357,7 +357,7 @@ export default function UserExecute() {
       )}
 
       {automations.length === 0 ? (
-        <div style={{ padding: "32px", border: "1px dashed #e5e7eb", borderRadius: "8px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
+        <div className="ux_card" style={{ padding: "32px", borderStyle: "dashed", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
           사용 가능한 N8N 워크플로우가 없습니다. 사내 관리자에게 문의해 주십시오.
         </div>
       ) : (
@@ -376,6 +376,7 @@ export default function UserExecute() {
             <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", minWidth: 0 }}>
               <div style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
                 <select
+                  className="ux_select"
                   value={selectedAutoId}
                   onChange={(e) => {
                     setSelectedAutoId(e.target.value);
@@ -383,17 +384,6 @@ export default function UserExecute() {
                     setError(null);
                   }}
                   style={{
-                    width: "100%",
-                    minWidth: 0,
-                    maxWidth: "100%",
-                    height: "38px",
-                    borderRadius: "6px",
-                    border: "1px solid #e5e7eb",
-                    padding: "0 8px",
-                    fontSize: "14px",
-                    backgroundColor: "#ffffff",
-                    color: "#111111",
-                    outline: "none",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -428,23 +418,17 @@ export default function UserExecute() {
               </div>
               <button
                 type="button"
+                className="ux_button ux_button_secondary"
                 onClick={handleOpenSettingsModal}
                 disabled={!selectedAutoId}
                 style={{
                   flexShrink: 0,
                   height: "38px",
                   padding: "0 12px",
-                  fontSize: "13px",
-                  fontWeight: 600,
+                  borderRadius: "6px",
                   backgroundColor: selectedAutoId ? "#ffffff" : "#f3f4f6",
                   color: selectedAutoId ? "#374151" : "#9ca3af",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
                   cursor: selectedAutoId ? "pointer" : "not-allowed",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
                   boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
                   transition: "all 0.15s ease",
                 }}
@@ -452,7 +436,7 @@ export default function UserExecute() {
                 🛠️ 내 설정
               </button>
             </div>
-            <p style={{ fontSize: "11px", color: "#6b7280", margin: "4px 0 0 0", lineHeight: 1.4 }}>
+            <p className="ux_micro_text" style={{ margin: "4px 0 0 0", lineHeight: 1.4 }}>
               💡 개인 설정을 저장하면 회사 기본값보다 우선 적용됩니다. 비워둔 값은 회사 기본값을 사용합니다.
             </p>
           </div>
@@ -462,7 +446,7 @@ export default function UserExecute() {
           )}
 
           {currentTemplate?.description && (
-            <p style={{ fontSize: "12px", color: "#6b7280", margin: "0 0 4px 0", lineHeight: 1.4 }}>
+            <p className="ux_caption" style={{ margin: "0 0 4px 0", lineHeight: 1.4 }}>
               💡 {currentTemplate.description}
             </p>
           )}
@@ -476,11 +460,11 @@ export default function UserExecute() {
                 </label>
                 <input
                   type="text"
+                  className="ux_input"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={isTitleRequired ? "예: 5월 카드 지출 내역 정리 요청" : "입력하지 않으면 자동 생성됩니다."}
                   required={isTitleRequired}
-                  style={{ height: "38px", borderRadius: "6px", border: "1px solid #e5e7eb", padding: "8px 10px", fontSize: "14px", color: "#111111", outline: "none", boxSizing: "border-box" }}
                 />
               </div>
             );
@@ -507,21 +491,13 @@ export default function UserExecute() {
           {isRecording ? (
             <button
               type="submit"
+              className="ux_button ux_button_danger"
               style={{
                 height: "38px",
-                backgroundColor: "#ef4444",
-                color: "#ffffff",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
+                width: "100%",
                 marginTop: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                borderRadius: "6px",
                 transition: "background-color 0.15s ease",
-                gap: "6px"
               }}
             >
               <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ffffff", animation: "pulse 1.5s infinite" }}></span>
@@ -534,8 +510,17 @@ export default function UserExecute() {
           ) : (
             <button
               type="submit"
+              className="ux_button ux_button_primary"
               disabled={submitting}
-              style={{ height: "38px", backgroundColor: submitting ? "#4b5563" : "#111111", color: "#ffffff", borderRadius: "6px", fontSize: "13px", fontWeight: 600, border: "none", cursor: submitting ? "not-allowed" : "pointer", marginTop: "8px", display: "flex", alignItems: "center", justifyContent: "center", transition: "background-color 0.15s ease" }}
+              style={{
+                height: "38px",
+                width: "100%",
+                marginTop: "8px",
+                borderRadius: "6px",
+                backgroundColor: submitting ? "#4b5563" : undefined,
+                border: submitting ? "none" : undefined,
+                transition: "background-color 0.15s ease",
+              }}
             >
               {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "🚀 N8N 워크플로우 실행 요청 제출"}
             </button>
@@ -544,7 +529,7 @@ export default function UserExecute() {
       )}
 
       {isDebugMode && validationDebug && (
-        <div style={{ marginTop: "16px", backgroundColor: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "10px", fontSize: "12px", color: "#374151" }}>
+        <div className="ux_info_box" style={{ marginTop: "16px", padding: "10px", borderRadius: "6px", fontSize: "12px", color: "#374151", backgroundColor: "#f3f4f6" }}>
           <details>
             <summary style={{ cursor: "pointer", fontWeight: 600, outline: "none" }}>🔍 개발자 디버그 정보 (클릭하여 열기)</summary>
             <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px", fontFamily: "monospace" }}>

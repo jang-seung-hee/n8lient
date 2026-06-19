@@ -64,23 +64,18 @@ export default function WorkflowBasicInfoForm({
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
             워크플로우 Key * (영문소문자/숫자/-)
           </label>
           <input
             type="text"
+            className="ux_input_compact"
             value={workflowKey}
             onChange={(e) => handleWorkflowKeyChange(e.target.value)}
             placeholder="예: expense-report"
             required
             disabled={isEditMode}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isEditMode ? "#9ca3af" : "#111111",
               backgroundColor: isEditMode ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("workflowKey", diagnostics)
@@ -93,20 +88,15 @@ export default function WorkflowBasicInfoForm({
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>워크플로우 이름 *</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>워크플로우 이름 *</label>
           <input
             type="text"
+            className="ux_input_compact"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="예: 지출결의서 자동 정리"
             required
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
               ...getDiagnosticStyles("name", diagnostics)
@@ -123,21 +113,16 @@ export default function WorkflowBasicInfoForm({
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1fr", gap: "12px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>줄임말 *</label>
+            <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>줄임말 *</label>
           </div>
           <input
             type="text"
+            className="ux_input_compact"
             value={shortName}
             onChange={(e) => setShortName(e.target.value)}
             placeholder="예: 지결자"
             required
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: "#111111",
               backgroundColor: "#ffffff",
               ...getDiagnosticStyles("shortName", diagnostics)
@@ -150,21 +135,16 @@ export default function WorkflowBasicInfoForm({
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>버전 *</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>버전 *</label>
           <input
             type="text"
+            className="ux_input_compact"
             value={version}
             onChange={(e) => setVersion(e.target.value)}
             placeholder="1.0.0"
             required
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("version", diagnostics)
@@ -177,17 +157,12 @@ export default function WorkflowBasicInfoForm({
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>배포 상태 *</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>배포 상태 *</label>
           <select
+            className="ux_select_compact"
             value={status}
-            onChange={(e: any) => setStatus(e.target.value)}
+            onChange={(e) => setStatus(e.target.value as WorkflowTemplateStatus)}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               backgroundColor: "#ffffff",
               color: "#111111",
               ...getDiagnosticStyles("status", diagnostics)
@@ -207,21 +182,16 @@ export default function WorkflowBasicInfoForm({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>Webhook Secret 참조 ID *</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>Webhook Secret 참조 ID *</label>
           <input
             type="text"
+            className="ux_input_compact"
             value={webhookSecretId}
             onChange={(e) => setWebhookSecretId(e.target.value)}
             placeholder="예: expense-report"
             required
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("webhookSecretId", diagnostics)
@@ -234,21 +204,16 @@ export default function WorkflowBasicInfoForm({
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>n8n 서버 식별 Key *</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>n8n 서버 식별 Key *</label>
           <input
             type="text"
+            className="ux_input_compact"
             value={n8nServerKey}
             onChange={(e) => setN8nServerKey(e.target.value)}
             placeholder="main"
             required
             disabled={isStructureLocked}
             style={{
-              height: "36px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "0 8px",
-              fontSize: "13px",
-              outline: "none",
               color: isStructureLocked ? "#9ca3af" : "#111111",
               backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
               ...getDiagnosticStyles("n8nServerKey", diagnostics)
@@ -264,22 +229,16 @@ export default function WorkflowBasicInfoForm({
 
       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>설명</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>설명</label>
         </div>
         <textarea
+          className="ux_textarea"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="N8N 워크플로우 명세에 관한 상세 설명을 적으십시오."
           style={{
             minHeight: "40px",
-            border: "1px solid #d1d5db",
-            borderRadius: "6px",
             padding: "6px 8px",
-            fontSize: "13px",
-            outline: "none",
-            color: "#111111",
-            backgroundColor: "#ffffff",
-            resize: "vertical",
             ...getDiagnosticStyles("description", diagnostics)
           }}
         />

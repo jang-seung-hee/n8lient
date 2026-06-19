@@ -82,17 +82,10 @@ export default function UserHome() {
   return (
     <div style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
       {/* 회사 및 승인 상태 카드 */}
-      <section
-        style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          padding: "12px",
-        }}
-      >
+      <section className="ux_card_compact">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", marginBottom: "2px" }}>
+            <h2 className="ux_card_title" style={{ marginBottom: "2px" }}>
               소속 회사
             </h2>
             <div style={{ fontSize: "13px", color: "#4b5563", marginTop: "4px" }}>
@@ -147,18 +140,15 @@ export default function UserHome() {
               불러오는 중...
             </div>
           ) : automations.length === 0 ? (
-            <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", color: "#6b7280", fontSize: "13px" }}>
+            <div className="ux_card" style={{ padding: "20px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
               배정되거나 활성화된 N8N 워크플로우가 없습니다.
             </div>
           ) : (
             automations.map((auto) => (
               <div
                 key={auto.automationId}
+                className="ux_card_compact"
                 style={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                  padding: "12px",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -210,14 +200,7 @@ export default function UserHome() {
           </Link>
         </div>
         
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            overflow: "hidden",
-          }}
-        >
+        <div className="ux_card_compact" style={{ padding: 0, overflow: "hidden" }}>
           {loading ? (
             <div style={{ padding: "16px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
               로딩 중...

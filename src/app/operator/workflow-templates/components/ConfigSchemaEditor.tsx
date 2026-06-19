@@ -68,7 +68,7 @@ export default function ConfigSchemaEditor({
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {schemaFields.length === 0 ? (
-          <p style={{ fontSize: "12px", color: "#9ca3af", textAlign: "center", margin: "8px 0" }}>
+          <p className="ux_caption" style={{ textAlign: "center", margin: "8px 0" }}>
             지정된 설정 요구사항이 없습니다. 필드를 추가해 주십시오.
           </p>
         ) : (
@@ -197,9 +197,10 @@ export default function ConfigSchemaEditor({
                 >
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginRight: "32px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>설정 Key * (영문/숫자)</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>설정 Key * (영문/숫자)</span>
                       <input
                         type="text"
+                        className="ux_input_compact"
                         value={field.key}
                         onChange={(e) => onFieldChange(idx, "key", e.target.value)}
                         placeholder="예: googleDriveFolderId"
@@ -207,11 +208,9 @@ export default function ConfigSchemaEditor({
                         disabled={isExistingField || isStructureLocked}
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
                           color: (isExistingField || isStructureLocked) ? "#9ca3af" : "#111111",
                           backgroundColor: (isExistingField || isStructureLocked) ? "#f3f4f6" : "#ffffff",
                           ...getDiagnosticStyles(`configSchema[${idx}].key`, diagnostics)
@@ -224,20 +223,19 @@ export default function ConfigSchemaEditor({
                       )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>라벨 이름 *</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>라벨 이름 *</span>
                       <input
                         type="text"
+                        className="ux_input_compact"
                         value={field.label}
                         onChange={(e) => onFieldChange(idx, "label", e.target.value)}
                         placeholder="예: 구글 드라이브 폴더 ID"
                         required
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
                           color: "#111111",
                           ...getDiagnosticStyles(`configSchema[${idx}].label`, diagnostics)
                         }}
@@ -252,19 +250,18 @@ export default function ConfigSchemaEditor({
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>인풋 타입</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>인풋 타입</span>
                       {/* [버그 수정] Import JSON에 inputType만 있는 경우에도 드롭다운 value가 정상 표시되도록 fallback 처리 */}
                       <select
+                        className="ux_select_compact"
                         value={(field as any).type || (field as any).inputType || "text"}
                         onChange={(e: any) => onFieldChange(idx, "type", e.target.value)}
                         disabled={isStructureLocked}
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 4px",
-                          fontSize: "12px",
-                          outline: "none",
                           backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                           color: isStructureLocked ? "#9ca3af" : "#111111",
                           ...getDiagnosticStyles(`configSchema[${idx}].type`, diagnostics)
@@ -285,20 +282,19 @@ export default function ConfigSchemaEditor({
                       )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>기본값 출처</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>기본값 출처</span>
                       <input
                         type="text"
+                        className="ux_input_compact"
                         value={field.defaultValueSource || ""}
                         onChange={(e) => onFieldChange(idx, "defaultValueSource", e.target.value)}
                         placeholder="예: auth.email"
                         disabled={isStructureLocked}
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
                           color: isStructureLocked ? "#9ca3af" : "#111111",
                           backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                         }}
@@ -313,7 +309,7 @@ export default function ConfigSchemaEditor({
                         disabled={isStructureLocked}
                         style={{ cursor: isStructureLocked ? "not-allowed" : "pointer" }}
                       />
-                      <label htmlFor={`required-${idx}`} style={{ fontSize: "11px", fontWeight: 600, color: "#374151", cursor: isStructureLocked ? "not-allowed" : "pointer" }}>
+                      <label htmlFor={`required-${idx}`} className="ux_micro_text" style={{ fontWeight: 600, color: "#374151", cursor: isStructureLocked ? "not-allowed" : "pointer" }}>
                         필수 입력 항목
                       </label>
                     </div>
@@ -321,19 +317,18 @@ export default function ConfigSchemaEditor({
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>입력 힌트 (Placeholder)</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>입력 힌트 (Placeholder)</span>
                       <input
                         type="text"
+                        className="ux_input_compact"
                         value={field.placeholder || ""}
                         onChange={(e) => onFieldChange(idx, "placeholder", e.target.value)}
                         placeholder="예: 구글 드라이브 폴더 ID 입력"
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
                           color: "#111111",
                           ...getDiagnosticStyles(`configSchema[${idx}].placeholder`, diagnostics)
                         }}
@@ -345,19 +340,18 @@ export default function ConfigSchemaEditor({
                       )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>가이드 설명 (Description)</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>가이드 설명 (Description)</span>
                       <input
                         type="text"
+                        className="ux_input_compact"
                         value={field.description || ""}
                         onChange={(e) => onFieldChange(idx, "description", e.target.value)}
                         placeholder="예: 사용자의 개인 드라이브 폴더 ID를 기재합니다."
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
                           color: "#111111",
                           ...getDiagnosticStyles(`configSchema[${idx}].description`, diagnostics)
                         }}
@@ -372,9 +366,10 @@ export default function ConfigSchemaEditor({
 
                   {field.type === "select" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#4b5563" }}>셀렉트 옵션 리스트 (쉼표 구분)</span>
+                      <span className="ux_micro_text" style={{ fontWeight: 600, color: "#4b5563" }}>셀렉트 옵션 리스트 (쉼표 구분)</span>
                       <input
                         type="text"
+                        className="ux_input_compact"
                         value={field.tempOptionsStr !== undefined ? field.tempOptionsStr : (field.options?.join(", ") || "")}
                         disabled={isStructureLocked}
                         onChange={(e) => {
@@ -390,11 +385,9 @@ export default function ConfigSchemaEditor({
                         placeholder="옵션1, 옵션2, 옵션3"
                         style={{
                           height: "30px",
-                          border: "1px solid #d1d5db",
+                          fontSize: "12px",
                           borderRadius: "4px",
                           padding: "0 6px",
-                          fontSize: "12px",
-                          outline: "none",
                           color: isStructureLocked ? "#9ca3af" : "#111111",
                           backgroundColor: isStructureLocked ? "#f3f4f6" : "#ffffff",
                           ...getDiagnosticStyles(`configSchema[${idx}].options`, diagnostics)
@@ -409,7 +402,7 @@ export default function ConfigSchemaEditor({
                   )}
 
                   {isEditMode && !isExistingField && field.required && (
-                    <div style={{ backgroundColor: "#fffbeb", border: "1px solid #fcd34d", color: "#78350f", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 500 }}>
+                    <div className="ux_alert ux_alert_warning" style={{ padding: "4px 8px", fontSize: "11px", fontWeight: 500, borderRadius: "4px" }}>
                       ⚠️ 주의: 배포 완료(published)된 기존 워크플로우에 필수 설정 필드를 신규 추가하면, 이미 이 워크플로우를 배정받아 사용 중인 회사의 자동화 설정값과 충돌하여 작동 오류가 발생할 수 있습니다.
                     </div>
                   )}

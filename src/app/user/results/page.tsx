@@ -105,24 +105,16 @@ export default function UserResults() {
           minWidth: 0,
         }}
       >
-        <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", margin: 0, minWidth: 0, flex: "1 1 auto" }}>
+        <h2 className="ux_section_title" style={{ minWidth: 0, flex: "1 1 auto" }}>
           📊 N8N 워크플로우 실행 로그 (실시간 동기화)
         </h2>
 
         {/* 필터 셀렉트 */}
         <select
+          className="ux_select_compact"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          style={{
-            height: "30px",
-            borderRadius: "6px",
-            border: "1px solid #e5e7eb",
-            padding: "0 6px",
-            fontSize: "12px",
-            backgroundColor: "#ffffff",
-            color: "#111111",
-            outline: "none",
-          }}
+          style={{ height: "30px", fontSize: "12px", padding: "0 6px", flexShrink: 0 }}
         >
           <option value="all">전체 상태</option>
           <option value="queued">대기중</option>
@@ -135,20 +127,13 @@ export default function UserResults() {
       </div>
 
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", fontSize: "13px", marginBottom: "16px" }}>
+        <div className="ux_alert ux_alert_danger" style={{ marginBottom: "16px" }}>
           ⚠️ {error}
         </div>
       )}
 
       {/* 공통 리스트 컴포넌트 사용 */}
-      <div
-        style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
+      <div className="ux_card_compact" style={{ padding: 0, overflow: "hidden" }}>
         <SubmissionList
           submissions={pagedResults}
           onRowClick={handleRowClick}
@@ -173,16 +158,15 @@ export default function UserResults() {
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <button
                 type="button"
+                className="ux_button_compact ux_button_secondary"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
                 style={{
                   padding: "6px 12px",
                   fontSize: "12px",
-                  border: "1px solid #d1d5db",
                   borderRadius: "6px",
                   backgroundColor: currentPage <= 1 ? "#f3f4f6" : "#ffffff",
                   color: currentPage <= 1 ? "#9ca3af" : "#374151",
-                  cursor: currentPage <= 1 ? "not-allowed" : "pointer",
                 }}
               >
                 이전
@@ -192,16 +176,15 @@ export default function UserResults() {
               </span>
               <button
                 type="button"
+                className="ux_button_compact ux_button_secondary"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
                 style={{
                   padding: "6px 12px",
                   fontSize: "12px",
-                  border: "1px solid #d1d5db",
                   borderRadius: "6px",
                   backgroundColor: currentPage >= totalPages ? "#f3f4f6" : "#ffffff",
                   color: currentPage >= totalPages ? "#9ca3af" : "#374151",
-                  cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
                 }}
               >
                 다음

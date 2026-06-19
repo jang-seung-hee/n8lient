@@ -143,7 +143,8 @@ export function ExecutionResultDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="ml-2 shrink-0 border-none bg-transparent p-1 text-lg text-gray-400 hover:text-gray-600"
+            className="ux_button ux_button_secondary ml-2 shrink-0 p-1 text-lg"
+            style={{ height: "auto", background: "transparent", border: "none", color: "#9ca3af" }}
             aria-label="닫기"
           >
             ✕
@@ -167,7 +168,13 @@ export function ExecutionResultDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-9 w-full rounded-md border border-gray-300 bg-gray-100 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+            className="ux_button ux_button_secondary w-full"
+            style={{
+              height: "36px",
+              backgroundColor: "#f3f4f6",
+              borderRadius: "6px",
+              fontSize: "12px",
+            }}
           >
             창 닫기
           </button>

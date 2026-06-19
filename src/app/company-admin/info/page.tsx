@@ -186,7 +186,7 @@ export default function CompanyInfoPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* 타이틀 영역 */}
       <div>
-        <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           🏢 회사 프로필 관리
         </h2>
         <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
@@ -214,7 +214,7 @@ export default function CompanyInfoPage() {
           
           {/* 1. 회사 기본 정보 카드 */}
           <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               🏢 회사 기본 정보 (읽기 전용)
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
@@ -263,7 +263,7 @@ export default function CompanyInfoPage() {
 
           {/* 2. 회사 관리자 정보 카드 */}
           <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               🔑 소유 관리자 정보
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
@@ -286,7 +286,7 @@ export default function CompanyInfoPage() {
 
           {/* 3. 시스템/계약 정보 읽기 전용 카드 */}
           <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+            <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               📊 서비스 라이선스 및 자동화 계약 현황
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px" }}>
@@ -309,7 +309,7 @@ export default function CompanyInfoPage() {
 
         {/* 오른쪽 영역: 프로필 수정 카드 폼 */}
         <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px" }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
+          <h3 className="ux_card_title" style={{ margin: "0 0 16px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
             ⚙️ 프로필 정보 수정
           </h3>
           <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>

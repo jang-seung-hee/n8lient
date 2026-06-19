@@ -151,7 +151,7 @@ export default function UserPersonalSettingsModal({
             alignItems: "center",
           }}
         >
-          <h3 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", margin: 0 }}>
+          <h3 className="ux_card_title" style={{ margin: 0 }}>
             🛠️ {resolveWorkflowDisplayName({
               template: currentTemplate,
               automation: currentAuto,
@@ -178,24 +178,21 @@ export default function UserPersonalSettingsModal({
         <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", minHeight: 0, flex: 1 }}>
           {/* 안내 문구 */}
           <div
+            className="ux_info_box"
             style={{
-              backgroundColor: "#f9fafb",
-              border: "1px solid #f3f4f6",
-              borderRadius: "6px",
-              padding: "10px",
               fontSize: "11px",
               color: "#4b5563",
               lineHeight: "1.5",
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: "4px", color: "#111111" }}>💡 안내 사항</div>
+            <div className="ux_card_title" style={{ marginBottom: "4px" }}>💡 안내 사항</div>
             • 값을 비워두면 회사 공용 기본값을 사용합니다.<br />
             • 개인 Google Drive 폴더나 Google Sheet를 사용하려면 n8n 공용 Google 계정에 쓰기 권한으로 공유해야 합니다.<br />
             • API Key, Token, Credential ID는 개인 설정에 저장하지 않습니다.
           </div>
 
           {loading ? (
-            <p style={{ fontSize: "12px", color: "#6b7280", textAlign: "center", padding: "12px" }}>
+            <p className="ux_caption" style={{ textAlign: "center", padding: "12px" }}>
               설정을 불러오는 중...
             </p>
           ) : (
@@ -211,7 +208,7 @@ export default function UserPersonalSettingsModal({
                 return (
                   <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#374151" }}>
+                      <label className="ux_label" style={{ fontSize: "12px" }}>
                         {field.label}
                       </label>
                       <span style={{ fontSize: "10px", color: "#9ca3af" }}>개인 맞춤용</span>
@@ -219,39 +216,21 @@ export default function UserPersonalSettingsModal({
 
                     {field.type === "textarea" ? (
                       <textarea
+                        className="ux_textarea"
                         value={personalSettings[field.key] ?? ""}
                         onChange={(e) =>
                           setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
                         placeholder={`${helpText} (비워두면 기본값 사용)`}
-                        style={{
-                          minHeight: "60px",
-                          borderRadius: "6px",
-                          border: "1px solid #d1d5db",
-                          padding: "8px 10px",
-                          fontSize: "13px",
-                          color: "#111111",
-                          outline: "none",
-                          resize: "vertical",
-                          boxSizing: "border-box",
-                        }}
+                        style={{ minHeight: "60px" }}
                       />
                     ) : field.type === "select" ? (
                       <select
+                        className="ux_select_compact"
                         value={personalSettings[field.key] ?? ""}
                         onChange={(e) =>
                           setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
-                        style={{
-                          height: "36px",
-                          borderRadius: "6px",
-                          border: "1px solid #d1d5db",
-                          padding: "0 8px",
-                          fontSize: "13px",
-                          backgroundColor: "#ffffff",
-                          color: "#111111",
-                          outline: "none",
-                        }}
                       >
                         <option value="">{`회사 기본값 사용 (${companyDefaultVal || "없음"})`}</option>
                         {field.options?.map((opt) => (
@@ -262,6 +241,7 @@ export default function UserPersonalSettingsModal({
                       </select>
                     ) : field.type === "boolean" ? (
                       <select
+                        className="ux_select_compact"
                         value={
                           personalSettings[field.key] === undefined || personalSettings[field.key] === null
                             ? ""
@@ -273,16 +253,6 @@ export default function UserPersonalSettingsModal({
                             ...prev,
                             [field.key]: val === "" ? "" : val === "true",
                           }));
-                        }}
-                        style={{
-                          height: "36px",
-                          borderRadius: "6px",
-                          border: "1px solid #d1d5db",
-                          padding: "0 8px",
-                          fontSize: "13px",
-                          backgroundColor: "#ffffff",
-                          color: "#111111",
-                          outline: "none",
                         }}
                       >
                         <option value="">{`회사 기본값 사용 (${
@@ -303,21 +273,12 @@ export default function UserPersonalSettingsModal({
                     ) : (
                       <input
                         type={field.type === "number" ? "number" : "text"}
+                        className="ux_input_compact"
                         value={personalSettings[field.key] ?? ""}
                         onChange={(e) =>
                           setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
                         placeholder={`${helpText} (비워두면 기본값 사용)`}
-                        style={{
-                          height: "36px",
-                          borderRadius: "6px",
-                          border: "1px solid #d1d5db",
-                          padding: "8px 10px",
-                          fontSize: "13px",
-                          color: "#111111",
-                          outline: "none",
-                          boxSizing: "border-box",
-                        }}
                       />
                     )}
 
@@ -378,24 +339,15 @@ export default function UserPersonalSettingsModal({
             return (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "12px", borderTop: "1px solid #f3f4f6", paddingTop: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#374151" }}>
+                  <label className="ux_label" style={{ fontSize: "12px" }}>
                     내 보관 단계
                   </label>
                   <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 600 }}>개인 설정 우선</span>
                 </div>
                 <select
+                  className="ux_select_compact"
                   value={userPreferredLevel}
                   onChange={(e) => setUserPreferredLevel(e.target.value)}
-                  style={{
-                    height: "36px",
-                    borderRadius: "6px",
-                    border: "1px solid #d1d5db",
-                    padding: "0 8px",
-                    fontSize: "13px",
-                    backgroundColor: "#ffffff",
-                    color: "#111111",
-                    outline: "none",
-                  }}
                 >
                   <option value="">{`회사 권장 단계 사용 (${recommendedLabel})`}</option>
                   {selectableLevels.map((lvl) => (
@@ -429,35 +381,29 @@ export default function UserPersonalSettingsModal({
         >
           <button
             type="button"
+            className="ux_button_compact ux_button_secondary"
             onClick={onClose}
             style={{
               height: "34px",
               padding: "0 12px",
-              backgroundColor: "#ffffff",
-              color: "#374151",
-              border: "1px solid #d1d5db",
               borderRadius: "6px",
               fontSize: "12px",
               fontWeight: 500,
-              cursor: "pointer",
             }}
           >
             취소
           </button>
           <button
             type="button"
+            className="ux_button_compact ux_button_primary"
             onClick={handleSave}
             disabled={saving || loading}
             style={{
               height: "34px",
               padding: "0 16px",
-              backgroundColor: "#111111",
-              color: "#ffffff",
-              border: "none",
               borderRadius: "6px",
               fontSize: "12px",
-              fontWeight: 600,
-              cursor: saving || loading ? "not-allowed" : "pointer",
+              border: "none",
             }}
           >
             {saving ? "저장 중..." : "설정 저장"}

@@ -18,49 +18,35 @@ export default function TongjayoData() {
   );
 
   return (
-    <div style={{ padding: "12px", boxSizing: "border-box" }}>
-      <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#111111", marginBottom: "12px" }}>
+    <div style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "12px", minWidth: 0 }}>
+      <h2 className="ux_section_title" style={{ fontSize: "15px" }}>
         📞 통자요 통화 요약 기록 (Mock)
       </h2>
 
       {/* 검색 바 */}
       <input
         type="text"
+        className="ux_input_compact"
         placeholder="이름, 연락처 또는 요약 내용 검색"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          height: "36px",
-          borderRadius: "6px",
-          border: "1px solid #e5e7eb",
-          padding: "0 10px",
-          fontSize: "13px",
-          marginBottom: "12px",
-          outline: "none",
-          boxSizing: "border-box",
-        }}
       />
 
       {/* 목록 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 }}>
         {filtered.map((call) => (
           <div
             key={call.id}
-            style={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              padding: "10px 12px",
-            }}
+            className="ux_card_compact"
+            style={{ padding: "10px 12px" }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "#111111" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", gap: "8px", minWidth: 0, flexWrap: "wrap" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#111111", minWidth: 0, wordBreak: "break-word" }}>
                 {call.name} ({call.phone})
               </span>
               <span style={{ fontSize: "11px", color: "#9ca3af" }}>{call.time}</span>
             </div>
-            <p style={{ fontSize: "12px", color: "#4b5563", margin: 0, lineHeight: 1.4 }}>
+            <p style={{ fontSize: "12px", color: "#4b5563", margin: 0, lineHeight: 1.4, wordBreak: "break-word" }}>
               {call.summary}
             </p>
           </div>

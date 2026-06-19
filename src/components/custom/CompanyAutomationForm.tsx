@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { Firestore } from "firebase/firestore";
 import { saveClientAutomation } from "@/features/admin/companyAdminService";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
@@ -243,39 +243,28 @@ export default function CompanyAutomationForm({
 
       <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>N8N 워크플로우명</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>N8N 워크플로우명</label>
           <input
             type="text"
+            className="ux_input_compact"
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
             required
-            style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111", boxSizing: "border-box" }}
           />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>공지사항</label>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>공지사항</label>
           <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
             사용자가 이 워크플로우를 실행하기 전에 확인할 안내 문구입니다. 비워두면 사용자 화면에 표시되지 않습니다.
           </span>
           <textarea
+            className="ux_textarea"
             value={formNoticeText}
             onChange={(e) => setFormNoticeText(e.target.value)}
             rows={4}
             maxLength={2000}
             placeholder="예: 음성 파일은 20MB 이하로 업로드해 주세요. 결과는 이메일과 실행 결과 화면에서 확인할 수 있습니다."
-            style={{
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "8px",
-              fontSize: "13px",
-              outline: "none",
-              color: "#111111",
-              resize: "vertical",
-              minHeight: "88px",
-              fontFamily: "inherit",
-              lineHeight: 1.5,
-            }}
           />
           <span style={{ fontSize: "11px", color: "#9ca3af", textAlign: "right" }}>
             {formNoticeText.length}/2000
@@ -314,18 +303,15 @@ export default function CompanyAutomationForm({
               <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#111111", margin: 0 }}>🛡️ 회사 보관 정책 (Company Policy)</h4>
               
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>회사 기본 보관 레벨</label>
+                <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>회사 기본 보관 레벨</label>
                 <select
+                  className="ux_select_compact"
                   value={companyDefaultLevel}
-                  onChange={(e: any) => setCompanyDefaultLevel(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    setCompanyDefaultLevel(e.target.value as "notify_only" | "processed_result" | "full_archive")
+                  }
                   disabled={!opPolicy.allowCompanyOverride}
                   style={{
-                    height: "36px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
-                    padding: "0 8px",
-                    fontSize: "13px",
-                    outline: "none",
                     backgroundColor: opPolicy.allowCompanyOverride ? "#ffffff" : "#f3f4f6",
                     color: opPolicy.allowCompanyOverride ? "#111111" : "#9ca3af",
                   }}
@@ -369,14 +355,14 @@ export default function CompanyAutomationForm({
         <hr style={{ border: "none", borderTop: "1px solid #f3f4f6", margin: "4px 0" }} />
 
         {schemaFields.length > 0 && (
-          <h4 style={{ fontSize: "12px", fontWeight: 700, color: "#374151", margin: "0 0 4px 0" }}>
+          <h4 className="ux_card_title" style={{ fontSize: "12px", margin: "0 0 4px 0" }}>
             필수 맵핑 설정 항목
           </h4>
         )}
 
         {schemaFields.map((field) => (
           <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
+            <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
               {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
             </label>
             {field.description && (
@@ -387,18 +373,18 @@ export default function CompanyAutomationForm({
 
             {field.type === "boolean" ? (
               <select
+                className="ux_select_compact"
                 value={String(formSettings[field.key])}
                 onChange={(e) => handleFieldChange(field.key, e.target.value === "true")}
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111", width: "100%" }}
               >
                 <option value="false">False (비활성)</option>
                 <option value="true">True (활성)</option>
               </select>
             ) : field.type === "select" && field.options ? (
               <select
+                className="ux_select_compact"
                 value={String(formSettings[field.key])}
                 onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", backgroundColor: "#ffffff", color: "#111111", width: "100%" }}
               >
                 {field.options.map((opt) => (
                   <option key={opt} value={opt}>
@@ -416,11 +402,11 @@ export default function CompanyAutomationForm({
             ) : (
               <input
                 type={field.type === "email" ? "email" : field.type === "number" ? "number" : "text"}
+                className="ux_input_compact"
                 value={String(formSettings[field.key] ?? "")}
                 onChange={(e) => handleFieldChange(field.key, field.type === "number" ? Number(e.target.value) : e.target.value)}
                 placeholder={field.placeholder || `${field.label} 입력`}
                 required={field.required}
-                style={{ height: "36px", border: "1px solid #d1d5db", borderRadius: "6px", padding: "0 8px", fontSize: "13px", outline: "none", color: "#111111", boxSizing: "border-box", width: "100%" }}
               />
             )}
           </div>
@@ -429,37 +415,23 @@ export default function CompanyAutomationForm({
         <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
           <button
             type="submit"
+            className="ux_button ux_button_primary"
             disabled={submitting}
-            style={{
-              flex: 1,
-              height: "36px",
-              backgroundColor: "#111111",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: submitting ? "not-allowed" : "pointer",
-            }}
+            style={{ flex: 1, border: "none", borderRadius: "6px" }}
           >
             {submitting ? "저장 중..." : "⚙️ 설정 저장 및 활성화"}
           </button>
           <button
             type="button"
+            className="ux_button ux_button_secondary"
             onClick={() => {
               playAppSound("click");
               onCancel();
             }}
             style={{
-              height: "36px",
               backgroundColor: "#f3f4f6",
-              color: "#374151",
-              border: "1px solid #d1d5db",
               borderRadius: "6px",
               padding: "0 16px",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
             }}
           >
             취소
