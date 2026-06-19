@@ -93,7 +93,7 @@ export function SubmissionList({ submissions, onRowClick, viewMode, actorLabelBy
   const tableMinWidth = viewMode === "operator" ? "820px" : "760px";
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div className="ux_scroll_area">
       <div
         style={{
           display: "grid",

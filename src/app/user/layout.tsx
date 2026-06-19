@@ -86,7 +86,9 @@ export default function UserLayout({ children }: UserLayoutProps) {
         </div>
 
         {/* 본문 영역 */}
-        <main className="user-main-content">{children}</main>
+        <main className="user-main-content ux_page_shell">
+          <div className="ux_content_body">{children}</div>
+        </main>
       </div>
 
       {/* 모바일/PC 공통 하단 내비게이션 바 */}

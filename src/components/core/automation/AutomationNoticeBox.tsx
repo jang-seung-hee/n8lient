@@ -86,32 +86,17 @@ export default function AutomationNoticeBox({ noticeText }: AutomationNoticeBoxP
       </div>
 
       {showModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "16px",
-            boxSizing: "border-box",
-          }}
-          onClick={() => setShowModal(false)}
-        >
+        <div className="ux_modal_overlay" onClick={() => setShowModal(false)} style={{ backdropFilter: "blur(4px)" }}>
           <div
+            className="ux_modal_panel"
+            onClick={(e) => e.stopPropagation()}
             style={{
               backgroundColor: "#ffffff",
-              borderRadius: "12px",
-              width: "100%",
-              maxWidth: "480px",
               boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
               border: "1px solid #e5e7eb",
               overflow: "hidden",
+              padding: 0,
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{

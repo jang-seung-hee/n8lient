@@ -10,7 +10,14 @@ import { doc, getDoc } from "firebase/firestore";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { buildCompanyInviteLink, siteConfig } from "@/config/siteConfig";
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  /** drawer 등 좁은 컨테이너에서 100% 폭 사용 */
+  fullWidth?: boolean;
+  /** 메뉴 링크 클릭 후 drawer 닫기 등 */
+  onNavigate?: () => void;
+}
+
+export function AdminSidebar({ fullWidth = false, onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
   const { userDoc } = useAuthUser();
   const [companyName, setCompanyName] = useState<string>("");
@@ -74,7 +81,7 @@ export function AdminSidebar() {
   return (
     <aside
       style={{
-        width: "240px",
+        width: fullWidth ? "100%" : "var(--ux-admin-sidebar-width)",
         backgroundColor: "#1f2937",
         color: "#f3f4f6",
         padding: "20px 12px",
@@ -82,6 +89,7 @@ export function AdminSidebar() {
         flexDirection: "column",
         justifyContent: "space-between",
         height: "100%",
+        minHeight: fullWidth ? "100%" : undefined,
         boxSizing: "border-box",
       }}
     >
@@ -110,6 +118,7 @@ export function AdminSidebar() {
               <Link
                 key={item.path}
                 href={item.path}
+                onClick={() => onNavigate?.()}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -166,6 +175,7 @@ export function AdminSidebar() {
 
         <Link
           href="/"
+          onClick={() => onNavigate?.()}
           style={{
             fontSize: "12px",
             color: "#9ca3af",

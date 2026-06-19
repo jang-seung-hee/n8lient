@@ -1,0 +1,261 @@
+/* N8Lient UX 레이아웃 기준값 — 본문 폭·여백·overflow 방어 SSOT */
+
+:root {
+  /* PC 본문 최대 폭 — 여기만 바꾸면 PC 본문 폭 기준이 바뀜 */
+  --ux-content-max-width-pc: 900px;
+
+  /* 페이지 여백 */
+  --ux-page-padding-pc-x: 24px;
+  --ux-page-padding-pc-y: 24px;
+  --ux-page-padding-mobile-x: 12px;
+  --ux-page-padding-mobile-y: 12px;
+
+  /* 기본 UI 값 — 1차에서는 선언만 하고 과도하게 치환하지 않는다 */
+  --ux-font-size-body: 13px;
+  --ux-font-size-page-title: 20px;
+  --ux-font-size-section-title: 16px;
+
+  --ux-card-radius: 8px;
+  --ux-card-padding: 16px;
+  --ux-card-gap: 16px;
+
+  --ux-sidebar-width: 240px;
+  --ux-header-height: 52px;
+
+  /* admin/operator sidebar·drawer */
+  --ux-admin-sidebar-width: 240px;
+  --ux-mobile-admin-header-height: 52px;
+  --ux-drawer-width: 280px;
+  --ux-drawer-z-index: 1000;
+
+  /* Modal */
+  --ux-modal-max-width-pc: 600px;
+  --ux-modal-width-mobile: calc(100vw - 24px);
+  --ux-modal-max-height: calc(100vh - 48px);
+  --ux-modal-padding: 20px;
+  --ux-modal-padding-mobile: 16px;
+  --ux-modal-radius: 12px;
+  --ux-modal-z-index: 1000;
+}
+
+/* 전체 페이지 shell */
+.ux_page_shell {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+/* 실제 본문 영역 */
+.ux_content_body {
+  width: min(100%, var(--ux-content-max-width-pc));
+  max-width: var(--ux-content-max-width-pc);
+  margin-left: 0;
+  margin-right: auto;
+  box-sizing: border-box;
+  padding: var(--ux-page-padding-pc-y) var(--ux-page-padding-pc-x);
+  min-width: 0;
+}
+
+/* 내부 요소가 화면을 밀어내는 것 방지 */
+.ux_content_body *,
+.ux_page_shell * {
+  box-sizing: border-box;
+}
+
+.ux_content_body img,
+.ux_content_body video,
+.ux_content_body canvas,
+.ux_content_body iframe {
+  max-width: 100%;
+}
+
+.ux_content_body pre,
+.ux_content_body code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 테이블/넓은 리스트는 페이지 전체를 밀지 않고 내부에서만 스크롤 */
+.ux_scroll_area {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+/* 모바일 기준 */
+@media (max-width: 768px) {
+  .ux_content_body {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding: var(--ux-page-padding-mobile-y) var(--ux-page-padding-mobile-x);
+  }
+}
+
+/* admin/operator 반응형 shell */
+.ux_responsive_admin_shell {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.ux_sidebar_desktop {
+  flex: 0 0 var(--ux-admin-sidebar-width);
+  width: var(--ux-admin-sidebar-width);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.ux_admin_main_column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ux_admin_console_header {
+  height: var(--ux-mobile-admin-header-height);
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.ux_admin_menu_button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ux_drawer_overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ux-drawer-z-index);
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: flex-start;
+}
+
+.ux_drawer_panel {
+  width: min(var(--ux-drawer-width), 86vw);
+  max-width: 86vw;
+  height: 100%;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
+}
+
+.ux_drawer_toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+  flex-shrink: 0;
+}
+
+.ux_drawer_close_button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: transparent;
+  color: #f3f4f6;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ux_drawer_sidebar_body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 1023px) {
+  .ux_sidebar_desktop {
+    display: none;
+  }
+
+  .ux_admin_menu_button {
+    display: inline-flex;
+  }
+
+  .ux_admin_console_header {
+    padding: 0 12px;
+  }
+}
+
+/* Modal — overlay·panel SSOT */
+.ux_modal_overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ux-modal-z-index);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.ux_modal_panel {
+  width: min(100%, var(--ux-modal-max-width-pc));
+  max-width: var(--ux-modal-max-width-pc);
+  max-height: var(--ux-modal-max-height);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: var(--ux-modal-radius);
+  word-break: break-word;
+}
+
+.ux_modal_panel * {
+  box-sizing: border-box;
+}
+
+.ux_modal_panel pre,
+.ux_modal_panel code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .ux_modal_overlay {
+    padding: 12px;
+    align-items: center;
+  }
+
+  .ux_modal_panel {
+    width: var(--ux-modal-width-mobile);
+    max-width: var(--ux-modal-width-mobile);
+    max-height: calc(100vh - 24px);
+    border-radius: var(--ux-modal-radius);
+  }
+}

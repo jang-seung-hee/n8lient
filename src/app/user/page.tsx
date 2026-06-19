@@ -80,7 +80,7 @@ export default function UserHome() {
   }, [user, userDoc]);
 
   return (
-    <div style={{ padding: "12px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
       {/* 회사 및 승인 상태 카드 */}
       <section
         style={{
@@ -164,7 +164,7 @@ export default function UserHome() {
                   alignItems: "center",
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <h4 style={{ fontSize: "14px", fontWeight: 600, color: "#111111", marginBottom: "2px" }}>
                     {resolveWorkflowDisplayName({
                       template: templates[auto.workflowKey],
@@ -172,7 +172,7 @@ export default function UserHome() {
                       workflowKey: auto.workflowKey,
                     })}
                   </h4>
-                  <p style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.3 }}>
+                  <p style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.3, wordBreak: "break-word" }}>
                     Key: {auto.workflowKey}
                   </p>
                 </div>

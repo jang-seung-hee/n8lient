@@ -41,7 +41,7 @@ export default function UserProfile() {
   if (!user || !userDoc) return null;
 
   return (
-    <div style={{ padding: "12px", boxSizing: "border-box", maxWidth: "480px", margin: "0 auto" }}>
+    <div style={{ boxSizing: "border-box", minWidth: 0 }}>
       <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", marginBottom: "16px" }}>
         👤 내 정보
       </h2>

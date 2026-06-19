@@ -127,33 +127,18 @@ export default function UserPersonalSettingsModal({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "16px",
-      }}
-    >
+    <div className="ux_modal_overlay">
       <div
+        className="ux_modal_panel"
         style={{
           backgroundColor: "#ffffff",
           borderRadius: "8px",
-          width: "100%",
-          maxWidth: "440px",
-          maxHeight: "90vh",
-          overflowY: "auto",
           boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
           border: "1px solid #e5e7eb",
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
+          padding: 0,
         }}
       >
         {/* 헤더 */}
@@ -190,7 +175,7 @@ export default function UserPersonalSettingsModal({
         </div>
 
         {/* 본문 */}
-        <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", minHeight: 0, flex: 1 }}>
           {/* 안내 문구 */}
           <div
             style={{

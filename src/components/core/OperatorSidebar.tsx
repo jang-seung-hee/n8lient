@@ -5,7 +5,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function OperatorSidebar() {
+interface OperatorSidebarProps {
+  fullWidth?: boolean;
+  onNavigate?: () => void;
+}
+
+export function OperatorSidebar({ fullWidth = false, onNavigate }: OperatorSidebarProps) {
   const pathname = usePathname();
 
   const menuItems = [
@@ -19,14 +24,15 @@ export function OperatorSidebar() {
   return (
     <aside
       style={{
-        width: "240px",
-        backgroundColor: "#111827", // 더 어두운 회색 (블랙에 가까움)
+        width: fullWidth ? "100%" : "var(--ux-admin-sidebar-width)",
+        backgroundColor: "#111827",
         color: "#f3f4f6",
         padding: "20px 12px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         height: "100%",
+        minHeight: fullWidth ? "100%" : undefined,
         boxSizing: "border-box",
       }}
     >
@@ -49,6 +55,7 @@ export function OperatorSidebar() {
               <Link
                 key={item.path}
                 href={item.path}
+                onClick={() => onNavigate?.()}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -75,6 +82,7 @@ export function OperatorSidebar() {
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #1f2937", paddingTop: "16px" }}>
         <Link
           href="/"
+          onClick={() => onNavigate?.()}
           style={{
             fontSize: "12px",
             color: "#9ca3af",

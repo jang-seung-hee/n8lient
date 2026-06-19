@@ -110,10 +110,11 @@ export default function CompanyAutomationList({
             backgroundColor: "#ffffff",
             border: "1px solid #e5e7eb",
             borderRadius: "6px",
-            overflow: "hidden",
             boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
           }}
         >
+          <div className="ux_scroll_area">
+            <div style={{ minWidth: "760px" }}>
           {/* 테이블 헤더 */}
           <div
             style={{
@@ -244,6 +245,8 @@ export default function CompanyAutomationList({
               </div>
             );
           })}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -41,34 +41,19 @@ export function CompanyUserDetailModal({ isOpen, onClose, user }: CompanyUserDet
   const statusBadge = getStatusBadge(user.approvalStatus);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
+    <div className="ux_modal_overlay" onClick={onClose} style={{ backdropFilter: "blur(4px)" }}>
       <div
+        className="ux_modal_panel"
+        onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: "#ffffff",
-          borderRadius: "12px",
-          width: "100%",
-          maxWidth: "480px",
+          borderRadius: "var(--ux-modal-radius)",
           boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
           overflow: "hidden",
           border: "1px solid #e5e7eb",
           animation: "modalFadeIn 0.2s ease-out",
+          padding: 0,
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div

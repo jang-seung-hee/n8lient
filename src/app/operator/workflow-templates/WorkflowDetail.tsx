@@ -363,7 +363,7 @@ export function WorkflowDetail({
             <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111111", margin: "0 0 12px 0", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
               ⚙️ 설정값 맵핑 필드 (configSchema)
             </h3>
-            <div style={{ overflowX: "auto" }}>
+            <div className="ux_scroll_area">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #e5e7eb", color: "#6b7280" }}>

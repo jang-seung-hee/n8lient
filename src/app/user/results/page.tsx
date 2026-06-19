@@ -93,9 +93,19 @@ export default function UserResults() {
   }
 
   return (
-    <div style={{ padding: "12px", boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-        <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", margin: 0 }}>
+    <div style={{ boxSizing: "border-box", minWidth: 0 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+          flexWrap: "wrap",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#111111", margin: 0, minWidth: 0, flex: "1 1 auto" }}>
           📊 N8N 워크플로우 실행 로그 (실시간 동기화)
         </h2>
 

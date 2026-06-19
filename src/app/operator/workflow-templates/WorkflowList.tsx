@@ -111,10 +111,10 @@ export function WorkflowList({
           backgroundColor: "#ffffff",
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
-          overflow: "hidden",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+        <div className="ux_scroll_area">
+        <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
           <thead>
             <tr style={{ backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
               <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>이름 (줄임말)</th>
@@ -179,6 +179,7 @@ export function WorkflowList({
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -115,12 +115,18 @@ export function ExecutionResultDetailModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="flex max-h-[90vh] w-full max-w-[480px] flex-col overflow-hidden rounded-xl bg-white shadow-lg">
+    <div className="ux_modal_overlay" role="dialog" aria-modal="true">
+      <div
+        className="ux_modal_panel"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          padding: 0,
+          backgroundColor: "#ffffff",
+          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+        }}
+      >
         {/* 헤더 */}
         <div className="flex shrink-0 items-start justify-between border-b border-gray-100 px-5 py-4">
           <div className="min-w-0 flex-1">

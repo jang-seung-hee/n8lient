@@ -329,30 +329,13 @@ export default function OperatorTemplates() {
 
       {/* 도움말 모달 */}
       {showHelpModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            backdropFilter: "blur(4px)",
-          }}
-        >
+        <div className="ux_modal_overlay" style={{ backdropFilter: "blur(4px)" }}>
           <div
+            className="ux_modal_panel"
+            onClick={(event) => event.stopPropagation()}
             style={{
               backgroundColor: "#ffffff",
-              borderRadius: "12px",
-              padding: "24px",
-              width: "600px",
-              maxWidth: "90%",
-              maxHeight: "85vh",
-              overflowY: "auto",
+              padding: "var(--ux-modal-padding)",
               boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
               display: "flex",
               flexDirection: "column",
