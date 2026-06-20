@@ -225,13 +225,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 파일 업로드 용량 제한 검증 (기본 4MB)
+    // 파일 업로드 용량 제한 검증 (기본 20MB)
     if (file) {
-      const maxUploadMB = process.env.MAX_UPLOAD_MB ? parseInt(process.env.MAX_UPLOAD_MB, 10) : 4;
+      const maxUploadMB = process.env.MAX_UPLOAD_MB ? parseInt(process.env.MAX_UPLOAD_MB, 10) : 20;
       const fileSizeMB = file.size / (1024 * 1024);
       if (fileSizeMB > maxUploadMB) {
         return NextResponse.json(
-          { success: false, error: `파일 크기가 제한 용량(${maxUploadMB}MB)을 초과했습니다.` },
+          {
+            success: false,
+            errorCode: "FILE_SIZE_EXCEEDED",
+            errorMessage: "파일 크기가 허용 한도를 초과했습니다.",
+            maxFileSizeMB: maxUploadMB
+          },
           { status: 413 }
         );
       }

@@ -1,36 +1,22 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { siteConfig } from "@/config/siteConfig";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 import { ALLOWED_AUDIO_EXTENSIONS, ALLOWED_IMAGE_EXTENSIONS } from "@/common/validation/validateExecution";
 import AudioPermissionNotice from "./AudioPermissionNotice";
-
-type MicrophonePermissionState =
-  | "granted"
-  | "prompt"
-  | "denied"
-  | "unsupported"
-  | "unknown";
-
-async function getMicrophonePermissionState(): Promise<MicrophonePermissionState> {
-  if (typeof navigator === "undefined") return "unsupported";
-
-  try {
-    if (!navigator.permissions?.query) return "unsupported";
-
-    const result = await navigator.permissions.query({
-      name: "microphone" as PermissionName,
-    });
-
-    return result.state;
-  } catch {
-    return "unknown";
-  }
-}
+import {
+  getFileExtension,
+  normalizeAllowedExtensions,
+  isAllowedByExtension,
+  isAllowedByMime,
+} from "@/common/validation/fileValidationHelpers";
+import {
+  getMicrophonePermissionState,
+  type MicrophonePermissionState,
+} from "@/common/utils/microphone";
 
 interface WorkflowInputPanelProps {
-  acceptedInputTypes: Array<"text" | "file" | "audio" | "image">;
+  acceptedInputTypes: Array<"text" | "file" | "image" | "audio">;
   allowedFileTypes?: string[];
   maxFileSizeMB?: number;
   onChange: (data: {
@@ -52,14 +38,25 @@ export default function WorkflowInputPanel({
   onRecordingStateChange,
   innerRef,
 }: WorkflowInputPanelProps) {
-  // 환경변수 기반 최대 업로드 용량 결정 (기본값: 4MB)
+  // 환경변수 및 워크플로우 명세 기반 최대 업로드 용량 결정
+  const schemaMaxUploadMB =
+    typeof maxFileSizeMB === "number" && Number.isFinite(maxFileSizeMB) && maxFileSizeMB > 0
+      ? maxFileSizeMB
+      : 20;
+
   const envMaxUploadMB = process.env.NEXT_PUBLIC_MAX_UPLOAD_MB
     ? parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB, 10)
-    : 4;
-  const maxLimitMB = maxFileSizeMB ? Math.min(maxFileSizeMB, envMaxUploadMB) : envMaxUploadMB;
+    : null;
+
+  const maxLimitMB =
+    envMaxUploadMB && Number.isFinite(envMaxUploadMB) && envMaxUploadMB > 0
+      ? Math.min(schemaMaxUploadMB, envMaxUploadMB)
+      : schemaMaxUploadMB;
 
   const [textVal, setTextVal] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [fileValidationError, setFileValidationError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"text" | "file" | "image" | "audio" | null>(null);
 
   // 음성 녹음 상태 관련
@@ -80,7 +77,6 @@ export default function WorkflowInputPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // 녹음 지원 여부 체크
   useEffect(() => {
     if (typeof window !== "undefined") {
       const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -89,10 +85,8 @@ export default function WorkflowInputPanel({
     }
   }, []);
 
-  // 기본 활성 탭 설정 (내부 상태 변경으로만 처리하며 부모 onChange를 유발하지 않음)
   useEffect(() => {
     if (acceptedInputTypes.length > 0) {
-      // 우선순위가 높은 탭부터 활성화
       if (acceptedInputTypes.includes("text")) {
         setActiveTab("text");
       } else if (acceptedInputTypes.includes("file")) {
@@ -107,7 +101,6 @@ export default function WorkflowInputPanel({
     }
   }, [acceptedInputTypes]);
 
-  // 상위 컴포넌트에 데이터 전달
   const propagateChange = (
     text: string,
     file: File | null,
@@ -126,58 +119,6 @@ export default function WorkflowInputPanel({
     propagateChange(val, selectedFile, activeTab);
   };
 
-  // 파일 확장자 추출 헬퍼
-  const getFileExtension = (filename: string): string => {
-    const parts = filename.split(".");
-    return parts.length > 1 ? parts.pop()?.toLowerCase() || "" : "";
-  };
-
-  // 허용 확장자 정규화 (. 제거 및 소문자화)
-  const normalizeAllowedExtensions = (types?: string[]): string[] => {
-    if (!types) return [];
-    return types.map((t) => t.replace(/^\./, "").trim().toLowerCase());
-  };
-
-  // 확장자 기준 허용 여부 체크
-  const isAllowedByExtension = (fileExt: string, allowedExts: string[]): boolean => {
-    return allowedExts.includes(fileExt);
-  };
-
-  // MIME 타입 기준 허용 여부 체크 (mp3, webm, m4a, wav MIME 후보군 정규식 및 mapping 포함)
-  const isAllowedByMime = (fileMime: string, allowedExts: string[]): boolean => {
-    const mimeMap: Record<string, string[]> = {
-      mp3: ["audio/mpeg", "audio/mp3", "audio/x-mp3"],
-      webm: ["audio/webm", "video/webm"],
-      m4a: ["audio/mp4", "audio/x-m4a", "audio/m4a"],
-      wav: ["audio/wav", "audio/wave", "audio/x-wav"],
-    };
-
-    const lowercaseMime = fileMime.toLowerCase();
-
-    // 1. 매핑된 명시적 후보군 검사
-    for (const ext of allowedExts) {
-      const candidates = mimeMap[ext];
-      if (candidates && candidates.includes(lowercaseMime)) {
-        return true;
-      }
-    }
-
-    // 2. 일반적 MIME 매칭 (예: audio/* 등 와일드카드 검사 지원)
-    for (const ext of allowedExts) {
-      if (ext === "audio" && lowercaseMime.startsWith("audio/")) return true;
-      if (ext === "image" && lowercaseMime.startsWith("image/")) return true;
-      if (ext === "video" && lowercaseMime.startsWith("video/")) return true;
-      
-      const regexStr = ext.replace("*", ".*");
-      if (lowercaseMime.match(new RegExp(regexStr))) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  // 파일 유효성 검사 (용량 및 확장자)
   const validateFile = (file: File): boolean => {
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > maxLimitMB) {
@@ -192,7 +133,6 @@ export default function WorkflowInputPanel({
       const hasValidExtension = isAllowedByExtension(fileExt, normalizedExts);
       const hasValidMime = isAllowedByMime(file.type, normalizedExts);
 
-      // 확장자나 MIME 타입 중 하나라도 만족하면 승인
       if (!hasValidExtension && !hasValidMime) {
         alert(`허용되지 않는 파일 형식입니다. 허용 형식: ${allowedFileTypes.join(", ")}`);
         return false;
@@ -216,6 +156,8 @@ export default function WorkflowInputPanel({
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
+    setRecordedFile(null);
+    setFileValidationError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
@@ -223,20 +165,17 @@ export default function WorkflowInputPanel({
     propagateChange(textVal, null, activeTab);
   };
 
-  // 음성 녹음 시작
   const startRecording = async () => {
     if (!isRecordingSupported) return;
     setAudioError(null);
     audioChunksRef.current = [];
 
-    // browser 보안 정책 및 HTTPS 미지원 대처
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setAudioError("TypeError");
       setMicPermissionState("unsupported");
       return;
     }
 
-    // Permissions API는 안전하게 참고만 하며, 실패해도 getUserMedia 실행을 막지 않음
     try {
       const permissionState = await getMicrophonePermissionState();
       setMicPermissionState(permissionState);
@@ -245,7 +184,6 @@ export default function WorkflowInputPanel({
     }
 
     try {
-      // getUserMedia 호출 성공/실패를 최종 판정 기준으로 삼음
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMicPermissionState("granted");
       setMicPermissionUiState("idle");
@@ -277,23 +215,26 @@ export default function WorkflowInputPanel({
           type: mimeType,
         });
 
-        // 파일 유효성 검사
-        if (validateFile(audioFile)) {
-          const url = URL.createObjectURL(audioBlob);
-          setAudioUrl(url);
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        setRecordedFile(audioFile);
+
+        const fileSizeMB = audioFile.size / (1024 * 1024);
+        if (fileSizeMB > maxLimitMB) {
+          setFileValidationError(`녹음 파일 크기(${fileSizeMB.toFixed(2)}MB)가 제한 용량(${maxLimitMB}MB)을 초과하여 전송할 수 없습니다.`);
+          setSelectedFile(null);
+          propagateChange(textVal, null, "audio");
+        } else {
+          setFileValidationError(null);
           setSelectedFile(audioFile);
           propagateChange(textVal, audioFile, "audio");
         }
         
-        // 스트림 트랙 중지
         stream.getTracks().forEach((track) => track.stop());
-
-        // 녹음이 완료된 시점에 unmute 후 성공 알림음 재생
         setAppSoundMuted(false);
         playAppSound("success");
       };
 
-      // 녹음 시 UI 효과음이 유입되지 않도록 음소거 처리
       setAppSoundMuted(true);
       mediaRecorder.start();
       setIsRecording(true);
@@ -312,7 +253,6 @@ export default function WorkflowInputPanel({
       console.error("마이크 사용 권한 획득 실패:", err);
       const errName = err.name || err.toString();
       
-      // catch 블록에서도 Permissions API 조회를 시도하여 denied 여부를 최대한 동기화
       try {
         const postPermissionState = await getMicrophonePermissionState();
         setMicPermissionState(postPermissionState);
@@ -322,27 +262,13 @@ export default function WorkflowInputPanel({
 
       if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
         setAudioError("NotAllowedError");
-        setMicPermissionUiState((prev) => {
-          if (prev === "idle") {
-            return "retryable";
-          }
-          return "blocked";
-        });
-      } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
-        setAudioError("NotFoundError");
-        setMicPermissionUiState("device_error");
-      } else if (errName === "NotReadableError" || errName === "TrackStartError") {
-        setAudioError("NotReadableError");
-        setMicPermissionUiState("device_error");
-      } else if (errName === "SecurityError") {
-        setAudioError("SecurityError");
+        setMicPermissionUiState((prev) => (prev === "idle" ? "retryable" : "blocked"));
+      } else if (["NotFoundError", "DevicesNotFoundError", "NotReadableError", "TrackStartError", "SecurityError", "OverconstrainedError"].includes(errName)) {
+        setAudioError(errName);
         setMicPermissionUiState("device_error");
       } else if (errName === "TypeError") {
         setAudioError("TypeError");
         setMicPermissionUiState("unsupported");
-      } else if (errName === "OverconstrainedError") {
-        setAudioError("OverconstrainedError");
-        setMicPermissionUiState("device_error");
       } else {
         setAudioError("UnknownError");
         setMicPermissionUiState("device_error");
@@ -350,7 +276,6 @@ export default function WorkflowInputPanel({
     }
   };
 
-  // 음성 녹음 정지
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -366,7 +291,6 @@ export default function WorkflowInputPanel({
     }
   };
 
-  // 컴포넌트 unmount 시 음소거 풀기 및 타이머 정리 cleanup
   useEffect(() => {
     return () => {
       setAppSoundMuted(false);
@@ -388,17 +312,17 @@ export default function WorkflowInputPanel({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // 탭 변경 시 상태 초기화
   const handleTabChange = (tab: "text" | "file" | "image" | "audio") => {
     setActiveTab(tab);
     setSelectedFile(null);
+    setRecordedFile(null);
+    setFileValidationError(null);
     setAudioUrl(null);
     setAudioError(null);
     setMicPermissionUiState("idle");
     if (isRecording) {
       stopRecording();
     }
-    // 인풋 리셋
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
@@ -504,7 +428,6 @@ export default function WorkflowInputPanel({
                 📸 카메라 촬영
               </button>
             </div>
-            {/* 실제 숨겨진 인풋 */}
             <input
               type="file"
               ref={imageInputRef}
@@ -549,10 +472,7 @@ export default function WorkflowInputPanel({
                     <button
                       type="button"
                       className="ux_button ux_button_primary"
-                      onClick={() => {
-                        // 녹음 정지 시에는 click 효과음 대신 success 효과음이 stopRecording 내부에서 재생됨 (소리가 겹치거나 마이크에 들어가지 않도록 정밀 대응)
-                        stopRecording();
-                      }}
+                      onClick={stopRecording}
                       style={{ borderRadius: "6px", border: "none" }}
                     >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ef4444", animation: "pulse 1.5s infinite" }}></span>
@@ -571,6 +491,35 @@ export default function WorkflowInputPanel({
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
                     <span style={{ fontSize: "11px", color: "#4b5563", fontWeight: 600 }}>녹음 파일 미리듣기:</span>
                     <audio src={audioUrl} controls style={{ width: "100%", height: "36px" }} />
+
+                    {fileValidationError && (
+                      <div style={{ padding: "8px", backgroundColor: "#fef2f2", border: "1px solid #fee2e2", borderRadius: "6px", fontSize: "12px", color: "#ef4444", marginTop: "6px", lineHeight: 1.4 }}>
+                        <p style={{ margin: 0, fontWeight: 600 }}>⚠️ 전송 불가 안내</p>
+                        <p style={{ margin: "4px 0 0" }}>{fileValidationError}</p>
+                        <p style={{ margin: "4px 0 0" }}>녹음본은 유실되지 않도록 보관 중입니다. 아래 다운로드 버튼으로 파일을 저장하거나, 더 짧게 다시 녹음해 주세요.</p>
+                      </div>
+                    )}
+
+                    {recordedFile && (
+                      <div style={{ marginTop: "6px" }}>
+                        <a
+                          href={audioUrl}
+                          download={recordedFile.name}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "12px",
+                            color: "#2563eb",
+                            textDecoration: "underline",
+                            fontWeight: 600,
+                            cursor: "pointer"
+                          }}
+                        >
+                          📥 녹음 파일 다운로드 ({recordedFile.name})
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -580,7 +529,7 @@ export default function WorkflowInputPanel({
       </div>
 
       {/* 선택된 파일 요약 리스트 */}
-      {selectedFile && (
+      {selectedFile && !fileValidationError && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden" }}>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#111111", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
@@ -609,11 +558,9 @@ export default function WorkflowInputPanel({
           </p>
           <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
             허용 확장자: {(() => {
-              // 1순위: inputSchema에 allowedFileTypes가 명시되어 있을 때 최우선 사용
               if (allowedFileTypes && allowedFileTypes.length > 0) {
                 return allowedFileTypes.map((ext) => ext.replace(/^\./, "").trim()).join(", ");
               }
-              // 2순위: 미지정 시 탭 종류별 공통 상수 fallback
               if (activeTab === "audio") {
                 return ALLOWED_AUDIO_EXTENSIONS.join(", ");
               }

@@ -87,7 +87,7 @@ app.use(express.urlencoded({ extended: true }));
 const upload = multer({
   dest: path.join(os.tmpdir(), "n8lient-uploads"),
   limits: {
-    fileSize: parseInt(process.env.MAX_UPLOAD_MB || "10", 10) * 1024 * 1024
+    fileSize: parseInt(process.env.MAX_UPLOAD_MB || "20", 10) * 1024 * 1024
   }
 });
 

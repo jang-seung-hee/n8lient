@@ -651,7 +651,7 @@ export default function UserExecute() {
                 transition: "background-color 0.15s ease",
               }}
             >
-              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "실행하기"}
+              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "작성내용 전송하기"}
             </button>
           )}
         </form>
