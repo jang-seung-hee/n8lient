@@ -738,3 +738,39 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 - blocked 상태의 버튼 문구는 “권한 허용 후 다시 확인”으로 한다.
 - 파일 업로드는 마이크 권한 실패의 대체 해결책으로 안내하지 않는다.
 - 최종 판정은 Permissions API가 아니라 getUserMedia({ audio: true }) 호출 결과를 기준으로 한다.
+
+### [2026-06-20] 워크플로우 실행 및 설정 UI의 범용성 개선
+
+* **음성 녹음 기능 고도화**
+
+  * `/user/execute` 페이지의 음성 녹음 기능에 `일시정지` / `이어 녹음` 기능을 추가했다.
+  * 사용자가 녹음 중 방해를 받거나 잠시 말을 멈춰야 하는 상황에서도 전체 녹음을 종료하지 않고 이어서 녹음할 수 있도록 개선했다.
+  * 관련 파일: `src/components/custom/WorkflowInputPanel.tsx`
+
+* **입력 및 설정 안내 UI 범용화**
+
+  * **설정 모달**
+
+    * `currentTemplate.configSchema`에서 Google Drive / Google Sheet 관련 필드가 존재할 때만 관련 안내 문구를 표시하도록 변경했다.
+    * 관련 필드가 없는 워크플로우에서는 일반 안내 문구를 표시하여, 이미지 기반 영수증 정리기처럼 Google Drive/Sheet와 무관한 워크플로우에서 혼란이 생기지 않도록 했다.
+    * Google Drive/Sheet 판단은 `field.type`의 명시 타입(`google_drive_folder_id`, `google_sheet_id`)과 명확한 key/label 패턴을 기준으로 하며, `folder` 단독 키워드만으로는 판단하지 않는다.
+    * 관련 파일: `src/components/custom/UserPersonalSettingsModal.tsx`
+
+  * **입력 패널**
+
+    * `allowedFileTypes`가 명시되지 않은 경우에도 현재 선택된 입력 탭(`audio`, `image`, `file`)에 맞춰 안내 문구가 자연스럽게 표시되도록 개선했다.
+    * 오디오, 이미지, 일반 파일 입력이 각각 다른 워크플로우에서 사용되더라도 잘못된 확장자 안내가 노출되지 않도록 했다.
+    * 관련 파일: `src/components/custom/WorkflowInputPanel.tsx`
+
+* **타입 무결성 유지**
+
+  * 범용 설정 렌더링에 필요한 `google_drive_folder_id`, `google_sheet_id`를 `ConfigSchemaField.type` 유니온 타입에 좁게 추가했다.
+  * `type: string`처럼 느슨하게 확장하지 않고, 허용 가능한 타입만 명시하여 configSchema 타입 검증이 약해지지 않도록 했다.
+  * 관련 파일: `src/types/n8lient.ts`
+
+* **운영 원칙**
+
+  * 신규 워크플로우의 결과 수신 이메일은 기본적으로 `reportEmailTo`를 표준 key로 사용한다.
+  * 복수 수신자가 필요한 경우 `reportEmailTo` 값에 콤마로 구분하여 입력한다.
+  * `buildCompletionNotice` 이메일 key 일반화 작업은 현재 진행하지 않는다.
+
