@@ -1208,8 +1208,20 @@
   margin-bottom: 4px;
 }
 
+.ux_audio_permission_notice_body {
+  font-size: 11px;
+  color: #7f1d1d;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
 .ux_audio_permission_actions {
   display: flex;
   gap: 8px;
   margin-top: 10px;
+}
+
+.ux_audio_permission_button {
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
