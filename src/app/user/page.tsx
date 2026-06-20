@@ -10,10 +10,12 @@ import { useAuthUser } from "@/features/auth/useAuthUser";
 import { getActiveAutomations, subscribeMySubmissions } from "@/features/user/userService";
 import { getMyCompanyPublicProfile } from "@/features/user/companyProfileService";
 import { CompanyInfoModal } from "@/components/custom/CompanyInfoModal";
+import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import type { ClientAutomation, Submission, ClientPublicProfile, WorkflowTemplate } from "@/types/n8lient";
 import { getSubmissionDisplayTitle } from "@/common/submission/getSubmissionDisplayTitle";
 import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
+import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 
 export default function UserHome() {
   const { user, userDoc } = useAuthUser();
@@ -27,6 +29,10 @@ export default function UserHome() {
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [errorProfile, setErrorProfile] = useState<string | null>(null);
+
+  // 결과 상세 모달 제어용 상태
+  const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user || !userDoc?.clientId) {
@@ -47,12 +53,19 @@ export default function UserHome() {
       })
       .catch((err) => console.error("워크플로우 로드 실패:", err));
 
-    // 2. 본인의 실행 결과 실시간 구독 (최근 3개)
-    const unsubscribe = subscribeMySubmissions(
-      db,
-      user.uid,
-      (list) => {
-        setSubmissions(list.slice(0, 3));
+    // 2. 본인의 실행 결과 실시간 구독 (최근 10개로 제한하여 Firestore에 쿼리 요청)
+    const submissionsQuery = query(
+      collection(db, "submissions"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(
+      submissionsQuery,
+      (snap) => {
+        const list = snap.docs.map((d) => d.data() as Submission);
+        setSubmissions(list);
         setLoading(false);
       },
       (err) => {
@@ -78,6 +91,12 @@ export default function UserHome() {
 
     return () => unsubscribe();
   }, [user, userDoc]);
+
+  // 클릭 시 상세 모달 팝업 트리거
+  const handleLogClick = (sub: Submission) => {
+    setSelectedSub(sub);
+    setIsResultModalOpen(true);
+  };
 
   return (
     <div style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
@@ -234,14 +253,22 @@ export default function UserHome() {
               }
 
               return (
-                <div
+                <button
                   key={sub.submissionId}
+                  type="button"
+                  onClick={() => handleLogClick(sub)}
+                  className="ux_user_recent_log_item"
                   style={{
-                    padding: "10px 12px",
-                    borderBottom: idx < submissions.length - 1 ? "1px solid #f3f4f6" : "none",
+                    width: "100%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    padding: "10px 12px",
+                    border: "none",
+                    background: "none",
+                    borderBottom: idx < submissions.length - 1 ? "1px solid #f3f4f6" : "none",
+                    cursor: "pointer",
+                    textAlign: "left",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
@@ -278,30 +305,24 @@ export default function UserHome() {
                     </div>
                   </div>
                   
-                  {isSuccess && sub.result.resultUrl && (
-                    <a
-                      href={sub.result.resultUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        fontSize: "11px",
-                        color: "#3b82f6",
-                        textDecoration: "none",
-                        marginLeft: "8px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      결과보기
-                    </a>
-                  )}
-                </div>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#3b82f6",
+                      marginLeft: "8px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    상세보기
+                  </span>
+                </button>
               );
             })
           )}
         </div>
       </section>
 
-      {/* 회사 정보 모달 추가 */}
+      {/* 회사 정보 모달 */}
       <CompanyInfoModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -310,6 +331,19 @@ export default function UserHome() {
         loading={loadingProfile}
         error={errorProfile}
       />
+
+      {/* 실행 이력 결과 상세 모달 (results 화면과 동일하게 재사용) */}
+      {isResultModalOpen && selectedSub && (
+        <ExecutionResultDetailModal
+          isOpen={isResultModalOpen}
+          onClose={() => {
+            setIsResultModalOpen(false);
+            setSelectedSub(null);
+          }}
+          submission={selectedSub}
+          viewerRole="user"
+        />
+      )}
     </div>
   );
 }

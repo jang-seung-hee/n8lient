@@ -50,48 +50,34 @@ export default function UserLayout({ children }: UserLayoutProps) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      {/* 상단바 */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          height: "52px",
-          backgroundColor: "#ffffff",
-          borderBottom: "1px solid #e5e7eb",
-          position: "sticky",
-          top: 0,
-          zIndex: 90,
-          boxSizing: "border-box",
-        }}
-      >
-        <span style={{ fontSize: "16px", fontWeight: 700, color: "#111111" }}>
-          {siteConfig.name}
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "12px", color: "#6b7280" }}>
-            {userDoc.displayName} ({userDoc.department || "소속 없음"})
-          </span>
-          <LogoutButton />
-        </div>
-      </header>
+    <div className="ux_user_shell">
+      {/* PC 전용 좌측 패널 프레임 */}
+      <aside className="ux_user_sidebar_frame">
+        <DataPanel className="ux_user_sidebar" />
+      </aside>
 
-      {/* 반응형 본문 레이아웃 */}
-      <div className="user-layout-container">
-        {/* PC 전용 좌측 패널 */}
-        <div className="user-aside-panel">
-          <DataPanel />
-        </div>
+      {/* 우측 본문 프레임 */}
+      <section className="ux_user_right_frame">
+        {/* 상단바 */}
+        <header className="ux_user_topbar">
+          <span style={{ fontSize: "16px", fontWeight: 700, color: "#111111" }}>
+            {siteConfig.name}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "12px", color: "#6b7280" }}>
+              {userDoc.displayName} ({userDoc.department || "소속 없음"})
+            </span>
+            <LogoutButton />
+          </div>
+        </header>
 
         {/* 본문 영역 */}
-        <main className="user-main-content ux_page_shell">
+        <main className="ux_user_content_frame ux_page_shell">
           <div className="ux_content_body">{children}</div>
         </main>
-      </div>
+      </section>
 
-      {/* 모바일/PC 공통 하단 내비게이션 바 */}
+      {/* 모바일/PC 공통 하단 내비게이션 바 (CSS를 통해 PC에서는 숨겨집니다) */}
       <BottomNav />
     </div>
   );

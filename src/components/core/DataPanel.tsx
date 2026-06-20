@@ -4,8 +4,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
-export function DataPanel() {
+interface DataPanelProps {
+  className?: string;
+}
+
+type UserSidebarTab = "navigation" | "data";
+
+export function DataPanel({ className = "" }: DataPanelProps) {
   const pathname = usePathname();
 
   const dataItems = [
@@ -15,61 +22,171 @@ export function DataPanel() {
     { label: "업무위키", path: "/user/data/work-wiki", icon: "📖" },
   ];
 
+  // ux_user_sidebar 클래스가 적용된 경우, 다크 테마이므로 개별 inline style을 타지 않거나 최소화합니다.
+  const isDarkSidebar = className.includes("ux_user_sidebar");
+
+  const mainItems = [
+    { label: "홈", path: "/user", icon: "🏠" },
+    { label: "실행", path: "/user/execute", icon: "🚀" },
+    { label: "결과", path: "/user/results", icon: "📊" },
+    { label: "내정보", path: "/user/profile", icon: "👤" },
+  ];
+
+  // 초기 탭 판정 로직: 현재 pathname이 dataItems 중 하나의 path로 시작하면 "data" 탭을 기본값으로 활성화
+  const isDataPath = dataItems.some((item) => pathname.startsWith(item.path));
+  const [activeTab, setActiveTab] = useState<UserSidebarTab>(isDataPath ? "data" : "navigation");
+
+  // 페이지 이동 시 pathname 변화에 맞춰 탭 상태를 자동 동기화
+  useEffect(() => {
+    if (isDarkSidebar) {
+      if (isDataPath) {
+        setActiveTab("data");
+      } else {
+        setActiveTab("navigation");
+      }
+    }
+  }, [pathname, isDataPath, isDarkSidebar]);
+
   return (
     <aside
-      style={{
-        width: "240px",
-        backgroundColor: "#ffffff",
-        borderRight: "1px solid #e5e7eb",
-        padding: "16px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        boxSizing: "border-box",
-        height: "100%",
-      }}
+      className={`ux_data_panel ${className}`.trim()}
+      style={
+        isDarkSidebar
+          ? undefined
+          : {
+              width: "240px",
+              backgroundColor: "#ffffff",
+              borderRight: "1px solid #e5e7eb",
+              padding: "16px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              boxSizing: "border-box",
+              height: "100%",
+            }
+      }
     >
       <div>
-        <h2
-          style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            color: "#6b7280",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            marginBottom: "8px",
-            paddingLeft: "4px",
-          }}
-        >
-          데이터 분석활용
-        </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {dataItems.map((item) => {
-            const isActive = pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 10px",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  textDecoration: "none",
-                  color: isActive ? "#111111" : "#4b5563",
-                  backgroundColor: isActive ? "#f3f4f6" : "transparent",
-                  fontWeight: isActive ? 600 : 400,
-                  transition: "background-color 0.15s ease",
-                }}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
+        {/* 다크 사이드바 오퍼레이터 스타일 로고 영역 */}
+        {isDarkSidebar && (
+          <div style={{ padding: "0 8px 20px 8px", borderBottom: "1px solid var(--ux-user-sidebar-border)", marginBottom: "20px" }}>
+            <h1 style={{ fontSize: "16px", fontWeight: 700, color: "#ffffff", margin: 0 }}>
+              N8Lient Client
+            </h1>
+            <p style={{ fontSize: "11px", color: "var(--ux-user-sidebar-muted)", margin: "4px 0 0 0" }}>
+              일반 사용자 대시보드
+            </p>
+          </div>
+        )}
+
+        {/* 다크 사이드바 전용 탭 전환 버튼 UI */}
+        {isDarkSidebar && (
+          <div className="ux_user_sidebar_tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "navigation"}
+              className={activeTab === "navigation" ? "ux_user_sidebar_tab_active" : "ux_user_sidebar_tab"}
+              onClick={() => setActiveTab("navigation")}
+            >
+              네비게이션
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "data"}
+              className={activeTab === "data" ? "ux_user_sidebar_tab_active" : "ux_user_sidebar_tab"}
+              onClick={() => setActiveTab("data")}
+            >
+              데이터 분석활용
+            </button>
+          </div>
+        )}
+
+        {/* 탭 상태에 맞춰 각 메뉴 그룹을 조건부(배타적) 렌더링 */}
+        {isDarkSidebar ? (
+          <div>
+            {activeTab === "navigation" && (
+              <nav className="ux_user_sidebar_menu">
+                {mainItems.map((item) => {
+                  const isActive = pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      href={item.path}
+                      className={`ux_user_sidebar_link ${isActive ? "ux_user_sidebar_link_active" : ""}`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {activeTab === "data" && (
+              <nav className="ux_user_sidebar_menu">
+                {dataItems.map((item) => {
+                  const isActive = pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      href={item.path}
+                      className={`ux_user_sidebar_link ${isActive ? "ux_user_sidebar_link_active" : ""}`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+          </div>
+        ) : (
+          /* 공용 UI 기본 레이아웃 및 폼 (기존 일반 사이드바 구조 무영향 보존) */
+          <div>
+            <h2
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "#6b7280",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                marginBottom: "8px",
+                paddingLeft: "4px",
+              }}
+            >
+              데이터 분석활용
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {dataItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      textDecoration: "none",
+                      color: isActive ? "#111111" : "#4b5563",
+                      backgroundColor: isActive ? "#f3f4f6" : "transparent",
+                      fontWeight: isActive ? 600 : 400,
+                      transition: "background-color 0.15s ease",
+                    }}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

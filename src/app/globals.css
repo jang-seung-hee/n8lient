@@ -44,12 +44,11 @@ body {
   max-width: 100%;
 }
 
+
 @media (min-width: 1024px) {
   .user-aside-panel {
     display: block;
-    position: sticky;
-    top: 52px;
-    height: calc(100vh - 52px);
   }
 }
+
 

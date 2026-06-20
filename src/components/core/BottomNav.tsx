@@ -17,6 +17,7 @@ export function BottomNav() {
 
   return (
     <nav
+      className="user-bottom-nav"
       style={{
         position: "fixed",
         bottom: 0,

@@ -2,7 +2,7 @@
 
 :root {
   /* PC 본문 최대 폭 — 여기만 바꾸면 PC 본문 폭 기준이 바뀜 */
-  --ux-content-max-width-pc: 900px;
+  --ux-content-max-width-pc: 1200px;
 
   /* 페이지 여백 */
   --ux-page-padding-pc-x: 24px;
@@ -151,6 +151,7 @@
 
   --ux-sidebar-width: 240px;
   --ux-header-height: 52px;
+  --ux-user-header-height: 52px;
 
   /* admin/operator sidebar·drawer */
   --ux-admin-sidebar-width: 240px;
@@ -158,14 +159,21 @@
   --ux-drawer-width: 280px;
   --ux-drawer-z-index: 1000;
 
-  /* Modal */
-  --ux-modal-max-width-pc: 600px;
+  /* Modal PC모드시의 팝업 모달창 기준을 여기서 정하면되 */
+  --ux-modal-max-width-pc: 800px;
   --ux-modal-width-mobile: calc(100vw - 24px);
   --ux-modal-max-height: calc(100vh - 48px);
   --ux-modal-padding: 20px;
   --ux-modal-padding-mobile: 16px;
   --ux-modal-radius: 12px;
   --ux-modal-z-index: 1000;
+
+  /* /user PC 전용 사이드바 테마 변수 (오퍼레이터 콘솔 변수와 디자인 통일) */
+  --ux-user-sidebar-bg: #111827;
+  --ux-user-sidebar-text: #ffffff;
+  --ux-user-sidebar-muted: #9ca3af;
+  --ux-user-sidebar-active-bg: #1f2937;
+  --ux-user-sidebar-border: #1f2937;
 }
 
 /* 전체 페이지 shell */
@@ -769,6 +777,7 @@
     grid-template-columns: 1fr;
     gap: 12px 0;
   }
+
   .ux_info_grid_full {
     grid-column: span 1;
   }
@@ -845,27 +854,34 @@
 /* 실행 설정값 값 표시 박스 */
 .ux_key_value_value_box {
   display: inline-block;
-  background-color: #f0f4f8; /* 은은한 파스텔톤 배경색 */
-  border: 1px solid #dbeafe; /* 옅은 파란색 계열 보더 */
+  background-color: #f0f4f8;
+  /* 은은한 파스텔톤 배경색 */
+  border: 1px solid #dbeafe;
+  /* 옅은 파란색 계열 보더 */
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #1e3a8a; /* 선명한 다크 블루 */
+  color: #1e3a8a;
+  /* 선명한 다크 블루 */
   word-break: break-all;
-  white-space: pre-wrap; /* 줄바꿈 및 공백 유지 */
+  white-space: pre-wrap;
+  /* 줄바꿈 및 공백 유지 */
   max-width: 100%;
 }
 
 .ux_key_value_value_empty {
   display: inline-block;
-  background-color: #f9fafb; /* 조금 더 연한 그레이 톤 */
-  border: 1px dashed #e5e7eb; /* 대시드 보더 */
+  background-color: #f9fafb;
+  /* 조금 더 연한 그레이 톤 */
+  border: 1px dashed #e5e7eb;
+  /* 대시드 보더 */
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 13px;
   font-weight: 400;
-  color: var(--ux-text-color-muted); /* muted text */
+  color: var(--ux-text-color-muted);
+  /* muted text */
   word-break: break-all;
 }
 
@@ -925,7 +941,237 @@
   background: #ffe4e6;
 }
 
+/* /user PC 전용 사이드바 컴포넌트 클래스 */
+.ux_user_sidebar {
+  width: 240px;
+  background-color: var(--ux-user-sidebar-bg);
+  border-right: 1px solid var(--ux-user-sidebar-border);
+  padding: 24px 12px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  height: 100%;
+}
 
+.ux_user_sidebar_title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ux-user-sidebar-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
 
+.ux_user_sidebar_link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  color: #d1d5db;
+  font-weight: 400;
+  transition: all 0.15s ease;
+}
 
+.ux_user_sidebar_link:hover {
+  background-color: var(--ux-user-sidebar-active-bg);
+  color: #ffffff;
+}
 
+.ux_user_sidebar_link_active {
+  color: #ffffff;
+  background-color: var(--ux-user-sidebar-active-bg);
+  font-weight: 600;
+}
+
+/* 사용자 전용 PC 사이드바 탭 제어용 그룹 UI */
+.ux_user_sidebar_tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  margin: 0 0 20px 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+}
+
+.ux_user_sidebar_tab {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ux-user-sidebar-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.ux_user_sidebar_tab:hover {
+  color: var(--ux-user-sidebar-text);
+}
+
+.ux_user_sidebar_tab_active {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--ux-user-sidebar-active-bg);
+  color: var(--ux-user-sidebar-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.ux_user_sidebar_menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* PC/모바일 사용자 전용 좌우 프레임 쉘 CSS 구조 정의 */
+:root {
+  --ux-user-sidebar-width: 240px;
+  --ux-user-topbar-height: 52px;
+  --ux-mobile-bottom-nav-safe-space: 72px;
+}
+
+@media (min-width: 1024px) {
+  /* PC 레이아웃: 좌측 사이드바 + 우측 독립 프레임 그리드 구조 */
+  .ux_user_shell,
+  .ux_user_shell * {
+    box-sizing: border-box;
+  }
+
+  .ux_user_shell {
+    display: grid;
+    grid-template-columns: var(--ux-user-sidebar-width, 240px) minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background: var(--ux-page-bg, #f8fafc);
+  }
+
+  .ux_user_sidebar_frame {
+    display: block;
+    width: var(--ux-user-sidebar-width, 240px);
+    max-width: var(--ux-user-sidebar-width, 240px);
+    min-width: 0;
+    height: 100dvh;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: var(--ux-user-sidebar-bg);
+    border-right: 1px solid var(--ux-user-sidebar-border);
+  }
+
+  .ux_user_sidebar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: auto;
+    height: 100%;
+    background-color: var(--ux-user-sidebar-bg);
+    padding: 24px 12px 16px 12px;
+    overflow-x: hidden;
+  }
+
+  .ux_data_panel {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .ux_user_right_frame {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .ux_user_topbar {
+    flex: 0 0 var(--ux-user-topbar-height, 52px);
+    height: var(--ux-user-topbar-height, 52px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--ux-card-border-color, #e5e7eb);
+    background-color: #ffffff;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ux_user_content_frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--ux-page-bg, #f8fafc);
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .ux_user_content_frame > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* PC 모드 시 하단 바텀 네비게이션 숨김 */
+  .user-bottom-nav,
+  .ux_user_bottom_nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* 모바일 레이아웃: 기존 레이아웃 유지 */
+  .ux_user_shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    background: var(--ux-page-bg, #f8fafc);
+  }
+
+  .ux_user_sidebar_frame {
+    display: none !important; /* 모바일에서 좌측 메뉴는 숨김 */
+  }
+
+  .ux_user_right_frame {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .ux_user_topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: var(--ux-user-topbar-height, 52px);
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--ux-card-border-color, #e5e7eb);
+    position: sticky;
+    top: 0;
+    zIndex: 90;
+    box-sizing: border-box;
+  }
+
+  .ux_user_content_frame {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    padding-bottom: var(--ux-mobile-bottom-nav-safe-space, 72px);
+  }
+}

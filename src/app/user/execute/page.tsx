@@ -21,6 +21,7 @@ import { buildExecutionTitleContract } from "@/common/execution/buildTitleContra
 import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettings";
 import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
+import { useScreenWakeLock } from "@/hooks/useScreenWakeLock";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -52,6 +53,13 @@ export default function UserExecute() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const inputPanelRef = useRef<{ stopRecording: () => void } | null>(null);
+
+  // 모바일 화면 자동 꺼짐 방지 훅 적용
+  const shouldKeepScreenAwake = isRecording || submitting;
+  useScreenWakeLock({
+    active: shouldKeepScreenAwake,
+    reason: "user_execute_active_task",
+  });
 
   // alert 지연 호출용 타이머 ID 보존 목록
   const timeoutIdsRef = useRef<number[]>([]);
@@ -606,6 +614,10 @@ export default function UserExecute() {
               />
             </div>
           )}
+
+          <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px", padding: "0 2px", lineHeight: 1.4 }}>
+            💡 긴 녹음이나 업로드 중에는 화면이 꺼지지 않도록 유지합니다. 일부 브라우저나 저전력 모드에서는 기기 설정에 따라 화면이 꺼질 수 있습니다.
+          </div>
 
           {isRecording ? (
             <button
