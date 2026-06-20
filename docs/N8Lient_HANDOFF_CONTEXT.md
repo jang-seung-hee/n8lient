@@ -727,3 +727,14 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 
   * 디자인/CSS 작업은 기존 중앙 CSS를 먼저 찾고, 없으면 중앙 CSS에 추가한 뒤 가져다 쓴다.
 로컬 스타일이 꼭 필요하면 사용자 승인 후 적용한다.
+
+## 마이크 권한 실패 UX 정책
+
+/user/execute 음성 녹음에서 마이크 권한 실패 시 retryable/blocked 상태를 분리한다.
+
+- 최초 권한 거부: retryable 상태로 전환하고 “다시 시도”를 1회 제공한다.
+- 다시 시도 후에도 거부: blocked 상태로 전환한다.
+- blocked 상태에서는 반복 재시도를 유도하지 않고, 디바이스/브라우저별 마이크 권한 허용 가이드를 제공한다.
+- blocked 상태의 버튼 문구는 “권한 허용 후 다시 확인”으로 한다.
+- 파일 업로드는 마이크 권한 실패의 대체 해결책으로 안내하지 않는다.
+- 최종 판정은 Permissions API가 아니라 getUserMedia({ audio: true }) 호출 결과를 기준으로 한다.
