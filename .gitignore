@@ -70,3 +70,7 @@ serviceAccount*.json
 !.env.example
 !.env.local.example
 !env.yaml.example
+
+# scratch directories for test and temporary scripts
+scratch/
+**/scratch/
