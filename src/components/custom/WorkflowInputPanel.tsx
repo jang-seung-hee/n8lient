@@ -38,20 +38,9 @@ export default function WorkflowInputPanel({
   onRecordingStateChange,
   innerRef,
 }: WorkflowInputPanelProps) {
-  // 환경변수 및 워크플로우 명세 기반 최대 업로드 용량 결정
-  const schemaMaxUploadMB =
-    typeof maxFileSizeMB === "number" && Number.isFinite(maxFileSizeMB) && maxFileSizeMB > 0
-      ? maxFileSizeMB
-      : 20;
-
-  const envMaxUploadMB = process.env.NEXT_PUBLIC_MAX_UPLOAD_MB
-    ? parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB, 10)
-    : null;
-
-  const maxLimitMB =
-    envMaxUploadMB && Number.isFinite(envMaxUploadMB) && envMaxUploadMB > 0
-      ? Math.min(schemaMaxUploadMB, envMaxUploadMB)
-      : schemaMaxUploadMB;
+  const schemaMaxUploadMB = typeof maxFileSizeMB === "number" && Number.isFinite(maxFileSizeMB) && maxFileSizeMB > 0 ? maxFileSizeMB : 20;
+  const envMaxUploadMB = process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ? parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB, 10) : null;
+  const maxLimitMB = envMaxUploadMB && Number.isFinite(envMaxUploadMB) && envMaxUploadMB > 0 ? Math.min(schemaMaxUploadMB, envMaxUploadMB) : schemaMaxUploadMB;
 
   const [textVal, setTextVal] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -61,6 +50,7 @@ export default function WorkflowInputPanel({
 
   // 음성 녹음 상태 관련
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -87,30 +77,17 @@ export default function WorkflowInputPanel({
 
   useEffect(() => {
     if (acceptedInputTypes.length > 0) {
-      if (acceptedInputTypes.includes("text")) {
-        setActiveTab("text");
-      } else if (acceptedInputTypes.includes("file")) {
-        setActiveTab("file");
-      } else if (acceptedInputTypes.includes("image")) {
-        setActiveTab("image");
-      } else if (acceptedInputTypes.includes("audio")) {
-        setActiveTab("audio");
-      }
+      if (acceptedInputTypes.includes("text")) setActiveTab("text");
+      else if (acceptedInputTypes.includes("file")) setActiveTab("file");
+      else if (acceptedInputTypes.includes("image")) setActiveTab("image");
+      else if (acceptedInputTypes.includes("audio")) setActiveTab("audio");
     } else {
       setActiveTab(null);
     }
   }, [acceptedInputTypes]);
 
-  const propagateChange = (
-    text: string,
-    file: File | null,
-    type: "text" | "file" | "image" | "audio" | null
-  ) => {
-    onChange({
-      text: text.trim() || undefined,
-      file,
-      inputType: type,
-    });
+  const propagateChange = (text: string, file: File | null, type: "text" | "file" | "image" | "audio" | null) => {
+    onChange({ text: text.trim() || undefined, file, inputType: type });
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -125,15 +102,10 @@ export default function WorkflowInputPanel({
       alert(`파일 크기가 제한 용량(${maxLimitMB}MB)을 초과했습니다. (현재 파일 크기: ${fileSizeMB.toFixed(2)}MB)`);
       return false;
     }
-
     if (allowedFileTypes && allowedFileTypes.length > 0) {
       const fileExt = getFileExtension(file.name);
       const normalizedExts = normalizeAllowedExtensions(allowedFileTypes);
-
-      const hasValidExtension = isAllowedByExtension(fileExt, normalizedExts);
-      const hasValidMime = isAllowedByMime(file.type, normalizedExts);
-
-      if (!hasValidExtension && !hasValidMime) {
+      if (!isAllowedByExtension(fileExt, normalizedExts) && !isAllowedByMime(file.type, normalizedExts)) {
         alert(`허용되지 않는 파일 형식입니다. 허용 형식: ${allowedFileTypes.join(", ")}`);
         return false;
       }
@@ -190,32 +162,24 @@ export default function WorkflowInputPanel({
       
       let mimeType = "audio/webm";
       if (typeof MediaRecorder !== "undefined") {
-        if (MediaRecorder.isTypeSupported("audio/webm")) {
-          mimeType = "audio/webm";
-        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-          mimeType = "audio/mp4";
-        } else if (MediaRecorder.isTypeSupported("audio/mpeg")) {
-          mimeType = "audio/mpeg";
-        }
+        if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
+        else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
+        else if (MediaRecorder.isTypeSupported("audio/mpeg")) mimeType = "audio/mpeg";
       }
 
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+        if (event.data && event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const ext = mimeType.split("/")[1] || "webm";
-        const audioFile = new File([audioBlob], `recorded_audio_${Date.now()}.${ext}`, {
-          type: mimeType,
-        });
-
+        const audioFile = new File([audioBlob], `recorded_audio_${Date.now()}.${ext}`, { type: mimeType });
         const url = URL.createObjectURL(audioBlob);
+
         setAudioUrl(url);
         setRecordedFile(audioFile);
 
@@ -238,12 +202,11 @@ export default function WorkflowInputPanel({
       setAppSoundMuted(true);
       mediaRecorder.start();
       setIsRecording(true);
+      setIsPaused(false);
       setRecordingTime(0);
       recordingTimeRef.current = 0;
 
-      if (onRecordingStateChange) {
-        onRecordingStateChange(true, 0);
-      }
+      if (onRecordingStateChange) onRecordingStateChange(true, 0);
 
       timerRef.current = setInterval(() => {
         recordingTimeRef.current += 1;
@@ -252,12 +215,10 @@ export default function WorkflowInputPanel({
     } catch (err: any) {
       console.error("마이크 사용 권한 획득 실패:", err);
       const errName = err.name || err.toString();
-      
       try {
-        const postPermissionState = await getMicrophonePermissionState();
-        setMicPermissionState(postPermissionState);
+        setMicPermissionState(await getMicrophonePermissionState());
       } catch (e) {
-        console.warn("Permissions API query in catch failed:", e);
+        console.warn(e);
       }
 
       if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
@@ -266,9 +227,6 @@ export default function WorkflowInputPanel({
       } else if (["NotFoundError", "DevicesNotFoundError", "NotReadableError", "TrackStartError", "SecurityError", "OverconstrainedError"].includes(errName)) {
         setAudioError(errName);
         setMicPermissionUiState("device_error");
-      } else if (errName === "TypeError") {
-        setAudioError("TypeError");
-        setMicPermissionUiState("unsupported");
       } else {
         setAudioError("UnknownError");
         setMicPermissionUiState("device_error");
@@ -276,14 +234,42 @@ export default function WorkflowInputPanel({
     }
   };
 
+  const pauseRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
+    if (typeof recorder.pause !== "function") {
+      alert("현재 브라우저에서는 녹음 일시정지를 지원하지 않습니다.\n녹음을 종료한 뒤 다시 녹음해 주세요.");
+      return;
+    }
+    recorder.pause();
+    setIsPaused(true);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const resumeRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "paused") return;
+    if (typeof recorder.resume !== "function") {
+      alert("현재 브라우저에서는 이어 녹음을 지원하지 않습니다.");
+      return;
+    }
+    recorder.resume();
+    setIsPaused(false);
+    timerRef.current = setInterval(() => {
+      recordingTimeRef.current += 1;
+      setRecordingTime(recordingTimeRef.current);
+    }, 1000);
+  };
+
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
-      if (onRecordingStateChange) {
-        onRecordingStateChange(false, recordingTimeRef.current);
-      }
+      setIsPaused(false);
+      if (onRecordingStateChange) onRecordingStateChange(false, recordingTimeRef.current);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -294,16 +280,12 @@ export default function WorkflowInputPanel({
   useEffect(() => {
     return () => {
       setAppSoundMuted(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (innerRef) {
-      innerRef.current = { stopRecording };
-    }
+    if (innerRef) innerRef.current = { stopRecording };
   }, [innerRef, isRecording]);
 
   const formatTime = (seconds: number) => {
@@ -320,13 +302,10 @@ export default function WorkflowInputPanel({
     setAudioUrl(null);
     setAudioError(null);
     setMicPermissionUiState("idle");
-    if (isRecording) {
-      stopRecording();
-    }
+    if (isRecording) stopRecording();
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
-
     propagateChange(textVal, null, tab);
   };
 
@@ -336,162 +315,96 @@ export default function WorkflowInputPanel({
     <div style={{ border: "1px solid #e5e7eb", borderRadius: "8px", backgroundColor: "#ffffff", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
       {/* 탭 버튼 영역 */}
       <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid #f3f4f6", paddingBottom: "8px" }}>
-        {acceptedInputTypes.includes("text") && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("text")}
-            style={{ padding: "6px 10px", fontSize: "12px", fontWeight: 600, border: "none", borderRadius: "4px", cursor: "pointer", backgroundColor: activeTab === "text" ? "#111111" : "transparent", color: activeTab === "text" ? "#ffffff" : "#4b5563" }}
-          >
-            📝 텍스트
-          </button>
-        )}
-        {acceptedInputTypes.includes("file") && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("file")}
-            style={{ padding: "6px 10px", fontSize: "12px", fontWeight: 600, border: "none", borderRadius: "4px", cursor: "pointer", backgroundColor: activeTab === "file" ? "#111111" : "transparent", color: activeTab === "file" ? "#ffffff" : "#4b5563" }}
-          >
-            📎 일반 파일
-          </button>
-        )}
-        {acceptedInputTypes.includes("image") && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("image")}
-            style={{ padding: "6px 10px", fontSize: "12px", fontWeight: 600, border: "none", borderRadius: "4px", cursor: "pointer", backgroundColor: activeTab === "image" ? "#111111" : "transparent", color: activeTab === "image" ? "#ffffff" : "#4b5563" }}
-          >
-            📷 이미지/카메라
-          </button>
-        )}
-        {acceptedInputTypes.includes("audio") && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("audio")}
-            style={{ padding: "6px 10px", fontSize: "12px", fontWeight: 600, border: "none", borderRadius: "4px", cursor: "pointer", backgroundColor: activeTab === "audio" ? "#111111" : "transparent", color: activeTab === "audio" ? "#ffffff" : "#4b5563" }}
-          >
-            🎙️ 음성 녹음
-          </button>
-        )}
+        {acceptedInputTypes.map((tab) => {
+          const emojiMap = { text: "📝 텍스트", file: "📎 일반 파일", image: "📷 이미지", audio: "🎙️ 음성 녹음" };
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => handleTabChange(tab)}
+              style={{ padding: "6px 10px", fontSize: "12px", fontWeight: 600, border: "none", borderRadius: "4px", cursor: "pointer", backgroundColor: activeTab === tab ? "#111111" : "transparent", color: activeTab === tab ? "#ffffff" : "#4b5563" }}
+            >
+              {emojiMap[tab]}
+            </button>
+          );
+        })}
       </div>
 
       {/* 탭 본문 영역 */}
       <div>
         {activeTab === "text" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <textarea
-              className="ux_textarea"
-              value={textVal}
-              onChange={handleTextChange}
-              placeholder="워크플로우 처리에 필요한 추가 설명이나 텍스트 정보를 입력해 주세요."
-              disabled={submitting}
-              style={{ minHeight: "80px", borderRadius: "6px", border: "1px solid #e5e7eb" }}
-            />
-          </div>
+          <textarea
+            className="ux_textarea"
+            value={textVal}
+            onChange={handleTextChange}
+            placeholder="워크플로우 처리에 필요한 추가 설명이나 텍스트 정보를 입력해 주세요."
+            disabled={submitting}
+            style={{ minHeight: "80px", width: "100%", borderRadius: "6px", border: "1px solid #e5e7eb", boxSizing: "border-box" }}
+          />
         )}
 
         {activeTab === "file" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept={
-                allowedFileTypes && allowedFileTypes.length > 0
-                  ? allowedFileTypes.map((ext) => (ext.startsWith(".") ? ext : `.${ext}`)).join(",") + ",audio/*"
-                  : undefined
-              }
-              onChange={(e) => handleFileChange(e, "file")}
-              disabled={submitting}
-              style={{ fontSize: "13px", width: "100%" }}
-            />
-          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept={allowedFileTypes && allowedFileTypes.length > 0 ? allowedFileTypes.map((ext) => (ext.startsWith(".") ? ext : `.${ext}`)).join(",") + ",audio/*" : undefined}
+            onChange={(e) => handleFileChange(e, "file")}
+            disabled={submitting}
+            style={{ fontSize: "13px", width: "100%" }}
+          />
         )}
 
         {activeTab === "image" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                type="button"
-                className="ux_button ux_button_secondary"
-                onClick={() => imageInputRef.current?.click()}
-                disabled={submitting}
-                style={{ flex: 1, borderRadius: "6px" }}
-              >
-                🖼️ 이미지 선택
-              </button>
-              <button
-                type="button"
-                className="ux_button ux_button_secondary"
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={submitting}
-                style={{ flex: 1, borderRadius: "6px" }}
-              >
-                📸 카메라 촬영
-              </button>
+              <button type="button" className="ux_button ux_button_secondary" onClick={() => imageInputRef.current?.click()} disabled={submitting} style={{ flex: 1, borderRadius: "6px" }}>🖼️ 이미지 선택</button>
+              <button type="button" className="ux_button ux_button_secondary" onClick={() => cameraInputRef.current?.click()} disabled={submitting} style={{ flex: 1, borderRadius: "6px" }}>📸 카메라 촬영</button>
             </div>
-            <input
-              type="file"
-              ref={imageInputRef}
-              accept="image/*"
-              onChange={(e) => handleFileChange(e, "image")}
-              style={{ display: "none" }}
-            />
-            <input
-              type="file"
-              ref={cameraInputRef}
-              accept="image/*"
-              capture="environment"
-              onChange={(e) => handleFileChange(e, "image")}
-              style={{ display: "none" }}
-            />
+            <input type="file" ref={imageInputRef} accept="image/*" onChange={(e) => handleFileChange(e, "image")} style={{ display: "none" }} />
+            <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" onChange={(e) => handleFileChange(e, "image")} style={{ display: "none" }} />
           </div>
         )}
 
         {activeTab === "audio" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {!isRecordingSupported ? (
-              <p style={{ fontSize: "12px", color: "#ef4444", margin: 0 }}>
-                ⚠️ 이 브라우저에서는 녹음 기능을 지원하지 않습니다.
-              </p>
+              <p style={{ fontSize: "12px", color: "#ef4444", margin: 0 }}>⚠️ 이 브라우저에서는 녹음 기능을 지원하지 않습니다.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   {!isRecording ? (
-                    <button
-                      type="button"
-                      className="ux_button ux_button_danger"
-                      onClick={() => {
-                        playAppSound("click");
-                        startRecording();
-                      }}
-                      disabled={submitting}
-                      style={{ borderRadius: "6px", border: "none", backgroundColor: "#ef4444" }}
-                    >
-                      🎙️ 녹음 시작
-                    </button>
+                    <button type="button" className="ux_button ux_button_danger" onClick={() => { playAppSound("click"); startRecording(); }} disabled={submitting} style={{ borderRadius: "6px", border: "none", backgroundColor: "#ef4444" }}>🎙️ 녹음 시작</button>
                   ) : (
-                    <button
-                      type="button"
-                      className="ux_button ux_button_primary"
-                      onClick={stopRecording}
-                      style={{ borderRadius: "6px", border: "none" }}
-                    >
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ef4444", animation: "pulse 1.5s infinite" }}></span>
-                      정지 ({formatTime(recordingTime)})
-                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      {!isPaused ? (
+                        <button type="button" className="ux_button ux_button_secondary" onClick={pauseRecording} style={{ borderRadius: "6px", border: "1px solid #d1d5db" }}>⏸️ 일시정지</button>
+                      ) : (
+                        <button type="button" className="ux_button ux_button_primary" onClick={resumeRecording} style={{ borderRadius: "6px", border: "none" }}>▶️ 이어 녹음</button>
+                      )}
+                      <button type="button" className="ux_button ux_button_danger" onClick={stopRecording} style={{ borderRadius: "6px", border: "none", backgroundColor: "#ef4444" }}>
+                        <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ffffff", marginRight: "4px", animation: !isPaused ? "pulse 1.5s infinite" : "none" }}></span>
+                        ⏹️ 녹음 종료 ({formatTime(recordingTime)})
+                      </button>
+                    </div>
                   )}
                 </div>
 
-                <AudioPermissionNotice
-                  uiState={micPermissionUiState}
-                  errorMessage={audioError}
-                  onRetry={startRecording}
-                />
+                {isRecording && (
+                  <p style={{ fontSize: "12px", color: isPaused ? "#d97706" : "#059669", margin: "4px 0", fontWeight: 600 }}>
+                    {isPaused ? "⏸️ 녹음이 일시정지되었습니다. 이어 녹음을 누르면 계속 녹음됩니다." : "🎙️ 녹음 중입니다. 편하게 말씀해 주세요."}
+                  </p>
+                )}
+
+                {audioUrl && !isRecording && (
+                  <p style={{ fontSize: "12px", color: "#059669", margin: "4px 0", fontWeight: 600 }}>✅ 녹음이 완료되었습니다. 작성내용 전송하기를 눌러 제출해 주세요.</p>
+                )}
+
+                <AudioPermissionNotice uiState={micPermissionUiState} errorMessage={audioError} onRetry={startRecording} />
 
                 {audioUrl && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
                     <span style={{ fontSize: "11px", color: "#4b5563", fontWeight: 600 }}>녹음 파일 미리듣기:</span>
                     <audio src={audioUrl} controls style={{ width: "100%", height: "36px" }} />
-
                     {fileValidationError && (
                       <div style={{ padding: "8px", backgroundColor: "#fef2f2", border: "1px solid #fee2e2", borderRadius: "6px", fontSize: "12px", color: "#ef4444", marginTop: "6px", lineHeight: 1.4 }}>
                         <p style={{ margin: 0, fontWeight: 600 }}>⚠️ 전송 불가 안내</p>
@@ -499,25 +412,9 @@ export default function WorkflowInputPanel({
                         <p style={{ margin: "4px 0 0" }}>녹음본은 유실되지 않도록 보관 중입니다. 아래 다운로드 버튼으로 파일을 저장하거나, 더 짧게 다시 녹음해 주세요.</p>
                       </div>
                     )}
-
                     {recordedFile && (
                       <div style={{ marginTop: "6px" }}>
-                        <a
-                          href={audioUrl}
-                          download={recordedFile.name}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "12px",
-                            color: "#2563eb",
-                            textDecoration: "underline",
-                            fontWeight: 600,
-                            cursor: "pointer"
-                          }}
-                        >
-                          📥 녹음 파일 다운로드 ({recordedFile.name})
-                        </a>
+                        <a href={audioUrl} download={recordedFile.name} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#2563eb", textDecoration: "underline", fontWeight: 600, cursor: "pointer" }}>📥 녹음 파일 다운로드 ({recordedFile.name})</a>
                       </div>
                     )}
                   </div>
@@ -532,43 +429,19 @@ export default function WorkflowInputPanel({
       {selectedFile && !fileValidationError && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#111111", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-              📎 {selectedFile.name}
-            </span>
-            <span style={{ fontSize: "10px", color: "#6b7280" }}>
-              {(selectedFile.size / 1024).toFixed(1)} KB | {selectedFile.type || "unknown mime"}
-            </span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#111111", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>📎 {selectedFile.name}</span>
+            <span style={{ fontSize: "10px", color: "#6b7280" }}>{(selectedFile.size / 1024).toFixed(1)} KB | {selectedFile.type || "unknown mime"}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleRemoveFile}
-            disabled={submitting}
-            style={{ background: "none", border: "none", color: "#ef4444", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-          >
-            삭제
-          </button>
+          <button type="button" onClick={handleRemoveFile} disabled={submitting} style={{ background: "none", border: "none", color: "#ef4444", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>삭제</button>
         </div>
       )}
 
       {/* 가이드 메시지 */}
       {activeTab !== "text" && activeTab !== null && (
         <div style={{ display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid #f3f4f6", paddingTop: "6px" }}>
+          <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>⚠️ 업로드 제한: 단일 파일 최대 **{maxLimitMB}MB** 이하만 전송 가능합니다.</p>
           <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
-            ⚠️ 업로드 제한: 단일 파일 최대 **{maxLimitMB}MB** 이하만 전송 가능합니다.
-          </p>
-          <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
-            허용 확장자: {(() => {
-              if (allowedFileTypes && allowedFileTypes.length > 0) {
-                return allowedFileTypes.map((ext) => ext.replace(/^\./, "").trim()).join(", ");
-              }
-              if (activeTab === "audio") {
-                return ALLOWED_AUDIO_EXTENSIONS.join(", ");
-              }
-              if (activeTab === "image") {
-                return ALLOWED_IMAGE_EXTENSIONS.join(", ");
-              }
-              return "허용 확장자 정보를 불러오지 못했습니다.";
-            })()}
+            허용 확장자: {allowedFileTypes && allowedFileTypes.length > 0 ? allowedFileTypes.map((ext) => ext.replace(/^\./, "").trim()).join(", ") : activeTab === "audio" ? ALLOWED_AUDIO_EXTENSIONS.join(", ") : ALLOWED_IMAGE_EXTENSIONS.join(", ")}
           </p>
         </div>
       )}
