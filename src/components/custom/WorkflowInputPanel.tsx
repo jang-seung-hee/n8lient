@@ -234,7 +234,7 @@ export default function WorkflowInputPanel({
       return;
     }
 
-    // Permissions API는 참고용으로만 사용하며 실패하더라도 흐름을 중단하지 않습니다.
+    // Permissions API는 안전하게 참고만 하며, 실패해도 getUserMedia 실행을 막지 않음
     try {
       const permissionState = await getMicrophonePermissionState();
       setMicPermissionState(permissionState);
@@ -243,6 +243,7 @@ export default function WorkflowInputPanel({
     }
 
     try {
+      // getUserMedia 호출 성공/실패를 최종 판정 기준으로 삼음
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMicPermissionState("granted");
       
@@ -308,9 +309,16 @@ export default function WorkflowInputPanel({
       console.error("마이크 사용 권한 획득 실패:", err);
       const errName = err.name || err.toString();
       
+      // catch 블록에서도 Permissions API 조회를 시도하여 denied 여부를 최대한 동기화
+      try {
+        const postPermissionState = await getMicrophonePermissionState();
+        setMicPermissionState(postPermissionState);
+      } catch (e) {
+        console.warn("Permissions API query in catch failed:", e);
+      }
+
       if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
         setAudioError("NotAllowedError");
-        setMicPermissionState("denied");
       } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
         setAudioError("NotFoundError");
       } else if (errName === "NotReadableError" || errName === "TrackStartError") {
@@ -537,7 +545,7 @@ export default function WorkflowInputPanel({
                   )}
                 </div>
 
-                 {audioError && (
+                  {audioError && (
                   <div className="ux_audio_permission_notice">
                     <h5 className="ux_audio_permission_notice_title">
                       ⚠️ {(() => {
@@ -550,7 +558,7 @@ export default function WorkflowInputPanel({
                         if (audioError === "NotReadableError") return "마이크 장치를 열 수 없습니다.";
                         if (audioError === "SecurityError") return "보안 정책에 의해 차단되었습니다.";
                         if (audioError === "TypeError") return "녹음 환경을 지원하지 않습니다.";
-                        if (audioError === "OverconstrainedError") return "마이크 설정 요청 조건이 맞지 않습니다.";
+                        if (audioError === "OverconstrainedError") return "마이크 설정 요구사항을 만족할 수 없습니다.";
                         return "마이크 권한 또는 장치 상태를 확인해 주세요.";
                       })()}
                     </h5>
@@ -582,10 +590,7 @@ export default function WorkflowInputPanel({
                         if (audioError === "NotReadableError") {
                           return "사용 가능한 마이크를 찾을 수 없거나 다른 앱에서 사용 중입니다. 다른 앱의 녹음을 종료한 뒤 다시 시도해 주세요.";
                         }
-                        if (audioError === "OverconstrainedError") {
-                          return "요청한 마이크 속성 제약 조건을 기기에서 만족할 수 없습니다. 다른 마이크를 선택하거나 입출력 설정을 재점검해 주세요.";
-                        }
-                        return "마이크 입력 장치 또는 권한 설정에 문제가 발생했습니다. 기기 오디오 연결 및 권한 상태를 확인해 주세요.";
+                        return "마이크 입력 장치에 문제가 있거나 브라우저 권한 문제일 수 있습니다. 오디오 장치 연결 및 설정을 확인해 주세요.";
                       })()}
                     </div>
 
