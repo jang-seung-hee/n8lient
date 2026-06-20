@@ -441,7 +441,15 @@ export default function WorkflowInputPanel({
         <div style={{ display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid #f3f4f6", paddingTop: "6px" }}>
           <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>⚠️ 업로드 제한: 단일 파일 최대 **{maxLimitMB}MB** 이하만 전송 가능합니다.</p>
           <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0, lineHeight: 1.4 }}>
-            허용 확장자: {allowedFileTypes && allowedFileTypes.length > 0 ? allowedFileTypes.map((ext) => ext.replace(/^\./, "").trim()).join(", ") : activeTab === "audio" ? ALLOWED_AUDIO_EXTENSIONS.join(", ") : ALLOWED_IMAGE_EXTENSIONS.join(", ")}
+            {allowedFileTypes && allowedFileTypes.length > 0 ? (
+              <>허용 확장자: {allowedFileTypes.map((ext) => ext.replace(/^\./, "").trim()).join(", ")}</>
+            ) : activeTab === "audio" ? (
+              <>음성 녹음 또는 지원되는 오디오 파일({ALLOWED_AUDIO_EXTENSIONS.join(", ")})을 사용할 수 있습니다.</>
+            ) : activeTab === "image" ? (
+              <>이미지 파일({ALLOWED_IMAGE_EXTENSIONS.join(", ")})을 업로드하거나 모바일에서 사진을 촬영할 수 있습니다.</>
+            ) : (
+              <>이 워크플로우에서 허용된 파일을 업로드할 수 있습니다.</>
+            )}
           </p>
         </div>
       )}

@@ -161,6 +161,44 @@ export default function UserPersonalSettingsModal({
     }
   };
 
+  // Google Drive/Sheet 관련 필드가 설정에 존재하는지 판별하는 헬퍼 함수
+  const hasGoogleDriveOrSheetFields = (): boolean => {
+    if (!currentTemplate.configSchema) return false;
+    
+    return currentTemplate.configSchema.some((field) => {
+      // 1. field.type 검사 (google_drive_folder_id 등)
+      if (field.type === "google_drive_folder_id" || field.type === "google_sheet_id") {
+        return true;
+      }
+      
+      // 2. field.key 검사
+      const keyLower = (field.key || "").toLowerCase();
+      if (
+        keyLower.includes("googledrive") ||
+        keyLower.includes("googlesheet") ||
+        keyLower.includes("drivefolder") ||
+        keyLower.includes("sheetid")
+      ) {
+        return true;
+      }
+
+      // 3. field.label 검사
+      const labelLower = (field.label || "").toLowerCase();
+      if (
+        labelLower.includes("구글 드라이브") ||
+        labelLower.includes("구글 시트") ||
+        labelLower.includes("google drive") ||
+        labelLower.includes("google sheet")
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+  };
+
+  const isGoogleDriveOrSheetEnabled = hasGoogleDriveOrSheetFields();
+
   if (!isOpen) return null;
 
   return (
@@ -210,7 +248,7 @@ export default function UserPersonalSettingsModal({
             ✕
           </button>
         </div>
-
+ 
         {/* 본문 */}
         <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", minHeight: 0, flex: 1 }}>
           {/* 안내 문구 */}
@@ -223,11 +261,21 @@ export default function UserPersonalSettingsModal({
             }}
           >
             <div className="ux_card_title" style={{ marginBottom: "4px" }}>💡 안내 사항</div>
-            • 값을 비워두면 회사 공용 기본값을 사용합니다.<br />
-            • 개인 Google Drive 폴더나 Google Sheet를 사용하려면 n8n 공용 Google 계정에 쓰기 권한으로 공유해야 합니다.<br />
-            • API Key, Token, Credential ID는 개인 설정에 저장하지 않습니다.
+            {isGoogleDriveOrSheetEnabled ? (
+              <>
+                • 값을 비워두면 회사 공용 기본값을 사용합니다.<br />
+                • 개인 Google Drive 폴더나 Google Sheet를 사용하려면 n8n 공용 Google 계정에 쓰기 권한으로 공유해야 합니다.<br />
+                • API Key, Token, Credential ID는 개인 설정에 저장하지 않습니다.
+              </>
+            ) : (
+              <>
+                • 이 워크플로우에서 사용할 개인 설정을 입력한 뒤 저장하세요.<br />
+                • 값을 비워두면 회사 공용 기본값을 사용합니다.<br />
+                • API Key, Token, Credential ID는 개인 설정에 저장하지 않습니다.
+              </>
+            )}
           </div>
-
+ 
           {loading ? (
             <p className="ux_caption" style={{ textAlign: "center", padding: "12px" }}>
               설정을 불러오는 중...

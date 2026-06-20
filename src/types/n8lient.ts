@@ -238,7 +238,7 @@ export interface ConfigSchemaField {
   /** clientAutomations.settings의 key와 반드시 일치해야 함 */
   key: string;
   label: string;
-  type: "text" | "email" | "number" | "boolean" | "select" | "textarea" | "secret";
+  type: "text" | "email" | "number" | "boolean" | "select" | "textarea" | "secret" | "google_drive_folder_id" | "google_sheet_id";
   required: boolean;
   defaultValue?: string | number | boolean | null;
   /** 값을 auth 등에서 자동 가져오는 경우 (예: "auth.email") */
