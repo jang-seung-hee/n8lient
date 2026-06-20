@@ -1225,3 +1225,34 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
+
+/* 디바이스별 권한 가이드 디자인 */
+.ux_audio_permission_device_guide {
+  margin-top: 10px;
+}
+
+.ux_audio_permission_device_tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.ux_audio_permission_device_content {
+  font-size: 11px;
+  color: #7f1d1d;
+  background-color: #fff5f5;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #feb2b2;
+  line-height: 1.5;
+}
+
+.ux_audio_permission_device_steps {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.ux_audio_permission_device_steps li {
+  margin-bottom: 4px;
+}
