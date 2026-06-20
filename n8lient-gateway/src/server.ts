@@ -1084,6 +1084,23 @@ app.get("/api/translate", async (req, res) => {
   }
 });
 
+// 글로벌 에러 핸들러 (Multer 한도 초과 등 예외 처리)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && err.code === "LIMIT_FILE_SIZE") {
+    const maxUploadMB = parseInt(process.env.MAX_UPLOAD_MB || "20", 10);
+    return res.status(413).json({
+      success: false,
+      errorCode: "FILE_SIZE_EXCEEDED",
+      errorMessage: "파일 크기가 허용 한도를 초과했습니다.",
+      maxFileSizeMB: maxUploadMB
+    });
+  }
+  console.error("[Gateway Global Error Handler]", err);
+  if (!res.headersSent) {
+    res.status(500).json({ success: false, error: err.message || "서버 내부 오류" });
+  }
+});
+
 // 서버 가동
 app.listen(port, () => {
   console.log(`[n8lient-gateway] 서버가 포트 ${port}에서 정상 기동 중입니다.`);

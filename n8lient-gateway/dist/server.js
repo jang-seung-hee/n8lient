@@ -77,12 +77,18 @@ app.use(express_1.default.urlencoded({ extended: true }));
 const upload = (0, multer_1.default)({
     dest: path_1.default.join(os_1.default.tmpdir(), "n8lient-uploads"),
     limits: {
-        fileSize: parseInt(process.env.MAX_UPLOAD_MB || "10", 10) * 1024 * 1024
+        fileSize: parseInt(process.env.MAX_UPLOAD_MB || "20", 10) * 1024 * 1024
     }
 });
 /**
  * n8n Webhook URL 조립 헬퍼 함수
  */
+const normalizeOptionalString = (value) => {
+    if (typeof value !== "string")
+        return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+};
 /**
  * 안내 모달용 completionNotice 조립 헬퍼 함수
  */
@@ -287,6 +293,12 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             return res.status(403).json({ success: false, error: "승인 완료된 사용자만 실행 요청이 가능합니다." });
         }
         const clientId = userDoc.clientId;
+        // Firestore clients 컬렉션에서 실제 회사명 조회
+        const clientSnap = await db.collection("clients").doc(clientId).get();
+        const clientDoc = clientSnap.exists ? clientSnap.data() : null;
+        const rawCompanyName = clientDoc?.companyName || null;
+        const companyName = normalizeOptionalString(rawCompanyName);
+        const userEmail = normalizeOptionalString(userDoc.email);
         // 2. clientAutomations/{automationId} 검증
         const autoSnap = await db.collection("clientAutomations").doc(automationId).get();
         if (!autoSnap.exists) {
@@ -630,6 +642,15 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             retentionPolicy,
             requestedAt: now.toISOString(),
             callbackUrl: `${gatewayBaseUrl.replace(/\/$/, "")}/api/automation/callback`,
+            companyName,
+            userEmail,
+            clientName: companyName,
+            googleEmail: userEmail,
+            authorId: userEmail,
+            meta: {
+                companyName,
+                userEmail,
+            },
         };
         const n8nServerToken = process.env[`N8N_SERVER_${n8nServerKey.toUpperCase().replace(/-/g, "_")}_TOKEN`] || "";
         const form = new form_data_1.default();
@@ -953,6 +974,22 @@ app.get("/api/translate", async (req, res) => {
     catch (err) {
         console.error("[translate] 번역 중 오류:", err.message);
         return res.status(500).json({ success: false, error: err.message || "번역에 실패했습니다." });
+    }
+});
+// 글로벌 에러 핸들러 (Multer 한도 초과 등 예외 처리)
+app.use((err, req, res, next) => {
+    if (err && err.code === "LIMIT_FILE_SIZE") {
+        const maxUploadMB = parseInt(process.env.MAX_UPLOAD_MB || "20", 10);
+        return res.status(413).json({
+            success: false,
+            errorCode: "FILE_SIZE_EXCEEDED",
+            errorMessage: "파일 크기가 허용 한도를 초과했습니다.",
+            maxFileSizeMB: maxUploadMB
+        });
+    }
+    console.error("[Gateway Global Error Handler]", err);
+    if (!res.headersSent) {
+        res.status(500).json({ success: false, error: err.message || "서버 내부 오류" });
     }
 });
 // 서버 가동
