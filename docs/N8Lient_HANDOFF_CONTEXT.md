@@ -708,3 +708,22 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 * /user/execute 실행 요청 완료 안내 모달 문구 동적화 및 Gateway 이식 완료. 기존 프론트 추정 방식과 Next.js route.ts 단독 처리의 한계를 제거하고, 실제 실행을 담당하는 n8lient-gateway 성공 응답에 finalSettings/retentionPolicy 기준 completionNotice를 포함하도록 변경했다. page.tsx는 API 응답의 completionNotice를 사용해 완료 안내 모달을 표시하고, 10초 후 또는 [홈으로 이동] 클릭 시 /user로 이동한다. 이메일 주소 미인식 문제는 Gateway 기준 completionNotice 응답으로 보정되었으며, Gateway payload, n8n, Firestore, submissions 저장 구조 변경 없음. tsc/build 통과. 단, 완료 모달의 핵심 단어 컬러 강조가 message plain text 출력으로 사라지지 않았는지 최종 확인 필요.
 
 * 아이디어 캐처 마크다운(MD) 결과물 출처 보강 구현 완료. Gateway(n8lient-gateway/src/server.ts) 및 Next.js prepare-upload, execute API Routes에서 Firestore clients 컬렉션을 비동기 조회하여 실제 회사명(companyName)과 사용자 구글메일(userEmail)을 확보하고, n8nPayload에 top-level 및 meta 객체, alias 필드들로 주입했다. n8n 워크플로우의 00 환경설정, 01 입력 정리, 05 Gemini 응답 파싱 노드를 수정하여 마크다운 결과물 및 DB 저장용 mdContent의 ## 출처 섹션에 회사명과 작성자 ID가 바인딩되도록 포맷을 갱신했다. 회사명/이메일 누락 시에도 null로 처리하고 fallback 문자열이 바인딩되도록 설계하여 실패 가능성을 방지했다. tsc/build 및 Cloud Run Gateway(asia-northeast3, project: n8lient) 서비스 재배포 완료.
+
+## 사용자 PC UI 구조 정책
+
+- 결정:
+  /user PC 화면은 모바일형 상하 구조가 아니라, operator/company-admin과 유사한 좌·우 프레임 구조를 기준으로 한다.
+
+- 이유:
+  PC 화면에서 상단 헤더, 좌측 메뉴, 하단 BottomNav가 동시에 노출되면 구조가 복잡해지고 사이드바 고정 문제가 반복된다.
+
+- 원칙:
+  PC /user = 좌측 사이드바 + 우측 본문 프레임.
+  모바일 /user = 좌측 사이드바 숨김 + 기존 BottomNav 유지.
+
+- 주의사항:
+  사용자 PC UI 디자인은 operator 화면의 중앙 CSS 토큰/규칙을 우선 재사용한다.
+  새 스타일이 필요하면 UX_Design_Setting.css에 추가하고, 로컬 inline style은 금지한다.
+
+  * 디자인/CSS 작업은 기존 중앙 CSS를 먼저 찾고, 없으면 중앙 CSS에 추가한 뒤 가져다 쓴다.
+로컬 스타일이 꼭 필요하면 사용자 승인 후 적용한다.

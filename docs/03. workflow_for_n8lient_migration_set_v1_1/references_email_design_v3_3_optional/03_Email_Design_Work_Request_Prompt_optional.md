@@ -1,15 +1,16 @@
 아래 파일들을 함께 참고하여 n8n 워크플로우의 이메일 리포팅 디자인을 수정하라.
 
 ## 참고 파일
-1. `01_APPLY_THIS_Email_Frame_Template_v*.html`
-2. `02_Design*.md`
-3. 실제 n8n 워크플로우 JSON 또는 Code 노드 소스
+1. `01_Email_Frame_Template_v*_optional.html`
+2. `02_Email_Report_Design_*_optional.md`
+3. `04_Content_Pattern_Examples_optional`
+4. 실제 n8n 워크플로우 JSON 또는 Code 노드 소스
 
 ## 작업 목표
 - 기존 워크플로우의 데이터 처리 로직은 변경하지 않는다.
 - 기존 이메일 본문에 들어가던 정보와 의미는 유지한다.
 - 공통 헤더, 상태바, 푸터는 프레임 템플릿을 적용한다.
-- 본문은 Design.md 기준으로 문서형 리포트 구조로 재구성한다.
+- 본문은 02_Email_Report_Design_*_optional.md 기준으로 문서형 리포트 구조로 재구성한다.
 
 ## 출력
 - 실제 n8n에 바로 붙여넣을 수 있는 json 파일을 생성하여 버전을 0.1 올리고 다운로드 받을 수 있도록 ZIP파일로 제공한다.

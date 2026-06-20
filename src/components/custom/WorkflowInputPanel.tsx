@@ -202,6 +202,13 @@ export default function WorkflowInputPanel({
     if (!isRecordingSupported) return;
     setAudioError(null);
     audioChunksRef.current = [];
+
+    // browser 보안 정책 및 HTTPS 미지원 대처
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setAudioError("브라우저가 녹음 기능을 지원하지 않거나 보안 연결(HTTPS) 환경이 아닙니다.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       let mimeType = "audio/webm";
@@ -264,7 +271,19 @@ export default function WorkflowInputPanel({
       }, 1000);
     } catch (err: any) {
       console.error("마이크 사용 권한 획득 실패:", err);
-      setAudioError("마이크 권한을 획득할 수 없거나 연결 상태를 확인할 수 없습니다.");
+      const errName = err.name || err.toString();
+      
+      if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
+        setAudioError("NotAllowedError");
+      } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
+        setAudioError("NotFoundError");
+      } else if (errName === "NotReadableError" || errName === "TrackStartError") {
+        setAudioError("NotReadableError");
+      } else if (errName === "SecurityError") {
+        setAudioError("SecurityError");
+      } else {
+        setAudioError("UnknownError");
+      }
     }
   };
 
@@ -479,7 +498,62 @@ export default function WorkflowInputPanel({
                 </div>
 
                 {audioError && (
-                  <p style={{ fontSize: "12px", color: "#ef4444", margin: 0 }}>{audioError}</p>
+                  <div className="ux_audio_permission_notice">
+                    <h5 className="ux_audio_permission_notice_title">
+                      ⚠️ {(() => {
+                        if (audioError === "NotAllowedError") return "마이크 권한이 차단되었습니다.";
+                        if (audioError === "NotFoundError") return "연결된 마이크 장치를 찾을 수 없습니다.";
+                        if (audioError === "NotReadableError") return "마이크 장치를 열 수 없습니다.";
+                        if (audioError === "SecurityError") return "보안 정책에 의해 차단되었습니다.";
+                        return "녹음을 시작할 수 없습니다.";
+                      })()}
+                    </h5>
+                    
+                    <p style={{ fontSize: "11px", color: "#7f1d1d", margin: "4px 0 0 0", lineHeight: 1.45 }}>
+                      {(() => {
+                        if (audioError === "NotAllowedError") {
+                          return (
+                            <>
+                              브라우저 권한 설정이 차단되어 있습니다. 아래 순서로 권한을 다시 설정한 후 재시도해 주세요.
+                              <ol className="ux_audio_permission_notice_steps">
+                                <li>주소창 왼쪽의 사이트 설정/보안 자물쇠 아이콘을 누릅니다.</li>
+                                <li>마이크 권한 상태를 <strong>[허용]</strong>으로 변경합니다.</li>
+                                <li>페이지를 새로고침한 뒤 다시 녹음 시작을 누릅니다.</li>
+                              </ol>
+                              <em>Android: 설정 &gt; 애플리케이션 &gt; Chrome &gt; 권한 &gt; 마이크에서 허용해 주세요.</em>
+                            </>
+                          );
+                        }
+                        if (audioError === "NotFoundError") {
+                          return "마이크 플러그 연결을 확인하거나 PC/스마트폰에 활성 입력 장치가 연결되어 있는지 확인해 주세요.";
+                        }
+                        if (audioError === "NotReadableError") {
+                          return "다른 통화/녹음 앱이 현재 마이크를 사용 중인지 확인하고 기기 오디오 상태를 초기화 후 다시 시도해 주세요.";
+                        }
+                        return "마이크 입력 장치에 문제가 있거나 브라우저 권한 문제일 수 있습니다. 오디오 장치 연결 및 설정을 확인해 주세요.";
+                      })()}
+                    </p>
+
+                    <div className="ux_audio_permission_actions">
+                      <button
+                        type="button"
+                        className="ux_button_compact ux_button_secondary"
+                        onClick={startRecording}
+                        style={{ border: "1px solid #b91c1c", color: "#b91c1c", backgroundColor: "#fff" }}
+                      >
+                        🔄 다시 시도
+                      </button>
+                      {acceptedInputTypes.includes("file") && (
+                        <button
+                          type="button"
+                          className="ux_button_compact ux_button_secondary"
+                          onClick={() => handleTabChange("file")}
+                        >
+                          📎 파일 업로드로 전환
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {audioUrl && (
