@@ -1256,3 +1256,30 @@
 .ux_audio_permission_device_steps li {
   margin-bottom: 4px;
 }
+
+/* 모바일 사용자 화면 상단 로그아웃 버튼 숨김 및 헤더 반응형 텍스트 스타일 */
+.ux_user_mobile_hide_logout {
+  display: flex;
+}
+
+@media (max-width: 1023px) {
+  .ux_user_mobile_hide_logout {
+    display: none !important;
+  }
+}
+
+.ux_user_topbar_meta {
+  font-size: 12px;
+  color: #6b7280;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+@media (min-width: 1024px) {
+  .ux_user_topbar_meta {
+    max-width: 400px;
+  }
+}

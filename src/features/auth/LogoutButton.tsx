@@ -8,13 +8,14 @@ import { useAuthUser } from "@/features/auth/useAuthUser";
  * 로그아웃 버튼
  * UI 디자인 가이드 기준: Secondary Button 스타일 적용
  */
-export function LogoutButton() {
+export function LogoutButton({ className }: { className?: string }) {
   const { signOut } = useAuthUser();
 
   return (
     <button
       id="btn-logout"
       onClick={signOut}
+      className={className}
       style={{
         display: "flex",
         alignItems: "center",

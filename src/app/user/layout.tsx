@@ -3,13 +3,16 @@
 
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { BottomNav } from "@/components/core/BottomNav";
 import { DataPanel } from "@/components/core/DataPanel";
 import { LogoutButton } from "@/features/auth/LogoutButton";
 import { siteConfig } from "@/config/siteConfig";
+import { db } from "@/lib/firebase";
+import { getMyCompanyPublicProfile } from "@/features/user/companyProfileService";
+import type { ClientPublicProfile } from "@/types/n8lient";
 
 interface UserLayoutProps {
   children: ReactNode;
@@ -18,6 +21,8 @@ interface UserLayoutProps {
 export default function UserLayout({ children }: UserLayoutProps) {
   const { user, userDoc, loading } = useAuthUser();
   const router = useRouter();
+  const [companyProfile, setCompanyProfile] = useState<ClientPublicProfile | null>(null);
+  const [loadingCompany, setLoadingCompany] = useState(false);
 
   // 로그인 상태 및 승인 상태 체크 (미승인자 차단)
   useEffect(() => {
@@ -27,6 +32,27 @@ export default function UserLayout({ children }: UserLayoutProps) {
       }
     }
   }, [user, userDoc, loading, router]);
+
+  // 소속 회사 프로필 로드 (헤더 소속 회사명 출처 SSOT 동기화)
+  useEffect(() => {
+    const clientId = userDoc?.clientId;
+    if (!clientId) {
+      setCompanyProfile(null);
+      return;
+    }
+
+    setLoadingCompany(true);
+    getMyCompanyPublicProfile(db, clientId)
+      .then((data) => {
+        setCompanyProfile(data);
+      })
+      .catch((err) => {
+        console.error("[UserLayout] 소속 회사 정보 로드 에러:", err);
+      })
+      .finally(() => {
+        setLoadingCompany(false);
+      });
+  }, [userDoc?.clientId]);
 
   if (loading) {
     return (
@@ -49,6 +75,28 @@ export default function UserLayout({ children }: UserLayoutProps) {
     return null;
   }
 
+  // 헤더 사용자명 우선순위 매핑
+  const headerUserName =
+    userDoc.displayName ||
+    userDoc.email ||
+    user?.displayName ||
+    user?.email ||
+    "사용자";
+
+  // 헤더 소속 회사명 매핑 (로딩 시와 최종 상태 구분 방어 적용)
+  let headerCompanyName = "";
+  if (userDoc.clientId) {
+    if (loadingCompany) {
+      headerCompanyName = "확인 중...";
+    } else if (companyProfile) {
+      headerCompanyName = companyProfile.companyDisplayName || companyProfile.companyName || "소속 회사";
+    } else {
+      headerCompanyName = "소속 회사";
+    }
+  } else {
+    headerCompanyName = "소속 없음";
+  }
+
   return (
     <div className="ux_user_shell">
       {/* PC 전용 좌측 패널 프레임 */}
@@ -64,10 +112,10 @@ export default function UserLayout({ children }: UserLayoutProps) {
             {siteConfig.name}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "12px", color: "#6b7280" }}>
-              {userDoc.displayName} ({userDoc.department || "소속 없음"})
+            <span className="ux_user_topbar_meta">
+              {headerUserName} ({headerCompanyName})
             </span>
-            <LogoutButton />
+            <LogoutButton className="ux_user_mobile_hide_logout" />
           </div>
         </header>
 
