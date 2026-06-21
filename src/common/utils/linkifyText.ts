@@ -1,5 +1,5 @@
 /**
- * URL 식별 및 파싱을 위한 공통 유틸리티 (이메일 도메인 오폭 방지 포함)
+ * URL 식별 및 파싱을 위한 공통 유틸리티 (이메일 및 따옴표 감싸진 URL 제외 로직 추가)
  * 한국어 주석 표준을 준수합니다.
  */
 
@@ -10,6 +10,7 @@ export interface TextToken {
 }
 
 // 문장 끝에서 URL 범위에서 제외해야 할 문장 부호 목록
+// 따옴표 및 스마트 따옴표도 제외 처리를 위해 대상에 추가
 const TRAILING_PUNCTUATION = /[.,)\]}"'”’]+$/;
 
 // 이메일 주소 매칭 정규식
@@ -20,7 +21,8 @@ const COMBINED_REGEX = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|https?:
 
 /**
  * 주어진 텍스트 내에서 URL과 일반 텍스트를 구분하여 토큰 배열로 분리합니다.
- * 이메일 주소(user@example.com 등)는 도메인이 URL로 쪼개지지 않고 일반 텍스트로 보존됩니다.
+ * - 이메일 주소는 링크화하지 않습니다.
+ * - 큰따옴표, 작은따옴표, 스마트 따옴표("URL", 'URL', “URL”, ‘URL’)로 감싸진 URL은 링크화하지 않습니다.
  * @param text 대상 입력 문자열
  * @returns 분리된 토큰 배열
  */
@@ -74,12 +76,28 @@ export function tokenizeText(text: string): TextToken[] {
       suffix = puncText;
     }
 
+    // 4. 따옴표로 완전히 감싸진 URL 제외 처리
+    // URL 바로 앞 문자와 (문장부호를 뗀 후의) URL 바로 뒤 문자를 스캔
+    const charBefore = matchIndex > 0 ? text[matchIndex - 1] : "";
+    const charAfter = text[matchIndex + matchedStr.length] || "";
+
+    const isWrappedInDoubleQuotes = charBefore === '"' && charAfter === '"';
+    const isWrappedInSingleQuotes = charBefore === "'" && charAfter === "'";
+    const isWrappedInSmartDoubleQuotes = charBefore === "“" && charAfter === "”";
+    const isWrappedInSmartSingleQuotes = charBefore === "‘" && charAfter === "’";
+
+    const isWrappedInQuotes =
+      isWrappedInDoubleQuotes ||
+      isWrappedInSingleQuotes ||
+      isWrappedInSmartDoubleQuotes ||
+      isWrappedInSmartSingleQuotes;
+
     // 정규식 오폭 방지 유효성 검사
     const hasProtocol = /^https?:\/\//i.test(matchedStr);
     const hasWww = /^www\./i.test(matchedStr);
     const isValidDomain = hasProtocol || hasWww || (matchedStr.includes(".") && matchedStr.length > 4);
 
-    if (matchedStr && isValidDomain) {
+    if (matchedStr && isValidDomain && !isWrappedInQuotes) {
       let finalHref = matchedStr;
       if (!hasProtocol) {
         finalHref = `https://${matchedStr}`;
@@ -91,6 +109,7 @@ export function tokenizeText(text: string): TextToken[] {
         url: finalHref,
       });
     } else {
+      // 따옴표로 감싸졌거나 유효하지 않은 도메인은 일반 텍스트로 보존
       tokens.push({
         type: "text",
         text: matchedStr,

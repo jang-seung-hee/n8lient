@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 텍스트 내 URL이 포함된 경우 클릭 가능한 링크 칩 배지로 안전하게 변환해주는 공통 컴포넌트
+ * 텍스트 내 URL이 포함된 경우 고정 텍스트("바로가기 링크") 형태의 링크 칩 배지로 안전하게 변환해주는 공통 컴포넌트
  * 한국어 주석 표준을 준수합니다.
  */
 
@@ -22,11 +22,8 @@ export default function LinkifiedText({ text, className = "" }: LinkifiedTextPro
     <span className={`ux_linkified_text ${className}`}>
       {tokens.map((token, index) => {
         if (token.type === "link" && token.url) {
-          // 표시 텍스트 제한 (40자 초과 시 말줄임)
-          const displayUrl =
-            token.text.length > 40
-              ? `${token.text.substring(0, 40)}...`
-              : token.text;
+          // 표시 텍스트는 고정된 라벨 "바로가기 링크"를 사용
+          const displayLabel = "바로가기 링크";
 
           return (
             <a
@@ -35,9 +32,9 @@ export default function LinkifiedText({ text, className = "" }: LinkifiedTextPro
               target="_blank"
               rel="noopener noreferrer"
               className="ux_link_chip"
-              title={token.text} // 전체 URL 툴팁 제공
+              title={token.text} // 전체 원본 URL을 툴팁(title)으로 제공
             >
-              {displayUrl}
+              {displayLabel}
             </a>
           );
         }
