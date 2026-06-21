@@ -3,6 +3,8 @@
 // 사용자 실행 화면에서 회사 자동화 사용방법 안내(noticeText)을 표시하는 컴팩트 안내 박스입니다.
 
 import { useEffect, useState, useRef } from "react";
+import LinkifiedText from "@/components/core/LinkifiedText";
+
 
 interface AutomationNoticeBoxProps {
   noticeText: string;
@@ -147,7 +149,8 @@ export default function AutomationNoticeBox({
                 overflowY: "auto",
               }}
             >
-              {trimmed}
+              <LinkifiedText text={trimmed} />
+
             </div>
             <div
               style={{

@@ -7,6 +7,8 @@
 "use client";
 
 import type { ClientPublicProfile } from "@/types/n8lient";
+import LinkifiedText from "@/components/core/LinkifiedText";
+
 
 interface CompanyInfoModalProps {
   open: boolean;
@@ -167,7 +169,12 @@ export function CompanyInfoModal({
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {profile.description || "등록된 소개 글이 없습니다."}
+                {profile.description ? (
+                  <LinkifiedText text={profile.description} />
+                ) : (
+                  "등록된 소개 글이 없습니다."
+                )}
+
               </p>
             </div>
 

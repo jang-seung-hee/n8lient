@@ -1283,3 +1283,34 @@
     max-width: 400px;
   }
 }
+
+/* URL 자동 링크화 스타일 */
+.ux_linkified_text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ux_link_chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 40ch;
+  vertical-align: baseline;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #eff6ff; /* light blue */
+  color: #2563eb; /* blue-600 */
+  border: 1px solid #dbeafe;
+  transition: background-color 0.2s, color 0.2s;
+  margin: 0 2px;
+}
+
+.ux_link_chip:hover {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
