@@ -1,5 +1,5 @@
 /**
- * URL 식별 및 파싱을 위한 공통 유틸리티
+ * URL 식별 및 파싱을 위한 공통 유틸리티 (이메일 도메인 오폭 방지 포함)
  * 한국어 주석 표준을 준수합니다.
  */
 
@@ -12,14 +12,15 @@ export interface TextToken {
 // 문장 끝에서 URL 범위에서 제외해야 할 문장 부호 목록
 const TRAILING_PUNCTUATION = /[.,)\]}"'”’]+$/;
 
-// URL 인식을 위한 기본 정규식
-// 1. https:// 또는 http:// 로 시작하는 주소
-// 2. www. 으로 시작하는 주소
-// 3. 일반 도메인 형태 (알파벳/숫자/하이픈.알파벳 2-6글자 TLD, 뒤에 경로가 올 수 있음)
-const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,6}(?:\/[^\s]*)?)/g;
+// 이메일 주소 매칭 정규식
+const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/;
+
+// 통합 매칭 정규식 (이메일을 먼저 매칭하여 URL 매칭 오폭을 원천 차단)
+const COMBINED_REGEX = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,6}(?:\/[^\s]*)?)/g;
 
 /**
  * 주어진 텍스트 내에서 URL과 일반 텍스트를 구분하여 토큰 배열로 분리합니다.
+ * 이메일 주소(user@example.com 등)는 도메인이 URL로 쪼개지지 않고 일반 텍스트로 보존됩니다.
  * @param text 대상 입력 문자열
  * @returns 분리된 토큰 배열
  */
@@ -29,14 +30,12 @@ export function tokenizeText(text: string): TextToken[] {
   const tokens: TextToken[] = [];
   let lastIndex = 0;
 
-  // 정규식 매칭 수행
   let match;
-  // RegExp.prototype.exec의 무한 루프 방지를 위해 정규식 복사본 사용
-  const regex = new RegExp(URL_REGEX);
+  const regex = new RegExp(COMBINED_REGEX);
 
   while ((match = regex.exec(text)) !== null) {
     const matchIndex = match.index;
-    let rawUrl = match[0];
+    let matchedStr = match[0];
 
     // 매칭 전 일반 텍스트 추가
     if (matchIndex > lastIndex) {
@@ -46,44 +45,58 @@ export function tokenizeText(text: string): TextToken[] {
       });
     }
 
-    // 문장 끝 문장부호 제외 처리 (예: https://example.com. -> https://example.com 과 .)
+    // 1. 이메일 주소인 경우 -> 통째로 일반 텍스트 처리
+    if (EMAIL_PATTERN.test(matchedStr)) {
+      tokens.push({
+        type: "text",
+        text: matchedStr,
+      });
+      lastIndex = regex.lastIndex;
+      continue;
+    }
+
+    // 2. 앞 문자가 @ 인 경우 -> URL 처리하지 않고 일반 텍스트로 처리
+    if (matchIndex > 0 && text[matchIndex - 1] === "@") {
+      tokens.push({
+        type: "text",
+        text: matchedStr,
+      });
+      lastIndex = regex.lastIndex;
+      continue;
+    }
+
+    // 3. 문장 끝 문장부호 제외 처리 (예: https://example.com. -> https://example.com 과 .)
     let suffix = "";
-    const puncMatch = rawUrl.match(TRAILING_PUNCTUATION);
+    const puncMatch = matchedStr.match(TRAILING_PUNCTUATION);
     if (puncMatch) {
       const puncText = puncMatch[0];
-      // 문장부호 부분을 URL에서 떼어냄
-      rawUrl = rawUrl.substring(0, rawUrl.length - puncText.length);
+      matchedStr = matchedStr.substring(0, matchedStr.length - puncText.length);
       suffix = puncText;
     }
 
-    // 정규식으로 다시 걸러서 도메인이 너무 짧거나 유효하지 않은 특수 케이스 제외
-    const hasProtocol = /^https?:\/\//i.test(rawUrl);
-    const hasWww = /^www\./i.test(rawUrl);
-    
-    // 프로토콜도 없고 www도 없는 일반 도메인의 경우 최소한 dot(.)이 포함되어 있어야 함
-    const isValidDomain = hasProtocol || hasWww || (rawUrl.includes(".") && rawUrl.length > 4);
+    // 정규식 오폭 방지 유효성 검사
+    const hasProtocol = /^https?:\/\//i.test(matchedStr);
+    const hasWww = /^www\./i.test(matchedStr);
+    const isValidDomain = hasProtocol || hasWww || (matchedStr.includes(".") && matchedStr.length > 4);
 
-    if (rawUrl && isValidDomain) {
-      // href에 바인딩할 최종 URL 생성 (www. 로 시작하거나 프로토콜이 없는 경우 https:// 보정)
-      let finalHref = rawUrl;
+    if (matchedStr && isValidDomain) {
+      let finalHref = matchedStr;
       if (!hasProtocol) {
-        finalHref = `https://${rawUrl}`;
+        finalHref = `https://${matchedStr}`;
       }
 
       tokens.push({
         type: "link",
-        text: rawUrl,
+        text: matchedStr,
         url: finalHref,
       });
     } else {
-      // 유효하지 않은 경우 일반 텍스트로 환원
       tokens.push({
         type: "text",
-        text: rawUrl,
+        text: matchedStr,
       });
     }
 
-    // 떼어낸 문장부호가 있다면 일반 텍스트로 토큰 목록에 추가
     if (suffix) {
       tokens.push({
         type: "text",
