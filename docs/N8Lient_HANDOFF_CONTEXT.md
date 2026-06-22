@@ -774,3 +774,13 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * 복수 수신자가 필요한 경우 `reportEmailTo` 값에 콤마로 구분하여 입력한다.
   * `buildCompletionNotice` 이메일 key 일반화 작업은 현재 진행하지 않는다.
 
+## 사용자 안내 URL 자동 링크화
+  * 결과 상세의 `[06] 처리 결과 요약`을 `[02] 처리 결과 확인`으로 변경하고, 기본 펼침 상태로 표시하도록 정리했다.
+  * `processorResult.summary`, `result.summary`, `result.resultUrl`, `processorResult.structuredData.actionLinks`를 사용자용 결과 메시지/링크 표시 기준으로 삼았다.
+  * 결과 링크는 `LinkifiedText`와 `ux_link_chip` 기반으로 자동 링크화 및 칩 형태 표시를 적용했다.
+  * 사용자에게 보여줄 완료 메시지와 링크는 앱이 만들지 않고, n8n 워크플로우가 callback payload로 생성하는 구조로 확정했다.
+  * Gateway는 callback 수신 및 `submissions` 저장만 담당하고, 앱은 `[02] 처리 결과 확인` 섹션에 표시만 담당한다.
+  * n8n 커스터마이징 시 AI가 처리 결과 확인 메시지 초안을 작성하고, 사용자 승인 후 callback payload에 반영하도록 절차를 보강했다.
+  * 권장 노드 구조는 `[24A] Build User Result Message` → `[24B] Build Success Callback Payload` → `[24C] Gateway Callback`이다.
+  * 기초설계서 10종과 커스터마이징 프롬프트 세트에 처리 결과 확인 계약을 최소 보강한 ZIP 세트를 생성했다.
+  * 처리 결과 확인 메시지/링크에는 Token, Secret, API Key, OAuth Token 등 민감정보를 포함하지 않도록 보안 기준을 명시했다.
