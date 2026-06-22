@@ -13,6 +13,7 @@ import {
   formatSubmissionActorLabel,
   type UserDisplaySource,
 } from "@/common/user/formatUserDisplayName";
+import LinkifiedText from "@/components/core/LinkifiedText";
 import {
   formatResultDisplayValue,
   resolveSubmissionErrorDisplay,
@@ -171,8 +172,11 @@ function SectionWrapper({
   if (!policy.visible) return null;
   if (!showWhenEmpty && !hasContent) return null;
 
+  // resultSummary는 데이터가 존재하는 경우 기본적으로 항상 펼쳐둠 (defaultOpen: true)
+  const defaultOpen = sectionKey === "resultSummary" ? true : policy.defaultOpen;
+
   return (
-    <ResultSectionAccordion sectionKey={sectionKey} defaultOpen={policy.defaultOpen}>
+    <ResultSectionAccordion sectionKey={sectionKey} defaultOpen={defaultOpen}>
       {children}
     </ResultSectionAccordion>
   );
@@ -345,6 +349,7 @@ export function ExecutionResultDetailPanel({
 
       case "resultSummary": {
         if (!hasResultSummaryContent(submission)) return null;
+        const summaryText = processorResult?.summary ?? submission.result?.summary;
         return (
           <SectionWrapper
             key={sectionKey}
@@ -353,29 +358,28 @@ export function ExecutionResultDetailPanel({
             showWhenEmpty={false}
             hasContent
           >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {processorResult?.title != null && (
                 <p className="text-xs font-bold text-gray-900">
                   📝 {formatResultDisplayValue(processorResult.title)}
                 </p>
               )}
-              {(processorResult?.summary != null || submission.result?.summary != null) && (
-                <p className="text-xs leading-snug text-gray-600">
-                  {formatResultDisplayValue(
-                    processorResult?.summary ?? submission.result?.summary
-                  )}
-                </p>
+              {summaryText != null && (
+                <div className="text-xs leading-snug text-gray-600">
+                  <LinkifiedText text={summaryText} />
+                </div>
               )}
               {submission.result?.resultUrl && (
-                <div className="text-xs">
-                  <span className="mr-1.5 text-gray-500">출력 URL:</span>
+                <div className="text-xs flex items-center gap-1.5 flex-wrap">
+                  <span className="text-gray-500">결과 링크:</span>
                   <a
                     href={submission.result.resultUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="break-all text-blue-600 underline"
+                    className="ux_link_chip inline-flex"
+                    title={submission.result.resultUrl}
                   >
-                    {submission.result.resultUrl}
+                    관련 URL 열기
                   </a>
                 </div>
               )}
@@ -419,15 +423,19 @@ export function ExecutionResultDetailPanel({
             showWhenEmpty={false}
             hasContent
           >
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 font-mono text-xs text-gray-800">
-              {reportBodyText}
-            </pre>
+            <div className="max-h-64 overflow-auto rounded-md bg-slate-50 p-3 font-mono text-xs text-gray-800">
+              <LinkifiedText text={reportBodyText} />
+            </div>
           </SectionWrapper>
         );
       }
 
       case "structuredData": {
         if (!structuredData) return null;
+        const actionLinks = Array.isArray(structuredData.actionLinks)
+          ? structuredData.actionLinks.filter((link: any) => link && typeof link === "object" && typeof link.url === "string" && link.url.trim() !== "")
+          : [];
+
         return (
           <SectionWrapper
             key={sectionKey}
@@ -436,9 +444,40 @@ export function ExecutionResultDetailPanel({
             showWhenEmpty={false}
             hasContent
           >
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 font-mono text-xs text-gray-800">
-              {formatResultDisplayValue(structuredData)}
-            </pre>
+            <div className="flex flex-col gap-3">
+              {actionLinks.length > 0 && (
+                <div className="flex flex-col gap-2 rounded-md border border-gray-100 bg-gray-50/50 p-3">
+                  <span className="text-xs font-semibold text-gray-700">🔗 관련 링크</span>
+                  <div className="flex flex-wrap gap-2">
+                    {actionLinks.map((link: any, i: number) => {
+                      const label = typeof link.label === "string" && link.label.trim() !== ""
+                        ? link.label.trim()
+                        : "관련 URL 열기";
+                      const isPrimary = link.type === "primary";
+                      const btnClass = isPrimary
+                        ? "ux_button_compact ux_button_primary"
+                        : "ux_button_compact ux_button_secondary";
+                      return (
+                        <a
+                          key={i}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`${btnClass} inline-flex items-center text-xs`}
+                          title={link.url}
+                          style={{ textDecoration: "none", height: "30px" }}
+                        >
+                          {label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 font-mono text-xs text-gray-800">
+                {formatResultDisplayValue(structuredData)}
+              </pre>
+            </div>
           </SectionWrapper>
         );
       }

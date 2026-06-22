@@ -28,11 +28,11 @@ export type { UserDisplaySource } from "@/common/user/formatUserDisplayName";
 /** 섹션 표준 순서 및 한글 제목 */
 export const RESULT_SECTION_ORDER: ResultSectionKey[] = [
   "basicInfo",
+  "resultSummary",
   "statusSummary",
   "inputInfo",
   "retentionPolicy",
   "originalFiles",
-  "resultSummary",
   "reportBody",
   "structuredData",
   "resultFiles",
@@ -49,7 +49,7 @@ export const RESULT_SECTION_LABELS: Record<ResultSectionKey, string> = {
   inputInfo: "요청 입력 정보",
   retentionPolicy: "보관 정책 정보",
   originalFiles: "첨부 원본 파일",
-  resultSummary: "처리 결과 요약",
+  resultSummary: "처리 결과 확인",
   reportBody: "상세 리포트 본문",
   structuredData: "추출 구조화 데이터",
   resultFiles: "생성된 결과 파일",
@@ -62,11 +62,11 @@ export const RESULT_SECTION_LABELS: Record<ResultSectionKey, string> = {
 
 export const RESULT_SECTION_NUMBERS: Record<ResultSectionKey, string> = {
   basicInfo: "01",
-  statusSummary: "02",
-  inputInfo: "03",
-  retentionPolicy: "04",
-  originalFiles: "05",
-  resultSummary: "06",
+  resultSummary: "02",
+  statusSummary: "03",
+  inputInfo: "04",
+  retentionPolicy: "05",
+  originalFiles: "06",
   reportBody: "07",
   structuredData: "08",
   resultFiles: "09",
