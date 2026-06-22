@@ -222,6 +222,7 @@ export async function saveClientAutomation(
     noticeText?: string;
     companyRetentionPolicy?: CompanyRetentionPolicy;
     contractRetentionLimit?: ContractRetentionLimit;
+    isNew?: boolean;
   }): Promise<{ success: boolean; message?: string }> {
   try {
     const {
@@ -265,8 +266,17 @@ export async function saveClientAutomation(
     // 3. automationId 생성 포맷: {clientId}_{workflowKey}
     const automationId = `${clientId}_${workflowKey}`;
     const docRef = doc(db, "clientAutomations", automationId);
-    const existingSnap = await getDoc(docRef);
-    const existing = existingSnap.exists() ? (existingSnap.data() as ClientAutomation) : null;
+    
+    // 신규 등록 시(isNew === true) getDoc 선행조회를 건너뛰어 Firestore Read Rule 권한 오류(resource.data 부재) 방지
+    let existing: ClientAutomation | null = null;
+    if (!params.isNew) {
+      try {
+        const existingSnap = await getDoc(docRef);
+        existing = existingSnap.exists() ? (existingSnap.data() as ClientAutomation) : null;
+      } catch (e) {
+        console.warn("[companyAdminService] 기존 설정 조회 건너뜀 (신규 생성 시도 또는 권한 제한):", e);
+      }
+    }
     const trimmedNotice = noticeText?.trim() ?? "";
     const allowedUserIds = Array.isArray(existing?.allowedUserIds) ? existing.allowedUserIds : [];
 

@@ -202,6 +202,7 @@ export default function CompanyAutomationForm({
           allowedUserLevels: coAllowedUserLevels,
           allowUserOverride: finalAllowUserOverride,
         },
+        isNew: !automation,
       });
 
       if (res.success) {
