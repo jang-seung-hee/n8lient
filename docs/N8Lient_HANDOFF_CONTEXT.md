@@ -784,3 +784,11 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * 권장 노드 구조는 `[24A] Build User Result Message` → `[24B] Build Success Callback Payload` → `[24C] Gateway Callback`이다.
   * 기초설계서 10종과 커스터마이징 프롬프트 세트에 처리 결과 확인 계약을 최소 보강한 ZIP 세트를 생성했다.
   * 처리 결과 확인 메시지/링크에는 Token, Secret, API Key, OAuth Token 등 민감정보를 포함하지 않도록 보안 기준을 명시했다.
+
+## [백로그] 역할별 설정 필드 숨김/고정 정책
+  * **필요성 확인**: 워크플로우 종류가 증가함에 따라 하위 역할(회사관리자, 일반 사용자)에 불필요하거나 노출되면 안 되는 민감한 마스터 성향 설정 필드를 숨기거나 고정할 정책적 필요성이 대두됨.
+  * **설계 분석**:
+    * 현재 스키마에는 `fieldPolicies`나 `operatorFixedSettings` 구조가 정의되어 있지 않음.
+    * 단순히 프론트엔드 UI 화면단에서 제외하는 수준으로는 API 직접 주입 우회 우려가 있어, 게이트웨이 `finalSettings` 병합(`mergeAutomationSettings`) 단계에서의 무시/방어 필터링 처리가 필수적임.
+    * 도입 시 `clientContracts`/`clientAutomations` 다큐먼트, UI 편집 폼, 설정 병합 유틸, 그리고 필수값(`required`) 검증 유효성 예외 처리까지 공통 영역(App + Gateway + Firestore + validation) 전반에 걸친 유동적 수정이 요구됨.
+  * **결정 사항**: MVP 단계에서의 실행 안전성과 회귀 위험을 배제하기 위해 **현재 구현은 보류**하고 기술 백로그로 남김. 추후 설정 고도화 또는 운영자 매핑 폼 리팩토링 진행 시 이 구조적 설계안을 재검토하여 추진할 예정임.
