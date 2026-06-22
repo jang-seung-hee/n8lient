@@ -16,7 +16,7 @@ interface AdminLayoutProps {
 }
 
 export default function CompanyAdminLayout({ children }: AdminLayoutProps) {
-  const { user, userDoc, loading } = useAuthUser();
+  const { user, userDoc, loading, userDocLoading } = useAuthUser();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -24,18 +24,20 @@ export default function CompanyAdminLayout({ children }: AdminLayoutProps) {
 
   // 회사 관리자(또는 시스템 운영자) 권한 체크 및 접근 제한
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !userDocLoading) {
       if (
         !user ||
-        userDoc?.approvalStatus !== "approved" ||
-        (userDoc?.role !== "company_admin" && userDoc?.role !== "operator")
+        !userDoc ||
+        userDoc.uid !== user.uid ||
+        userDoc.approvalStatus !== "approved" ||
+        (userDoc.role !== "company_admin" && userDoc.role !== "operator")
       ) {
         router.replace("/");
       }
     }
-  }, [user, userDoc, loading, router]);
+  }, [user, userDoc, loading, userDocLoading, router]);
 
-  if (loading) {
+  if (loading || userDocLoading) {
     return (
       <div
         style={{
@@ -53,8 +55,10 @@ export default function CompanyAdminLayout({ children }: AdminLayoutProps) {
 
   if (
     !user ||
-    userDoc?.approvalStatus !== "approved" ||
-    (userDoc?.role !== "company_admin" && userDoc?.role !== "operator")
+    !userDoc ||
+    userDoc.uid !== user.uid ||
+    userDoc.approvalStatus !== "approved" ||
+    (userDoc.role !== "company_admin" && userDoc.role !== "operator")
   ) {
     return null;
   }

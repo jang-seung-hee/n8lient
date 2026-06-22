@@ -33,6 +33,8 @@ interface AuthContextType {
   userDoc: UserDoc | null;
   /** Auth 및 Firestore 프로필 로딩 여부 */
   loading: boolean;
+  /** userDoc의 동기화 로딩 여부 */
+  userDocLoading: boolean;
   /** Google 팝업으로 로그인 */
   signInWithGoogle: () => Promise<void>;
   /** 로그아웃 */
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userDocLoading, setUserDocLoading] = useState(false);
 
   // Firebase Auth 및 Firestore 실시간 동기화 감지
   useEffect(() => {
@@ -75,10 +78,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     let isMounted = true;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      // 기존 Firestore 문서 구독 해제
+      // 기존 Firestore 문서 구독 해제 및 즉시 userDoc 초기화로 캐시 렉 방지
       if (unsubscribeDoc) {
         unsubscribeDoc();
         unsubscribeDoc = null;
+      }
+      if (isMounted) {
+        setUserDoc(null);
+        setUserDocLoading(firebaseUser ? true : false);
       }
 
       if (firebaseUser) {
@@ -87,30 +94,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         // Firestore의 users/{uid} 문서 구독 시작
+        const currentUid = firebaseUser.uid;
         unsubscribeDoc = subscribeUserDoc(
           db,
-          firebaseUser.uid,
+          currentUid,
           async (docData) => {
             if (!isMounted) return;
 
+            // 현재 Auth 세션의 UID와 구독 결과 UID가 일치하는 경우에만 상태 반영
             if (docData === null) {
               // 문서가 없으면 기본 문서 생성
               try {
                 const newDoc = await createDefaultUserDoc(db, firebaseUser);
-                if (isMounted) {
+                if (isMounted && auth.currentUser?.uid === currentUid) {
                   setUserDoc(newDoc);
+                  setUserDocLoading(false);
                   setLoading(false);
                 }
               } catch (error) {
                 console.error("[AuthProvider] 기본 사용자 문서 자동 생성 중 오류:", error);
                 if (isMounted) {
+                  setUserDocLoading(false);
                   setLoading(false);
                 }
               }
             } else {
               // 문서가 있으면 상태 업데이트 및 로딩 종료
-              if (isMounted) {
+              if (isMounted && auth.currentUser?.uid === currentUid && docData.uid === currentUid) {
                 setUserDoc(docData);
+                setUserDocLoading(false);
                 setLoading(false);
               }
             }
@@ -118,6 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           (error) => {
             console.error("[AuthProvider] 사용자 문서 구독 오류:", error);
             if (isMounted) {
+              setUserDocLoading(false);
               setLoading(false);
             }
           }
@@ -127,6 +140,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (isMounted) {
           setUser(null);
           setUserDoc(null);
+          setUserDocLoading(false);
           setLoading(false);
         }
       }
@@ -194,6 +208,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         user,
         userDoc,
         loading,
+        userDocLoading,
         signInWithGoogle,
         signOut,
         submitCompanyCode,

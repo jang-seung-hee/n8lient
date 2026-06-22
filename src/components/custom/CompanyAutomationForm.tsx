@@ -8,6 +8,7 @@ import { playAppSound } from "@/lib/appSound";
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
 import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
+import { useAuthUser } from "@/features/auth/useAuthUser";
 
 interface CompanyAutomationFormProps {
   db: Firestore;
@@ -30,6 +31,7 @@ export default function CompanyAutomationForm({
   onSuccess,
   onCancel,
 }: CompanyAutomationFormProps) {
+  const { user, userDoc, userDocLoading } = useAuthUser();
   // alert 지연 호출용 타이머 ID 보존 목록
   const timeoutIdsRef = useRef<number[]>([]);
 
@@ -60,6 +62,13 @@ export default function CompanyAutomationForm({
   const [coAllowUserOverride, setCoAllowUserOverride] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
+
+  // 실시간 권한 여부 체크: 로그인 유저가 존재하고, role이 company_admin/operator이며, clientId가 매칭되는지 검사
+  const hasWritePermission =
+    user &&
+    userDoc &&
+    userDoc.uid === user.uid &&
+    (userDoc.role === "operator" || (userDoc.role === "company_admin" && userDoc.clientId === clientId));
 
   const isSecurityField = (key: string, type: string) => {
     if (type === "secret") return true;
@@ -423,8 +432,14 @@ export default function CompanyAutomationForm({
           <button
             type="submit"
             className="ux_button ux_button_primary"
-            disabled={submitting}
-            style={{ flex: 1, border: "none", borderRadius: "6px" }}
+            disabled={submitting || !hasWritePermission}
+            style={{
+              flex: 1,
+              border: "none",
+              borderRadius: "6px",
+              opacity: (submitting || !hasWritePermission) ? 0.6 : 1,
+              cursor: (submitting || !hasWritePermission) ? "not-allowed" : "pointer"
+            }}
           >
             {submitting ? "저장 중..." : "⚙️ 설정 저장 및 활성화"}
           </button>
