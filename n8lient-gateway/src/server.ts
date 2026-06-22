@@ -781,8 +781,11 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
 
       const errorDetails = {
         phase: "GATEWAY_N8N_CALL",
+        stage: "UPSTREAM_CALL",
         source: "gateway",
         httpStatus,
+        upstreamStatus: httpStatus || null,
+        webhookSecretId,
         occurredAt: new Date().toISOString(),
         gatewayTraceId,
         n8nServerKey,
@@ -797,8 +800,8 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
           status: "failed",
           updatedAt: new Date().toISOString(),
           error: {
-            code: "GATEWAY_EXECUTE_FAILED",
-            message: n8nErr.message || "게이트웨이 통신 실패"
+            code: httpStatus === 404 ? "N8N_WEBHOOK_NOT_FOUND" : "GATEWAY_EXECUTE_FAILED",
+            message: httpStatus === 404 ? "n8n 워크플로우의 Webhook 경로를 찾을 수 없습니다. (미등록 또는 비활성)" : (n8nErr.message || "게이트웨이 통신 실패")
           },
           errorDetails
         });
@@ -806,7 +809,11 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
 
       return res.status(httpStatus || 500).json({
         success: false,
-        error: `실행 실패: ${n8nErr.message}`,
+        error: httpStatus === 404 ? "n8n 워크플로우 Webhook 미등록 또는 비활성" : `실행 실패: ${n8nErr.message}`,
+        errorCode: httpStatus === 404 ? "N8N_WEBHOOK_NOT_FOUND" : "GATEWAY_EXECUTE_FAILED",
+        stage: "UPSTREAM_CALL",
+        upstreamStatus: httpStatus || null,
+        webhookSecretId,
         errorDetails
       });
     }

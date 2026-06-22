@@ -96,95 +96,69 @@ export default function UserExecute() {
       googleDriveEnabled,
     } = completeModalNotice;
 
-    const failureWarning = (
-      <>
-        단, 워크플로우 실패 시에는{" "}
-        <span className="ux_notice_highlight_result">결과 화면</span>
-        에서만 확인할 수 있습니다.
-      </>
+    // 1. 이메일 표시 판정
+    const hasEmail = emailWillSend && emailTo;
+    const emailDisplay = hasEmail ? (
+      <span className="ux_notice_highlight_email">{emailTo}</span>
+    ) : (
+      "해당사항 없음"
     );
 
-    if (emailWillSend && emailTo) {
-      let storageText: React.ReactNode = null;
-      if (retentionLevel === "notify_only") {
-        storageText = "으로 결과가 전송될 예정입니다.";
-      } else if (retentionLevel === "processed_result" || (databaseEnabled && !storageEnabled)) {
-        storageText = (
-          <>
-            으로 결과가 전송되고,{" "}
-            <span className="ux_notice_highlight_database">데이터베이스</span>
-            에도 저장될 예정입니다.
-          </>
-        );
-      } else if (retentionLevel === "full_archive" || storageEnabled) {
-        if (googleDriveEnabled) {
-          storageText = (
-            <>
-              으로 결과가 전송되고,{" "}
-              <span className="ux_notice_highlight_database">데이터베이스</span>
-              와{" "}
-              <span className="ux_notice_highlight_storage">스토리지</span>
-              {" "}그리고{" "}
-              <span className="ux_notice_highlight_drive">구글 드라이브</span>
-              에 저장될 예정입니다.
-            </>
-          );
-        } else {
-          storageText = (
-            <>
-              으로 결과가 전송되고,{" "}
-              <span className="ux_notice_highlight_database">데이터베이스</span>
-              와{" "}
-              <span className="ux_notice_highlight_storage">스토리지</span>
-              에 파일까지 저장될 예정입니다.
-            </>
-          );
-        }
-      } else {
-        storageText = "으로 결과가 전송될 예정입니다.";
-      }
+    // 2. 데이터베이스 표시 판정: processed_result 이상 또는 databaseEnabled일 때
+    const isDbEnabled = databaseEnabled || retentionLevel === "processed_result" || retentionLevel === "full_archive";
+    const dbDisplay = isDbEnabled ? (
+      <span className="ux_notice_highlight_database">보관처리 됨</span>
+    ) : (
+      "해당사항 없음"
+    );
 
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <p style={{ margin: 0 }}>실행 요청이 완료되었습니다.</p>
-          <p style={{ margin: 0 }}>
-            <span className="ux_notice_highlight_email">"{emailTo}"</span>
-            {storageText}
-          </p>
+    // 3. 스토리지 표시 판정: full_archive 또는 storageEnabled일 때
+    const isStorageEnabled = storageEnabled || retentionLevel === "full_archive";
+    const storageDisplay = isStorageEnabled ? (
+      <span className="ux_notice_highlight_storage">보관처리 됨</span>
+    ) : (
+      "해당사항 없음"
+    );
+
+    // 4. 구글드라이브 표시 판정
+    const driveDisplay = googleDriveEnabled ? (
+      <span className="ux_notice_highlight_drive">구글드라이브 저장/내보내기 예정</span>
+    ) : (
+      "해당사항 없음"
+    );
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ fontWeight: "700", marginBottom: "4px" }}>[실행 결과보고]</div>
+          <div style={{ margin: 0 }}>
+            1. 이메일 : {emailDisplay}
+          </div>
+          <div style={{ margin: 0 }}>
+            2. 데이터베이스 : {dbDisplay}
+          </div>
+          <div style={{ margin: 0 }}>
+            3. 스토리지 : {storageDisplay}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ fontWeight: "700" }}>4. 구글드라이브 옵션</div>
+          <div style={{ margin: 0, paddingLeft: "8px" }}>
+            - {driveDisplay}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "8px", borderTop: "1px dashed #e5e7eb", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
           <p style={{ margin: 0 }}>
             워크플로우 처리가 성공하면 설정된 결과보고 방식에 따라 결과가 전달됩니다.
           </p>
-          <p style={{ margin: 0 }}>{failureWarning}</p>
-        </div>
-      );
-    } else if (emailConfigured && !emailWillSend) {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <p style={{ margin: 0 }}>실행 요청이 완료되었습니다.</p>
           <p style={{ margin: 0 }}>
-            결과보고 이메일 주소는 설정되어 있으나, 현재 이메일 전송 정책이 비활성화되어 있습니다.
+            단, 워크플로우 실패 시에는 <span className="ux_notice_highlight_result">로그화면</span>에서만 확인할 수 있습니다.
           </p>
-          <p style={{ margin: 0 }}>
-            처리 결과는{" "}
-            <span className="ux_notice_highlight_result">결과 화면</span>
-            에서 확인해 주세요.
-          </p>
-          <p style={{ margin: 0 }}>{failureWarning}</p>
         </div>
-      );
-    } else {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <p style={{ margin: 0 }}>실행 요청이 완료되었습니다.</p>
-          <p style={{ margin: 0 }}>
-            결과보고 이메일이 설정되어 있지 않아, 처리 결과는{" "}
-            <span className="ux_notice_highlight_result">결과 화면</span>
-            에서 확인해 주세요.
-          </p>
-          <p style={{ margin: 0 }}>{failureWarning}</p>
-        </div>
-      );
-    }
+      </div>
+    );
   };
 
   const addDelayedAlert = (message: string, delay = 150) => {

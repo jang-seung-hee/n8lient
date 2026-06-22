@@ -785,6 +785,21 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * 기초설계서 10종과 커스터마이징 프롬프트 세트에 처리 결과 확인 계약을 최소 보강한 ZIP 세트를 생성했다.
   * 처리 결과 확인 메시지/링크에는 Token, Secret, API Key, OAuth Token 등 민감정보를 포함하지 않도록 보안 기준을 명시했다.
 
+## 신규 워크플로우 배포 시 Webhook 및 Active 검증 규칙
+* **n8n 워크플로우 Active 활성화**:
+  * 신규 워크플로우(예: `google-calendar-scheduler`)를 배포하거나 업데이트한 경우, n8n 대시보드 우측 상단의 **Active 토글이 반드시 ON**으로 켜져 있는지 확인해야 한다.
+  * Active가 켜지지 않은 경우 n8n은 해당 Production Webhook 경로에 대해 HTTP 404 Not Found를 반환하며 게이트웨이 호출 시 `N8N_WEBHOOK_NOT_FOUND` 실패를 기록한다.
+* **Production Webhook 경로 확인**:
+  * 워크플로우 내부 Webhook 노드의 URL Path가 Firestore `workflowTemplates` 내 `webhookSecretId` (예: `n8lient-google-calendar-scheduler-0-9-0-0`)와 정확히 대소문자 및 하이픈까지 일치하는지 대조한다.
+* **자가 격리 검증 (수동 curl)**:
+  * 배포 완료 후 다음 curl 명령을 이용해 n8n Production Webhook이 실제로 등록되어 리슨 중인지 외부에서 직접 진단할 수 있어야 한다.
+    ```bash
+    curl.exe -s -i -X POST "https://n8n.rentaltalk.kr/webhook/n8lient-{webhookSecretId}" -H "Content-Type: application/json" -d "{\"test\":true}"
+    ```
+  * **판정 기준**:
+    * **HTTP 422 또는 정상 수신 응답**: Webhook 리스너가 정상 작동 중이고 Active 상태임 (정상) ✅
+    * **HTTP 404 ("The requested webhook is not registered")**: 워크플로우가 Inactive 상태이거나 Webhook 경로 오타 발생 (오류) ❌
+
 ## [백로그] 역할별 설정 필드 숨김/고정 정책
   * **필요성 확인**: 워크플로우 종류가 증가함에 따라 하위 역할(회사관리자, 일반 사용자)에 불필요하거나 노출되면 안 되는 민감한 마스터 성향 설정 필드를 숨기거나 고정할 정책적 필요성이 대두됨.
   * **설계 분석**:
