@@ -5,10 +5,9 @@ import { Firestore } from "firebase/firestore";
 import { getUserAutomationSettings, saveUserAutomationSettings } from "@/features/user/userService";
 import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings, UserRetentionPreference } from "@/types/n8lient";
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
-import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
-import { hasPersonalSettingValue, resolveFieldGuidanceState } from "@/features/user/settings/resolvePersonalSettingFieldState";
-import UserSettingGuidanceBadge from "@/components/custom/user-settings/UserSettingGuidanceBadge";
+import { hasPersonalSettingValue } from "@/features/user/settings/resolvePersonalSettingFieldState";
+import PersonalConfigFieldEditor from "@/components/custom/user-settings/PersonalConfigFieldEditor";
 
 interface UserPersonalSettingsModalProps {
   isOpen: boolean;
@@ -286,131 +285,19 @@ export default function UserPersonalSettingsModal({
             currentTemplate.configSchema &&
             currentTemplate.configSchema
               .filter((field) => !isSecurityField(field.key, field.type))
-              .map((field) => {
-                const companyDefaultVal = currentAuto.settings?.[field.key];
-                const helpText = companyDefaultVal
-                  ? `회사 기본값: ${companyDefaultVal}`
-                  : "회사 기본값 없음";
-
-                const guidance = currentAuto.userSettingGuidance?.[field.key];
-                const rawVal = personalSettings[field.key];
-                const hasPersonalValue = hasPersonalSettingValue(rawVal);
-
-                const visibility = currentAuto.userSettingVisibility?.[field.key];
-                const shouldHideWhenEmpty = visibility === "hide_when_empty";
-
-                // 조건부 숨김 판정: 회사관리자가 숨김을 켰고 개인값이 비어있는 경우
-                if (shouldHideWhenEmpty && !hasPersonalValue) {
-                  return null;
-                }
-
-                const { badgeType, guidanceText, inputBorderColor } = resolveFieldGuidanceState(
-                  guidance,
-                  hasPersonalValue
-                );
-
-                return (
-                  <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <label className="ux_label" style={{ fontSize: "12px" }}>
-                        {field.label}
-                      </label>
-                      <UserSettingGuidanceBadge badgeType={badgeType} />
-                    </div>
-
-                    {field.type === "textarea" ? (
-                      <textarea
-                        className="ux_textarea"
-                        value={personalSettings[field.key] ?? ""}
-                        onChange={(e) =>
-                          setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                        placeholder={`${helpText} (비워두면 기본값 사용)`}
-                        style={{ minHeight: "60px", borderColor: inputBorderColor }}
-                      />
-                    ) : field.type === "select" ? (
-                      <select
-                        className="ux_select_compact"
-                        value={personalSettings[field.key] ?? ""}
-                        onChange={(e) =>
-                          setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                        style={{ borderColor: inputBorderColor }}
-                      >
-                        <option value="">{`회사 기본값 사용 (${companyDefaultVal || "없음"})`}</option>
-                        {field.options?.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    ) : field.type === "boolean" ? (
-                      <select
-                        className="ux_select_compact"
-                        value={
-                          personalSettings[field.key] === undefined || personalSettings[field.key] === null
-                             ? ""
-                             : String(personalSettings[field.key])
-                        }
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setPersonalSettings((prev) => ({
-                            ...prev,
-                            [field.key]: val === "" ? "" : val === "true",
-                          }));
-                        }}
-                        style={{ borderColor: inputBorderColor }}
-                      >
-                        <option value="">{`회사 기본값 사용 (${
-                          companyDefaultVal !== undefined ? String(companyDefaultVal) : "없음"
-                        })`}</option>
-                        <option value="true">True (사용)</option>
-                        <option value="false">False (미사용)</option>
-                      </select>
-                    ) : isGoogleDriveFolderIdConfigKey(field.key) ? (
-                      <div style={{ borderColor: inputBorderColor }}>
-                        <GoogleDriveFolderIdInput
-                          value={String(personalSettings[field.key] ?? "")}
-                          onChange={(v) =>
-                            setPersonalSettings((prev) => ({ ...prev, [field.key]: v }))
-                          }
-                          placeholder={`${helpText} (폴더 ID 또는 링크, 비워두면 기본값 사용)`}
-                          allowEmpty
-                        />
-                      </div>
-                    ) : (
-                      <input
-                        type={field.type === "number" ? "number" : "text"}
-                        className="ux_input_compact"
-                        value={personalSettings[field.key] ?? ""}
-                        onChange={(e) =>
-                          setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                        placeholder={`${helpText} (비워두면 기본값 사용)`}
-                        style={{ borderColor: inputBorderColor }}
-                      />
-                    )}
-
-                    {shouldHideWhenEmpty && hasPersonalValue && (
-                      <span className="ux_guidance_badge_recommended" style={{ fontSize: "11px", fontWeight: "600", marginTop: "2px", display: "inline-flex", alignSelf: "flex-start", padding: "2px 8px" }}>
-                        ℹ️ 기존 개인 설정값이 있어 표시 중입니다. 값을 비우면 회사 기본값으로 처리됩니다.
-                      </span>
-                    )}
-
-                    {guidanceText && (
-                      <span style={{ fontSize: "11px", fontWeight: "600", color: guidance === "required_override" ? "#dc2626" : "#d97706", marginTop: "2px" }}>
-                        ⚠️ {guidanceText}
-                      </span>
-                    )}
-
-                    {field.description && (
-                      <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>
-                        ℹ️ {field.description}
-                      </span>
-                    )}
-                  </div>
-                );
-              })
+              .map((field) => (
+                <PersonalConfigFieldEditor
+                  key={field.key}
+                  field={field}
+                  companyDefaultVal={currentAuto.settings?.[field.key]}
+                  personalValue={personalSettings[field.key]}
+                  guidance={currentAuto.userSettingGuidance?.[field.key]}
+                  visibility={currentAuto.userSettingVisibility?.[field.key]}
+                  onChange={(val) =>
+                    setPersonalSettings((prev) => ({ ...prev, [field.key]: val }))
+                  }
+                />
+              ))
           )}
 
           {/* [v2.7] 개인 보관 정책 선호도 선택 UI (회사 및 오퍼레이터가 사용자 변경을 허용한 경우에만 노출) */}

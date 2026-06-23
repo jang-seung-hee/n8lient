@@ -24,6 +24,8 @@ import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDis
 import { useScreenWakeLock } from "@/hooks/useScreenWakeLock";
 import { resolveCompletionNotice } from "@/features/user/execute/resolveCompletionNotice";
 import { resolveUserSettingGuidanceStatus } from "@/features/user/execute/resolveUserSettingGuidanceStatus";
+import ExecuteSubmitButton from "@/components/custom/user-execute/ExecuteSubmitButton";
+import ValidationDebugPanel from "@/components/custom/user-execute/ValidationDebugPanel";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -527,118 +529,33 @@ export default function UserExecute() {
             💡 긴 녹음이나 업로드 중에는 화면이 꺼지지 않도록 유지합니다. 일부 브라우저나 저전력 모드에서는 기기 설정에 따라 화면이 꺼질 수 있습니다.
           </div>
 
-          {isRecording ? (
-            <button
-              type="submit"
-              className="ux_button ux_button_danger ux_button_submit_large ux_execute_submit_inline_mobile_hide"
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                borderRadius: "6px",
-                transition: "background-color 0.15s ease",
-              }}
-            >
-              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ffffff", animation: "pulse 1.5s infinite" }}></span>
-              🛑 녹음 정지 ({(() => {
-                const mins = Math.floor(recordingTime / 60);
-                const secs = recordingTime % 60;
-                return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-              })()})
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="ux_button ux_button_primary ux_button_submit_large ux_execute_submit_inline_mobile_hide"
-              disabled={submitting}
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                borderRadius: "6px",
-                backgroundColor: submitting ? "#4b5563" : undefined,
-                border: submitting ? "none" : undefined,
-                transition: "background-color 0.15s ease",
-              }}
-            >
-              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "작성내용 전송하기"}
-            </button>
-          )}
+          <ExecuteSubmitButton
+            isRecording={isRecording}
+            recordingTime={recordingTime}
+            submitting={submitting}
+            hasFile={!!selectedFile}
+            onSubmitClick={handleSubmit as unknown as React.MouseEventHandler}
+            isInlineMobileHide={true}
+            buttonType="submit"
+          />
         </form>
 
         {/* 모바일 전용 하단 고정 전송 버튼 바 — PC에서는 CSS로 자동 숨김 */}
         <div className="ux_mobile_submit_bar">
-          {isRecording ? (
-            <button
-              type="button"
-              onClick={handleSubmit as unknown as React.MouseEventHandler}
-              className="ux_button ux_button_danger ux_button_submit_large"
-              style={{ width: "100%", borderRadius: "6px", transition: "background-color 0.15s ease" }}
-            >
-              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ffffff", animation: "pulse 1.5s infinite", marginRight: "6px" }}></span>
-              🛑 녹음 정지 ({(() => {
-                const mins = Math.floor(recordingTime / 60);
-                const secs = recordingTime % 60;
-                return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-              })()})
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit as unknown as React.MouseEventHandler}
-              className="ux_button ux_button_primary ux_button_submit_large"
-              disabled={submitting}
-              style={{
-                width: "100%",
-                borderRadius: "6px",
-                backgroundColor: submitting ? "#4b5563" : undefined,
-                border: submitting ? "none" : undefined,
-                transition: "background-color 0.15s ease",
-              }}
-            >
-              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "작성내용 전송하기"}
-            </button>
-          )}
+          <ExecuteSubmitButton
+            isRecording={isRecording}
+            recordingTime={recordingTime}
+            submitting={submitting}
+            hasFile={!!selectedFile}
+            onSubmitClick={handleSubmit as unknown as React.MouseEventHandler}
+            isInlineMobileHide={false}
+            buttonType="button"
+          />
         </div>
         </>
       )}
 
-      {isDebugMode && validationDebug && (
-        <div className="ux_info_box" style={{ marginTop: "16px", padding: "10px", borderRadius: "6px", fontSize: "12px", color: "#374151", backgroundColor: "#f3f4f6" }}>
-          <details>
-            <summary style={{ cursor: "pointer", fontWeight: 600, outline: "none" }}>🔍 개발자 디버그 정보 (클릭하여 열기)</summary>
-            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px", fontFamily: "monospace" }}>
-              <div>누락 필드: {validationDebug.missingFields?.join(", ") || "(없음)"}</div>
-              {validationDebug.issues?.length > 0 && (
-                <div style={{ marginTop: "4px" }}>
-                  <div style={{ fontWeight: 600, marginBottom: "2px" }}>검증 이슈:</div>
-                  {validationDebug.issues.map((issue: { field: string; code: string; message: string }, idx: number) => (
-                    <div key={idx} style={{ marginLeft: "8px" }}>
-                      [{issue.code}] {issue.field}: {issue.message}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {validationDebug.received ? (
-                <>
-                  <div>자동화 ID 존재 여부: {String(validationDebug.received.hasAutomationId ?? "")}</div>
-                  <div>제목 존재 여부: {String(validationDebug.received.hasTitle ?? "")}</div>
-                  <div>본문 존재 여부: {String(validationDebug.received.hasText ?? "")}</div>
-                  <div>첨부 파일 개수: {validationDebug.received.fileCount ?? 0}</div>
-                  <div>인식된 입력 타입: {validationDebug.received.providedInputTypes?.join(", ") || "없음"}</div>
-                </>
-              ) : (
-                <>
-                  <div>자동화 ID 존재 여부: {String(validationDebug.hasAutomationId ?? "")}</div>
-                  <div>제목 존재 여부: {String(validationDebug.hasTitle ?? "")}</div>
-                  <div>입력 유형: {validationDebug.inputType || ""}</div>
-                  <div>파일 첨부 여부: {validationDebug.hasFile ? "있음" : "없음"}</div>
-                </>
-              )}
-              {validationDebug.source && <div>요청 단계: {validationDebug.source}</div>}
-              {validationDebug.requestId && <div>요청 ID: {validationDebug.requestId}</div>}
-            </div>
-          </details>
-        </div>
-      )}
+      <ValidationDebugPanel isDebugMode={isDebugMode} validationDebug={validationDebug} />
 
       {showModal && currentAuto && currentTemplate && user && userDoc?.clientId && (
         <UserPersonalSettingsModal isOpen={showModal} onClose={() => { setShowModal(false); if (selectedAutoId) loadUserSettings(selectedAutoId); }} db={db} uid={user.uid} clientId={userDoc.clientId} currentAuto={currentAuto} currentTemplate={currentTemplate} />
