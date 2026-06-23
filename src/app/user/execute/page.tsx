@@ -22,6 +22,8 @@ import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettin
 import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 import { useScreenWakeLock } from "@/hooks/useScreenWakeLock";
+import { resolveCompletionNotice } from "@/features/user/execute/resolveCompletionNotice";
+import { resolveUserSettingGuidanceStatus } from "@/features/user/execute/resolveUserSettingGuidanceStatus";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -77,151 +79,7 @@ export default function UserExecute() {
     router.push("/user");
   };
 
-  const renderCompletionNoticeMessage = () => {
-    if (!completeModalNotice) {
-      return (
-        <span style={{ whiteSpace: "pre-wrap" }}>
-          {completeModalMessage}
-        </span>
-      );
-    }
 
-    const {
-      emailTo,
-      emailConfigured,
-      emailWillSend,
-      retentionLevel,
-      databaseEnabled,
-      storageEnabled,
-      googleDriveEnabled,
-    } = completeModalNotice;
-
-    // 1. 이메일 표시 판정
-    const hasEmail = emailWillSend && emailTo;
-    const emailDisplay = hasEmail ? (
-      <span className="ux_notice_highlight_success">{emailTo}</span>
-    ) : (
-      <span className="ux_notice_highlight_notice">해당사항 없음</span>
-    );
-
-    // 2. 데이터베이스 표시 판정: processed_result 이상 또는 databaseEnabled일 때
-    const isDbEnabled = databaseEnabled || retentionLevel === "processed_result" || retentionLevel === "full_archive";
-    const dbDisplay = isDbEnabled ? (
-      <span className="ux_notice_highlight_success">보관처리 됨</span>
-    ) : (
-      <span className="ux_notice_highlight_notice">보관하지 않음</span>
-    );
-
-    // 3. 스토리지 표시 판정: full_archive 또는 storageEnabled일 때
-    const isStorageEnabled = storageEnabled || retentionLevel === "full_archive";
-    const storageDisplay = isStorageEnabled ? (
-      <span className="ux_notice_highlight_success">보관처리 됨</span>
-    ) : (
-      <span className="ux_notice_highlight_notice">보관하지 않음</span>
-    );
-
-    // 4. 구글드라이브 표시 판정
-    const driveDisplay = googleDriveEnabled ? (
-      <span className="ux_notice_highlight_success">구글드라이브 저장/내보내기 예정</span>
-    ) : (
-      <span className="ux_notice_highlight_notice">해당사항 없음</span>
-    );
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div style={{ fontWeight: "700", marginBottom: "4px" }}>[실행 결과보고]</div>
-          <div style={{ margin: 0 }}>
-            1. 이메일 : {emailDisplay}
-          </div>
-          <div style={{ margin: 0 }}>
-            2. 데이터베이스 : {dbDisplay}
-          </div>
-          <div style={{ margin: 0 }}>
-            3. 스토리지 : {storageDisplay}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <div style={{ fontWeight: "700" }}>4. 구글드라이브 옵션</div>
-          <div style={{ margin: 0, paddingLeft: "8px" }}>
-            - {driveDisplay}
-          </div>
-        </div>
-
-        <div style={{ marginTop: "8px", borderTop: "1px dashed #e5e7eb", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-          <p style={{ margin: 0 }}>
-            워크플로우 처리가 성공하면 설정된 결과보고 방식에 따라 결과가 전달됩니다.
-          </p>
-          <p style={{ margin: 0 }}>
-            단, 워크플로우 실패 시에는 <span className="ux_notice_highlight_error">로그화면</span>에서만 확인할 수 있습니다.
-          </p>
-        </div>
-      </div>
-    );
-  };
-
-  const resolveUserSettingGuidanceStatus = (): "required_missing" | "recommended_missing" | "complete" | "none" => {
-    if (!currentAuto || !currentTemplate || !currentTemplate.configSchema) {
-      return "none";
-    }
-
-    const guidance = currentAuto.userSettingGuidance;
-    if (!guidance || Object.keys(guidance).length === 0) {
-      return "none";
-    }
-
-    const schemaKeys = currentTemplate.configSchema
-      .filter((f) => {
-        const lowercaseKey = f.key.toLowerCase();
-        const forbiddenKeywords = ["token", "secret", "apikey", "credential", "accesstoken", "refreshtoken"];
-        const isSec = f.type === "secret" || forbiddenKeywords.some((keyword) => lowercaseKey.includes(keyword));
-        return !isSec;
-      })
-      .map((f) => f.key);
-
-    const personalSettingsMap = userSettings?.settings || {};
-    const visibilityMap = currentAuto.userSettingVisibility || {};
-
-    let hasRequiredMissing = false;
-    let hasRecommendedMissing = false;
-    let hasGuidanceFields = false;
-
-    for (const key of schemaKeys) {
-      const visibility = visibilityMap[key];
-      const shouldHideWhenEmpty = visibility === "hide_when_empty";
-      const rawVal = personalSettingsMap[key];
-      const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
-
-      // 숨김 필드이고 개인값이 없으면 경고(상태점) 계산에서 완벽히 제외
-      if (shouldHideWhenEmpty && !hasPersonalValue) {
-        continue;
-      }
-
-      const level = guidance[key];
-      if (!level) continue;
-
-      hasGuidanceFields = true;
-
-      if (level === "required_override" && !hasPersonalValue) {
-        hasRequiredMissing = true;
-      } else if (level === "recommended_override" && !hasPersonalValue) {
-        hasRecommendedMissing = true;
-      }
-    }
-
-    if (!hasGuidanceFields) {
-      return "none";
-    }
-
-    if (hasRequiredMissing) {
-      return "required_missing";
-    }
-    if (hasRecommendedMissing) {
-      return "recommended_missing";
-    }
-    return "complete";
-  };
 
   const addDelayedAlert = (message: string, delay = 150) => {
     const id = setTimeout(() => {
@@ -603,7 +461,7 @@ export default function UserExecute() {
               >
                 🛠️ 내 설정
                 {(() => {
-                  const status = resolveUserSettingGuidanceStatus();
+                  const status = resolveUserSettingGuidanceStatus(currentAuto, currentTemplate, userSettings);
                   if (status === "required_missing") {
                     return <span className="ux_settings_status_dot ux_settings_status_dot_required" title="개인 설정 필수 항목이 누락되었습니다." />;
                   }
@@ -822,7 +680,7 @@ export default function UserExecute() {
             </div>
             <div>
               <div className="ux_body_text" style={{ fontSize: "14px", lineHeight: 1.6, margin: 0 }}>
-                {renderCompletionNoticeMessage()}
+                {resolveCompletionNotice(completeModalNotice, completeModalMessage)}
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px", borderTop: "1px solid #f3f4f6", paddingTop: "12px" }}>
