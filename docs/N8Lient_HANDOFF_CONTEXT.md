@@ -862,3 +862,28 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   - `src/components/custom/CompanyAutomationForm.tsx`
   - `src/components/custom/UserPersonalSettingsModal.tsx`
   - `src/app/user/execute/page.tsx`
+
+### [2026-06-23] 설정값 조건부 숨김 기능 및 어드민 레이아웃 버그 수정
+
+* **사용자 개인설정 필드 조건부 숨김 (`hide_when_empty`)**
+  - 결정: 회사관리자가 각 configSchema 필드에 `설정창 숨김(hide_when_empty)` 토글을 적용할 수 있다.
+  - 숨김 조건: 관리자가 숨김 ON + 해당 사용자의 기존 개인설정값 없음 → 사용자 개인설정 모달에서 해당 필드 미표시. 이미 개인설정값이 있으면 숨기지 않고 표시(DB 잔존값이 사용자 모르게 적용되는 문제 방지).
+  - 저장 구조: `clientAutomations.userSettingVisibility[fieldKey] = "hide_when_empty"` (값 없으면 보이기)
+  - 안내 등급(`userSettingGuidance`)과 독립 운영. 숨김 ON 시 안내 등급은 자동 초기화.
+  - Gateway/n8n/Firestore 구조 변경 없음. mergeAutomationSettings/validateExecution 영향 없음.
+  - 관련 파일: `src/types/n8lient.ts`, `src/features/admin/companyAdminService.ts`, `src/components/custom/CompanyAutomationForm.tsx`, `src/components/custom/UserPersonalSettingsModal.tsx`
+
+* **회사관리자 폼 토글 UI**
+  - `보이기 [토글] 숨김` 형태로 양옆 상태 라벨 표시.
+  - 숨김 ON: 주황색, 보이기: 기본 텍스트색(무채색 유지).
+  - 설명 줄과 숨김 안내 줄을 동일 자리에서 교체 표시(레이아웃 높이 변화 없이 라벨만 전환).
+
+* **어드민 레이아웃 이중 스크롤 버그 수정**
+  - 원인: `body`가 `flex column`인 상태에서 `.ux_admin_app_shell`이 document flow에 포함되어 body 스크롤이 발생.
+  - 수정: `.ux_admin_app_shell`을 `position: fixed; inset: 0`으로 전환하여 body flow에서 완전 분리.
+  - 모바일(≤1023px)에서는 `position: static`으로 해제하여 자연 스크롤 허용.
+
+* **토글 클릭 시 스크롤 말려 올라가는 버그 수정**
+  - 원인: `.ux_toggle_switch_input`이 `position: absolute`인데 부모 `.ux_toggle_switch`에 `position: relative`가 없어 히든 input이 문서 최상단에 위치. 클릭→focus 시 브라우저가 input 위치(최상단)로 스크롤 강제 이동.
+  - 수정: `.ux_toggle_switch`에 `position: relative` 추가. CSS 커스텀 체크박스 구현 시 필수 패턴.
+  - 관련 파일: `src/styles/UX_Design_Setting.css`
