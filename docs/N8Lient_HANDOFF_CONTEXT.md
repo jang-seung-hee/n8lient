@@ -835,3 +835,30 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 * **형식 오류 검증**
   * `[02] 처리 결과 확인` 섹션에서 렌더링되는 `userMessage`가 텍스트가 아닌 잘못된 형식(예: HTML 태그만 있는 문자열)인 경우에도 `UserResultDetailSection` 내에서 안전하게 텍스트로 변환되어 렌더링되도록 하여 뷰어 붕괴(Viewer Collapse)나 무반응 문제를 방지했다.
   * 관련 파일: `src/components/custom/UserResultDetailSection.tsx`
+
+### [2026-06-23] 사용자 개인설정 안내/강조 및 내 설정 상태점 정책 구현
+
+* **개인설정 안내 정책 추가**
+  - 회사관리자가 워크플로우 설정 화면(`CompanyAutomationForm.tsx`)에서 각 설정 필드별로 사용자 개인설정의 필요도를 지정할 수 있게 했다. (`없음`, `사용자 직접 설정 필수(required_override)`, `사용자 직접 설정 권고(recommended_override)`)
+  - 수집된 가이드 상태는 `clientAutomations` 컬렉션의 `userSettingGuidance` 필드로 통합 저장된다. (Firestore Rules 수정 불필요 확증)
+  
+* **개인설정 모달 시각적 안내 보완**
+  - 사용자 개인설정 모달(`UserPersonalSettingsModal.tsx`)에서 지정된 등급에 따라 배지 및 가이드 경고 문구를 동적으로 출력한다.
+    - `required_override` + 누락: 🔴 빨강 `개인 설정 필수` 배지 및 경고 라벨 표시
+    - `recommended_override` + 누락: 🟠 주황 `개인 설정 권장` 배지 및 안내 라벨 표시
+    - 설정 완료 시: 🟢 녹색 `개인 설정 완료` 배지 표시
+
+* **내 설정 버튼 상태점 연동**
+  - 사용자가 실행 대기 화면(`page.tsx`)에서 본인의 설정 완성도를 한눈에 파악할 수 있도록 `🛠️ 내 설정` 버튼 내부에 4단계 우선순위 상태 점을 탑재했다.
+    1. 필수 지정 필드 누락 시: 빨간 점 (Pulsing 애니메이션 적용)
+    2. 권장 지정 필드 누락 시: 주황 점
+    3. 모든 가이드 필드 설정 완료 시: 녹색 점
+    4. 안내가 지정되지 않은 경우: 점 표시 없음
+  
+* **관련 파일**
+  - `src/types/n8lient.ts`
+  - `src/styles/UX_Design_Setting.css`
+  - `src/features/admin/companyAdminService.ts`
+  - `src/components/custom/CompanyAutomationForm.tsx`
+  - `src/components/custom/UserPersonalSettingsModal.tsx`
+  - `src/app/user/execute/page.tsx`
