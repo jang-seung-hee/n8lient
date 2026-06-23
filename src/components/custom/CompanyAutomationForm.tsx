@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { Firestore } from "firebase/firestore";
 import { saveClientAutomation } from "@/features/admin/companyAdminService";
-import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
+import type { ClientContract, ClientAutomation, WorkflowTemplate, UserSettingGuidanceLevel } from "@/types/n8lient";
 import { playAppSound } from "@/lib/appSound";
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
 import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
@@ -51,6 +51,7 @@ export default function CompanyAutomationForm({
   const [formEnabled, setFormEnabled] = useState(true);
   const [formNoticeText, setFormNoticeText] = useState("");
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
+  const [formGuidance, setFormGuidance] = useState<Record<string, UserSettingGuidanceLevel>>({});
 
   // [v2.6] 회사 보관 정책 관련 상태 선언
   const [companyDefaultLevel, setCompanyDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
@@ -81,6 +82,7 @@ export default function CompanyAutomationForm({
     setFormName(automation?.automationName || template.shortName || template.name);
     setFormEnabled(automation ? automation.enabled : true);
     setFormNoticeText(automation?.noticeText ?? "");
+    setFormGuidance(automation?.userSettingGuidance ?? {});
 
     // [v2.7] 회사 보관 정책 초기화
     const opPolicy = template.operatorRetentionPolicy || {
@@ -211,6 +213,7 @@ export default function CompanyAutomationForm({
           allowedUserLevels: coAllowedUserLevels,
           allowUserOverride: finalAllowUserOverride,
         },
+        userSettingGuidance: formGuidance,
         isNew: !automation,
       });
 
@@ -377,9 +380,35 @@ export default function CompanyAutomationForm({
               className={field.type === "textarea" ? "ux_form_grid_full" : undefined}
               style={{ display: "flex", flexDirection: "column", gap: "4px" }}
             >
-              <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
-                {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
+                  {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "11px", color: "#6b7280" }}>개인설정 안내:</span>
+                  <select
+                    className="ux_select_compact"
+                    value={formGuidance[field.key] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value as UserSettingGuidanceLevel | "";
+                      setFormGuidance((prev) => {
+                        const copy = { ...prev };
+                        if (val) {
+                          copy[field.key] = val;
+                        } else {
+                          delete copy[field.key];
+                        }
+                        return copy;
+                      });
+                    }}
+                    style={{ width: "160px", height: "26px", fontSize: "11px", padding: "0 4px" }}
+                  >
+                    <option value="">없음</option>
+                    <option value="required_override">사용자 직접 설정 필수</option>
+                    <option value="recommended_override">사용자 직접 설정 권고</option>
+                  </select>
+                </div>
+              </div>
               {field.description && (
                 <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
                   💡 {field.description}

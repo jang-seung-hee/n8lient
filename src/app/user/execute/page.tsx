@@ -161,6 +161,59 @@ export default function UserExecute() {
     );
   };
 
+  const resolveUserSettingGuidanceStatus = (): "required_missing" | "recommended_missing" | "complete" | "none" => {
+    if (!currentAuto || !currentTemplate || !currentTemplate.configSchema) {
+      return "none";
+    }
+
+    const guidance = currentAuto.userSettingGuidance;
+    if (!guidance || Object.keys(guidance).length === 0) {
+      return "none";
+    }
+
+    const schemaKeys = currentTemplate.configSchema
+      .filter((f) => {
+        const lowercaseKey = f.key.toLowerCase();
+        const forbiddenKeywords = ["token", "secret", "apikey", "credential", "accesstoken", "refreshtoken"];
+        const isSec = f.type === "secret" || forbiddenKeywords.some((keyword) => lowercaseKey.includes(keyword));
+        return !isSec;
+      })
+      .map((f) => f.key);
+
+    const personalSettingsMap = userSettings?.settings || {};
+
+    let hasRequiredMissing = false;
+    let hasRecommendedMissing = false;
+    let hasGuidanceFields = false;
+
+    for (const key of schemaKeys) {
+      const level = guidance[key];
+      if (!level) continue;
+
+      hasGuidanceFields = true;
+      const rawVal = personalSettingsMap[key];
+      const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
+
+      if (level === "required_override" && !hasPersonalValue) {
+        hasRequiredMissing = true;
+      } else if (level === "recommended_override" && !hasPersonalValue) {
+        hasRecommendedMissing = true;
+      }
+    }
+
+    if (!hasGuidanceFields) {
+      return "none";
+    }
+
+    if (hasRequiredMissing) {
+      return "required_missing";
+    }
+    if (hasRecommendedMissing) {
+      return "recommended_missing";
+    }
+    return "complete";
+  };
+
   const addDelayedAlert = (message: string, delay = 150) => {
     const id = setTimeout(() => {
       alert(message);
@@ -539,6 +592,19 @@ export default function UserExecute() {
                 }}
               >
                 🛠️ 내 설정
+                {(() => {
+                  const status = resolveUserSettingGuidanceStatus();
+                  if (status === "required_missing") {
+                    return <span className="ux_settings_status_dot ux_settings_status_dot_required" title="개인 설정 필수 항목이 누락되었습니다." />;
+                  }
+                  if (status === "recommended_missing") {
+                    return <span className="ux_settings_status_dot ux_settings_status_dot_recommended" title="개인 설정 권장 항목이 누락되었습니다." />;
+                  }
+                  if (status === "complete") {
+                    return <span className="ux_settings_status_dot ux_settings_status_dot_success" title="모든 안내 대상 개인 설정이 완료되었습니다." />;
+                  }
+                  return null;
+                })()}
               </button>
             </div>
           </div>

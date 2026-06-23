@@ -290,13 +290,38 @@ export default function UserPersonalSettingsModal({
                   ? `회사 기본값: ${companyDefaultVal}`
                   : "회사 기본값 없음";
 
+                const guidance = currentAuto.userSettingGuidance?.[field.key];
+                const rawVal = personalSettings[field.key];
+                const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
+
+                let badgeElement = <span style={{ fontSize: "10px", color: "#9ca3af" }}>개인 맞춤용</span>;
+                let guidanceText = "";
+                let inputBorderColor = undefined;
+
+                if (guidance === "required_override") {
+                  if (hasPersonalValue) {
+                    badgeElement = <span className="ux_guidance_badge_success">개인 설정 완료</span>;
+                  } else {
+                    badgeElement = <span className="ux_guidance_badge_required">개인 설정 필수</span>;
+                    guidanceText = "개인 설정이 필요합니다.";
+                    inputBorderColor = "#fecaca"; // 옅은 빨강 경계선 가이드
+                  }
+                } else if (guidance === "recommended_override") {
+                  if (hasPersonalValue) {
+                    badgeElement = <span className="ux_guidance_badge_success">개인 설정 완료</span>;
+                  } else {
+                    badgeElement = <span className="ux_guidance_badge_recommended">개인 설정 권장</span>;
+                    guidanceText = "회사 기본값으로 처리됩니다. 개인 설정을 권장합니다.";
+                  }
+                }
+
                 return (
                   <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <label className="ux_label" style={{ fontSize: "12px" }}>
                         {field.label}
                       </label>
-                      <span style={{ fontSize: "10px", color: "#9ca3af" }}>개인 맞춤용</span>
+                      {badgeElement}
                     </div>
 
                     {field.type === "textarea" ? (
@@ -307,7 +332,7 @@ export default function UserPersonalSettingsModal({
                           setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
                         placeholder={`${helpText} (비워두면 기본값 사용)`}
-                        style={{ minHeight: "60px" }}
+                        style={{ minHeight: "60px", borderColor: inputBorderColor }}
                       />
                     ) : field.type === "select" ? (
                       <select
@@ -316,6 +341,7 @@ export default function UserPersonalSettingsModal({
                         onChange={(e) =>
                           setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
+                        style={{ borderColor: inputBorderColor }}
                       >
                         <option value="">{`회사 기본값 사용 (${companyDefaultVal || "없음"})`}</option>
                         {field.options?.map((opt) => (
@@ -329,8 +355,8 @@ export default function UserPersonalSettingsModal({
                         className="ux_select_compact"
                         value={
                           personalSettings[field.key] === undefined || personalSettings[field.key] === null
-                            ? ""
-                            : String(personalSettings[field.key])
+                             ? ""
+                             : String(personalSettings[field.key])
                         }
                         onChange={(e) => {
                           const val = e.target.value;
@@ -339,6 +365,7 @@ export default function UserPersonalSettingsModal({
                             [field.key]: val === "" ? "" : val === "true",
                           }));
                         }}
+                        style={{ borderColor: inputBorderColor }}
                       >
                         <option value="">{`회사 기본값 사용 (${
                           companyDefaultVal !== undefined ? String(companyDefaultVal) : "없음"
@@ -347,14 +374,16 @@ export default function UserPersonalSettingsModal({
                         <option value="false">False (미사용)</option>
                       </select>
                     ) : isGoogleDriveFolderIdConfigKey(field.key) ? (
-                      <GoogleDriveFolderIdInput
-                        value={String(personalSettings[field.key] ?? "")}
-                        onChange={(v) =>
-                          setPersonalSettings((prev) => ({ ...prev, [field.key]: v }))
-                        }
-                        placeholder={`${helpText} (폴더 ID 또는 링크, 비워두면 기본값 사용)`}
-                        allowEmpty
-                      />
+                      <div style={{ borderColor: inputBorderColor }}>
+                        <GoogleDriveFolderIdInput
+                          value={String(personalSettings[field.key] ?? "")}
+                          onChange={(v) =>
+                            setPersonalSettings((prev) => ({ ...prev, [field.key]: v }))
+                          }
+                          placeholder={`${helpText} (폴더 ID 또는 링크, 비워두면 기본값 사용)`}
+                          allowEmpty
+                        />
+                      </div>
                     ) : (
                       <input
                         type={field.type === "number" ? "number" : "text"}
@@ -364,7 +393,14 @@ export default function UserPersonalSettingsModal({
                           setPersonalSettings((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
                         placeholder={`${helpText} (비워두면 기본값 사용)`}
+                        style={{ borderColor: inputBorderColor }}
                       />
+                    )}
+
+                    {guidanceText && (
+                      <span style={{ fontSize: "11px", fontWeight: "600", color: guidance === "required_override" ? "#dc2626" : "#d97706", marginTop: "2px" }}>
+                        ⚠️ {guidanceText}
+                      </span>
                     )}
 
                     {field.description && (

@@ -312,6 +312,8 @@ export interface ClientContract {
   updatedAt: string;
 }
 
+export type UserSettingGuidanceLevel = "required_override" | "recommended_override";
+
 /**
  * clientAutomations 컬렉션 — 회사가 실제 등록한 자동화 설정 (문서 ID = automationId)
  * n8n이 가장 중요하게 조회하는 컬렉션
@@ -335,6 +337,8 @@ export interface ClientAutomation {
   contractRetentionLimit?: ContractRetentionLimit; // [v2.7] 회사별 계약 한도 복사본
   /** 회사관리자가 등록한 워크플로우별 사용자 안내 공지 (UI 표시 전용) */
   noticeText?: string;
+  /** 사용자 개인설정 안내/강조 가이드 정책 정보 (UI 표시 전용) */
+  userSettingGuidance?: Record<string, UserSettingGuidanceLevel>;
   /** 회사관리자 전용 — 직원 실행·노출 차단 (operator 매핑/enabled와 독립) */
   companyDisabled?: boolean;
   companyDisabledAt?: string;

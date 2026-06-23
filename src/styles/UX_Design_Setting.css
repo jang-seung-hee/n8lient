@@ -1332,3 +1332,54 @@
   background-color: #dbeafe;
   color: #1d4ed8;
 }
+
+/* 안내 배지 공통 */
+.ux_guidance_badge_required,
+.ux_guidance_badge_recommended,
+.ux_guidance_badge_success {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.ux_guidance_badge_required {
+  color: #be123c;
+  background-color: #ffe4e6;
+}
+.ux_guidance_badge_recommended {
+  color: #b45309;
+  background-color: #fef3c7;
+}
+.ux_guidance_badge_success {
+  color: #047857;
+  background-color: #d1fae5;
+}
+
+/* 내 설정 버튼 우측 상태 점 */
+.ux_settings_status_dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.ux_settings_status_dot_required {
+  background-color: #ef4444;
+  box-shadow: 0 0 4px #f87171;
+  animation: ux_pulsing_dot 1.4s infinite ease-in-out;
+}
+.ux_settings_status_dot_recommended {
+  background-color: #f59e0b;
+}
+.ux_settings_status_dot_success {
+  background-color: #10b981;
+}
+
+@keyframes ux_pulsing_dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
