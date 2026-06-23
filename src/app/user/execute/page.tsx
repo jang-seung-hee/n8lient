@@ -535,7 +535,8 @@ export default function UserExecute() {
           사용 가능한 N8N 워크플로우가 없습니다. 사내 관리자에게 문의해 주십시오.
         </div>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }} className="ux_execute_form_mobile_padded">
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>N8N 워크플로우 선택</label>
@@ -662,7 +663,7 @@ export default function UserExecute() {
           {isRecording ? (
             <button
               type="submit"
-              className="ux_button ux_button_danger ux_button_submit_large"
+              className="ux_button ux_button_danger ux_button_submit_large ux_execute_submit_inline_mobile_hide"
               style={{
                 width: "100%",
                 marginTop: "8px",
@@ -680,7 +681,7 @@ export default function UserExecute() {
           ) : (
             <button
               type="submit"
-              className="ux_button ux_button_primary ux_button_submit_large"
+              className="ux_button ux_button_primary ux_button_submit_large ux_execute_submit_inline_mobile_hide"
               disabled={submitting}
               style={{
                 width: "100%",
@@ -695,6 +696,42 @@ export default function UserExecute() {
             </button>
           )}
         </form>
+
+        {/* 모바일 전용 하단 고정 전송 버튼 바 — PC에서는 CSS로 자동 숨김 */}
+        <div className="ux_mobile_submit_bar">
+          {isRecording ? (
+            <button
+              type="button"
+              onClick={handleSubmit as unknown as React.MouseEventHandler}
+              className="ux_button ux_button_danger ux_button_submit_large"
+              style={{ width: "100%", borderRadius: "6px", transition: "background-color 0.15s ease" }}
+            >
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ffffff", animation: "pulse 1.5s infinite", marginRight: "6px" }}></span>
+              🛑 녹음 정지 ({(() => {
+                const mins = Math.floor(recordingTime / 60);
+                const secs = recordingTime % 60;
+                return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+              })()})
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit as unknown as React.MouseEventHandler}
+              className="ux_button ux_button_primary ux_button_submit_large"
+              disabled={submitting}
+              style={{
+                width: "100%",
+                borderRadius: "6px",
+                backgroundColor: submitting ? "#4b5563" : undefined,
+                border: submitting ? "none" : undefined,
+                transition: "background-color 0.15s ease",
+              }}
+            >
+              {submitting ? (selectedFile ? "파일을 업로드 중입니다. 화면을 닫지 마세요..." : "실행 요청 처리 중...") : "작성내용 전송하기"}
+            </button>
+          )}
+        </div>
+        </>
       )}
 
       {isDebugMode && validationDebug && (

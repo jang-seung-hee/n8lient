@@ -1383,3 +1383,315 @@
   0%, 100% { opacity: 0.3; transform: scale(0.9); }
   50% { opacity: 1; transform: scale(1.15); }
 }
+
+/* ============================================================
+   모바일 녹음 완료 UI — Compact Card
+   PC에서는 표시되지 않음 (media query로 제어)
+   ============================================================ */
+
+/* 녹음 완료 compact 카드 래퍼 */
+.ux_audio_compact_card {
+  display: none; /* 기본: PC에서 숨김 */
+}
+
+/* 카드 상단 요약 행 (파일명 + 간단 정보 + 버튼들) */
+.ux_audio_compact_summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+}
+
+/* 녹음 완료 아이콘/상태 */
+.ux_audio_compact_icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* 파일명 + 메타 정보 영역 */
+.ux_audio_compact_meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.ux_audio_compact_filename {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ux_audio_compact_info {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+/* compact 카드 내 액션 버튼 그룹 */
+.ux_audio_compact_actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 간단 재생 버튼 (compact용) */
+.ux_audio_compact_play_btn {
+  background: none;
+  border: 1px solid #d1fae5;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  color: #047857;
+  background-color: #ecfdf5;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+.ux_audio_compact_play_btn:hover {
+  background-color: #d1fae5;
+}
+
+/* 삭제 버튼 (compact용, 항상 노출) */
+.ux_audio_compact_delete_btn {
+  background: none;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ef4444;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+.ux_audio_compact_delete_btn:hover {
+  background-color: #fef2f2;
+}
+
+/* 상세보기 토글 버튼 */
+.ux_audio_compact_toggle_btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-decoration: underline;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 상세 영역 (토글로 열고 닫힘) */
+.ux_audio_compact_detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0 0 8px 8px;
+  border-top: none;
+  animation: ux_audio_detail_slide_in 0.15s ease;
+}
+
+@keyframes ux_audio_detail_slide_in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 상세 내 오디오 컨트롤바 */
+.ux_audio_compact_detail audio {
+  width: 100%;
+  height: 36px;
+}
+
+/* 용량 초과 오류 박스 */
+.ux_audio_error_box {
+  padding: 8px 10px;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #ef4444;
+  line-height: 1.4;
+}
+.ux_audio_error_box p {
+  margin: 0;
+}
+.ux_audio_error_box p + p {
+  margin-top: 4px;
+}
+
+/* 다운로드 링크 */
+.ux_audio_download_link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #2563eb;
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ============================================================
+   모바일 전용 하단 고정 전송 버튼 바
+   PC에서는 표시되지 않음
+   ============================================================ */
+
+/* 모바일 하단 고정 바 */
+.ux_mobile_submit_bar {
+  display: none; /* 기본: PC에서 숨김 */
+}
+
+/* 폼 영역 하단 패딩 — 고정 바가 내용을 가리지 않도록 */
+.ux_execute_form_mobile_padded {
+  padding-bottom: 0;
+}
+
+/* ============================================================
+   모바일 전용 media query (max-width: 1023px)
+   ============================================================ */
+@media (max-width: 1023px) {
+  /* compact 카드 활성화 */
+  .ux_audio_compact_card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 모바일에서 PC 전용 오디오 상세 UI 숨김 */
+  .ux_audio_pc_detail {
+    display: none;
+  }
+
+  /* 모바일 하단 고정 전송 버튼 바 활성화 */
+  .ux_mobile_submit_bar {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    /* iOS safe-area + 하단 네비 바 높이 고려 */
+    padding: 10px 16px calc(var(--ux-mobile-bottom-nav-safe-space, 72px) + env(safe-area-inset-bottom, 0px));
+    background-color: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+    z-index: 100;
+  }
+
+  /* 고정 바가 폼 내용을 가리지 않도록 폼 하단에 여백 추가 */
+  .ux_execute_form_mobile_padded {
+    padding-bottom: calc(var(--ux-mobile-bottom-nav-safe-space, 72px) + 60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 모바일에서 인라인 전송 버튼 숨김 (고정 바로 대체) */
+  .ux_execute_submit_inline_mobile_hide {
+    display: none !important;
+  }
+
+  /* 모바일 + 오디오 탭: 파일 요약 카드 중복 숨김
+     compact 카드가 대신 파일명/크기/삭제를 표시하므로 기존 카드 숨김 */
+  .ux_file_summary_audio_hide_mobile {
+    display: none !important;
+  }
+
+  /* 모바일에서 업로드 안내 전체 텍스트 줄 숨김 (태그형으로 대체) */
+  .ux_upload_guide_text_pc {
+    display: none;
+  }
+
+  /* 모바일에서 태그형 안내 표시 */
+  .ux_upload_limit_tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    padding-top: 2px;
+  }
+}
+
+/* ============================================================
+   업로드 제한 안내 태그 — PC/모바일 공통 기반
+   모바일에서만 태그형 노출 (PC는 텍스트형)
+   ============================================================ */
+
+/* 태그 컨테이너 — 기본 숨김 (모바일에서 활성화됨) */
+.ux_upload_limit_tags {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+/* 개별 태그 */
+.ux_upload_limit_tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* 강조 태그 (최대 용량 등 주의 사항) */
+.ux_upload_limit_tag_notice {
+  background-color: #fef9c3;
+  color: #854d0e;
+  border-color: #fde68a;
+}
+
+/* 더보기 토글 버튼 */
+.ux_upload_limit_more_button {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: none;
+  color: #6b7280;
+  border: 1px dashed #d1d5db;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.ux_upload_limit_more_button:hover {
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+/* 더보기 클릭 시 전체 확장자 텍스트 */
+.ux_upload_limit_detail {
+  font-size: 10px;
+  color: #9ca3af;
+  line-height: 1.5;
+  padding-top: 2px;
+  width: 100%;
+}
+
+/* PC에서는 태그 숨기고 텍스트 표시 */
+.ux_upload_guide_text_pc {
+  display: block;
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 0;
+  line-height: 1.4;
+}
