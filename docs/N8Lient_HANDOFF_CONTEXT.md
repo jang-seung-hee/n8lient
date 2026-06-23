@@ -887,3 +887,8 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   - 원인: `.ux_toggle_switch_input`이 `position: absolute`인데 부모 `.ux_toggle_switch`에 `position: relative`가 없어 히든 input이 문서 최상단에 위치. 클릭→focus 시 브라우저가 input 위치(최상단)로 스크롤 강제 이동.
   - 수정: `.ux_toggle_switch`에 `position: relative` 추가. CSS 커스텀 체크박스 구현 시 필수 패턴.
   - 관련 파일: `src/styles/UX_Design_Setting.css`
+
+### [2026-06-23] 사용자 실행 화면, 설정 모달 및 자동화 편집 폼 UI 리팩토링
+
+* **물리적 UI 컴포넌트 격리 및 헬퍼 함수 추출**
+  - 400줄 제한 프로젝트 룰 준수를 위해 실행 화면(`page.tsx`), 회사 관리자 자동화 편집 폼(`CompanyAutomationForm.tsx`), 사용자 개인설정 모달(`UserPersonalSettingsModal.tsx`)에서 공지 문구 조립 및 상태점 계산 로직을 순수 헬퍼(`resolveCompletionNotice`, `resolveUserSettingGuidanceStatus`)로 격리하고, 에디터 필드 및 보관 정책, 제출 버튼, 디버그 정보 영역을 신규 독립 컴포넌트로 분리하였습니다. 동작 변경 없이 라인 수 감소 및 가독성을 개선하였습니다.
