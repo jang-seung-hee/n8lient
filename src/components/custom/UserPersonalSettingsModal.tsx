@@ -8,6 +8,7 @@ import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from 
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 import { hasPersonalSettingValue } from "@/features/user/settings/resolvePersonalSettingFieldState";
 import PersonalConfigFieldEditor from "@/components/custom/user-settings/PersonalConfigFieldEditor";
+import UserPersonalSettingsFooter from "@/components/custom/user-settings/UserPersonalSettingsFooter";
 
 interface UserPersonalSettingsModalProps {
   isOpen: boolean;
@@ -375,48 +376,12 @@ export default function UserPersonalSettingsModal({
         </div>
 
         {/* 푸터 */}
-        <div
-          style={{
-            padding: "12px 16px",
-            borderTop: "1px solid #f3f4f6",
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "8px",
-            backgroundColor: "#f9fafb",
-            borderBottomLeftRadius: "8px",
-            borderBottomRightRadius: "8px",
-          }}
-        >
-          <button
-            type="button"
-            className="ux_button_compact ux_button_secondary"
-            onClick={onClose}
-            style={{
-              height: "34px",
-              padding: "0 12px",
-              borderRadius: "6px",
-              fontSize: "12px",
-              fontWeight: 500,
-            }}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            className="ux_button_compact ux_button_primary"
-            onClick={handleSave}
-            disabled={saving || loading}
-            style={{
-              height: "34px",
-              padding: "0 16px",
-              borderRadius: "6px",
-              fontSize: "12px",
-              border: "none",
-            }}
-          >
-            {saving ? "저장 중..." : "설정 저장"}
-          </button>
-        </div>
+        <UserPersonalSettingsFooter
+          saving={saving}
+          loading={loading}
+          onSave={handleSave}
+          onClose={onClose}
+        />
       </div>
     </div>
   );

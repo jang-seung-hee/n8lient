@@ -26,6 +26,8 @@ import { resolveCompletionNotice } from "@/features/user/execute/resolveCompleti
 import { resolveUserSettingGuidanceStatus } from "@/features/user/execute/resolveUserSettingGuidanceStatus";
 import ExecuteSubmitButton from "@/components/custom/user-execute/ExecuteSubmitButton";
 import ValidationDebugPanel from "@/components/custom/user-execute/ValidationDebugPanel";
+import WorkflowSelector from "@/components/custom/user-execute/WorkflowSelector";
+import ExecutionTitleField from "@/components/custom/user-execute/ExecutionTitleField";
 
 export default function UserExecute() {
   const searchParams = useSearchParams();
@@ -406,78 +408,18 @@ export default function UserExecute() {
       ) : (
         <>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }} className="ux_execute_form_mobile_padded">
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>N8N 워크플로우 선택</label>
-              {currentAuto && (
-                <WorkflowConfigBadge
-                  automation={currentAuto}
-                  template={currentTemplate}
-                  userSettings={userSettings}
-                />
-              )}
-            </div>
-            <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", minWidth: 0 }}>
-              <div style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
-                <select
-                  className="ux_select"
-                  value={selectedAutoId}
-                  onChange={(e) => {
-                    setSelectedAutoId(e.target.value);
-                    setSuccess(false);
-                    setError(null);
-                  }}
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {automations.map((a) => (
-                    <option key={a.automationId} value={a.automationId}>
-                      {resolveWorkflowDisplayName({
-                        template: templates[a.workflowKey],
-                        automation: a,
-                        workflowKey: a.workflowKey,
-                      })}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                className="ux_button ux_button_secondary"
-                onClick={handleOpenSettingsModal}
-                disabled={!selectedAutoId}
-                style={{
-                  flexShrink: 0,
-                  height: "38px",
-                  padding: "0 12px",
-                  borderRadius: "6px",
-                  backgroundColor: selectedAutoId ? "#ffffff" : "#f3f4f6",
-                  color: selectedAutoId ? "#374151" : "#9ca3af",
-                  cursor: selectedAutoId ? "pointer" : "not-allowed",
-                  boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                🛠️ 내 설정
-                {(() => {
-                  const status = resolveUserSettingGuidanceStatus(currentAuto, currentTemplate, userSettings);
-                  if (status === "required_missing") {
-                    return <span className="ux_settings_status_dot ux_settings_status_dot_required" title="개인 설정 필수 항목이 누락되었습니다." />;
-                  }
-                  if (status === "recommended_missing") {
-                    return <span className="ux_settings_status_dot ux_settings_status_dot_recommended" title="개인 설정 권장 항목이 누락되었습니다." />;
-                  }
-                  if (status === "complete") {
-                    return <span className="ux_settings_status_dot ux_settings_status_dot_success" title="모든 안내 대상 개인 설정이 완료되었습니다." />;
-                  }
-                  return null;
-                })()}
-              </button>
-            </div>
-          </div>
+          <WorkflowSelector
+            selectedAutoId={selectedAutoId}
+            automations={automations}
+            templates={templates}
+            userSettings={userSettings}
+            onSelectChange={(autoId) => {
+              setSelectedAutoId(autoId);
+              setSuccess(false);
+              setError(null);
+            }}
+            onOpenSettings={handleOpenSettingsModal}
+          />
 
           {currentAuto?.noticeText?.trim() && (
             <AutomationNoticeBox
@@ -488,24 +430,11 @@ export default function UserExecute() {
             />
           )}
 
-          {(() => {
-            const isTitleRequired = currentTemplate?.inputSchema?.titleRequired !== false;
-            return (
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
-                  제목{isTitleRequired ? " *" : ""}
-                </label>
-                <input
-                  type="text"
-                  className="ux_input"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={isTitleRequired ? "예: 5월 카드 지출 내역 정리 요청" : "입력하지 않으면 자동 생성됩니다."}
-                  required={isTitleRequired}
-                />
-              </div>
-            );
-          })()}
+          <ExecutionTitleField
+            title={title}
+            onChangeTitle={setTitle}
+            currentTemplate={currentTemplate}
+          />
 
           {currentTemplate?.inputSchema && (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>

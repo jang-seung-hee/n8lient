@@ -11,6 +11,8 @@ import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDis
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import ConfigFieldPolicyControl from "@/components/custom/company-automation/ConfigFieldPolicyControl";
 import CompanyRetentionPolicySection from "@/components/custom/company-automation/CompanyRetentionPolicySection";
+import CompanyAutomationNoticeSection from "@/components/custom/company-automation/CompanyAutomationNoticeSection";
+import CompanyAutomationActiveSection from "@/components/custom/company-automation/CompanyAutomationActiveSection";
 
 interface CompanyAutomationFormProps {
   db: Firestore;
@@ -271,36 +273,15 @@ export default function CompanyAutomationForm({
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>사용방법 안내</label>
-          <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
-            사용자가 이 워크플로우를 실행하기 전에 확인할 안내 문구입니다. 비워두면 사용자 화면에 표시되지 않습니다.
-          </span>
-          <textarea
-            className="ux_textarea"
-            value={formNoticeText}
-            onChange={(e) => setFormNoticeText(e.target.value)}
-            rows={4}
-            maxLength={2000}
-            placeholder="예: 음성 파일은 20MB 이하로 업로드해 주세요. 결과는 이메일과 실행 결과 화면에서 확인할 수 있습니다."
-          />
-          <span style={{ fontSize: "11px", color: "#9ca3af", textAlign: "right" }}>
-            {formNoticeText.length}/2000
-          </span>
-        </div>
+        <CompanyAutomationNoticeSection
+          noticeText={formNoticeText}
+          onChangeNoticeText={(text) => setFormNoticeText(text)}
+        />
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "4px 0" }}>
-          <input
-            type="checkbox"
-            id="formEnabled"
-            checked={formEnabled}
-            onChange={(e) => setFormEnabled(e.target.checked)}
-            style={{ width: "16px", height: "16px", cursor: "pointer" }}
-          />
-          <label htmlFor="formEnabled" style={{ fontSize: "13px", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
-            사내 사용자들에게 이 N8N 워크플로우 노출 및 활성화
-          </label>
-        </div>
+        <CompanyAutomationActiveSection
+          enabled={formEnabled}
+          onChangeEnabled={(enabled) => setFormEnabled(enabled)}
+        />
 
         {/* [v2.7] 회사 보관 정책 설정 UI (오퍼레이터가 계약한 허용 범위에서만 제어 가능) */}
         {(() => {
