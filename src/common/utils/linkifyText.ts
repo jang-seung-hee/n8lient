@@ -19,6 +19,58 @@ const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/;
 // 통합 매칭 정규식 (이메일을 먼저 매칭하여 URL 매칭 오폭을 원천 차단)
 const COMBINED_REGEX = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,6}(?:\/[^\s]*)?)/g;
 
+// URL 자동 링크 대상에서 제외할 일반 파일 확장자 목록
+const EXCLUDED_EXTENSIONS = new Set([
+  "md", "json", "txt", "tar", "zip", "webm", "mp3", "png", "jpg", "jpeg", "pdf",
+  "gif", "wav", "mp4", "mov", "csv", "xlsx", "xls", "ppt", "pptx", "doc", "docx", "xml", "yaml", "yml"
+]);
+
+/**
+ * 주어진 문자열이 유효한 URL 패턴인지 판별합니다.
+ * 파일명 오폭을 방지하기 위해 정교한 필터링 규칙을 적용합니다.
+ */
+export function isProbablyUrl(str: string): boolean {
+  if (!str) return false;
+
+  const hasProtocol = /^https?:\/\//i.test(str);
+  const hasWww = /^www\./i.test(str);
+
+  // 1. 프로토콜과 www.이 둘 다 없는 도메인 형태의 경우
+  if (!hasProtocol && !hasWww) {
+    const lowercase = str.toLowerCase();
+    
+    // 호스트명(도메인)에는 RFC 규격상 언더바(_)를 포함할 수 없으므로, 언더바가 포함되어 있다면 파일명으로 분류
+    if (lowercase.includes("_")) {
+      return false;
+    }
+
+    // 쿼리나 해시를 떼고 판단
+    const cleanStr = lowercase.split("?")[0].split("#")[0];
+    const parts = cleanStr.split(".");
+    
+    if (parts.length > 1) {
+      const ext = parts[parts.length - 1];
+      if (EXCLUDED_EXTENSIONS.has(ext)) {
+        return false;
+      }
+    } else {
+      // 점(.)이 없으면 URL이 아님
+      return false;
+    }
+
+    // TLD(가장 마지막 도메인 파트) 형식 검증 (2~6자의 알파벳)
+    const lastPart = parts[parts.length - 1];
+    const tldRegex = /^[a-z]{2,6}$/i;
+    if (!tldRegex.test(lastPart)) {
+      return false;
+    }
+  }
+
+  // 2. 기본적인 URL 형식 여부 검사
+  const hasDot = str.includes(".");
+  return hasProtocol || hasWww || (hasDot && str.length > 4);
+}
+
 /**
  * 주어진 텍스트 내에서 URL과 일반 텍스트를 구분하여 토큰 배열로 분리합니다.
  * - 이메일 주소는 링크화하지 않습니다.
@@ -92,12 +144,8 @@ export function tokenizeText(text: string): TextToken[] {
       isWrappedInSmartDoubleQuotes ||
       isWrappedInSmartSingleQuotes;
 
-    // 정규식 오폭 방지 유효성 검사
-    const hasProtocol = /^https?:\/\//i.test(matchedStr);
-    const hasWww = /^www\./i.test(matchedStr);
-    const isValidDomain = hasProtocol || hasWww || (matchedStr.includes(".") && matchedStr.length > 4);
-
-    if (matchedStr && isValidDomain && !isWrappedInQuotes) {
+    if (matchedStr && isProbablyUrl(matchedStr) && !isWrappedInQuotes) {
+      const hasProtocol = /^https?:\/\//i.test(matchedStr);
       let finalHref = matchedStr;
       if (!hasProtocol) {
         finalHref = `https://${matchedStr}`;
