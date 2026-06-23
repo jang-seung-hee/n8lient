@@ -223,6 +223,7 @@ export async function saveClientAutomation(
     companyRetentionPolicy?: CompanyRetentionPolicy;
     contractRetentionLimit?: ContractRetentionLimit;
     userSettingGuidance?: ClientAutomation["userSettingGuidance"];
+    userSettingVisibility?: ClientAutomation["userSettingVisibility"];
     isNew?: boolean;
   }): Promise<{ success: boolean; message?: string }> {
   try {
@@ -239,6 +240,7 @@ export async function saveClientAutomation(
       companyRetentionPolicy,
       contractRetentionLimit,
       userSettingGuidance,
+      userSettingVisibility,
     } = params;
 
     // 1. 런타임 필수 설정 키 검증 (configSchema.key 기준)
@@ -308,6 +310,9 @@ export async function saveClientAutomation(
         : {}),
       ...(userSettingGuidance ?? existing?.userSettingGuidance
         ? { userSettingGuidance: userSettingGuidance ?? existing?.userSettingGuidance }
+        : {}),
+      ...(userSettingVisibility ?? existing?.userSettingVisibility
+        ? { userSettingVisibility: userSettingVisibility ?? existing?.userSettingVisibility }
         : {}),
       ...(trimmedNotice ? { noticeText: trimmedNotice } : {}),
       ...(existing?.companyDisabled === true

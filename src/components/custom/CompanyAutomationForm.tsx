@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { Firestore } from "firebase/firestore";
 import { saveClientAutomation } from "@/features/admin/companyAdminService";
-import type { ClientContract, ClientAutomation, WorkflowTemplate, UserSettingGuidanceLevel } from "@/types/n8lient";
+import type { ClientContract, ClientAutomation, WorkflowTemplate, UserSettingGuidanceLevel, UserSettingVisibilityLevel } from "@/types/n8lient";
 import { playAppSound } from "@/lib/appSound";
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
 import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
@@ -52,6 +52,7 @@ export default function CompanyAutomationForm({
   const [formNoticeText, setFormNoticeText] = useState("");
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
   const [formGuidance, setFormGuidance] = useState<Record<string, UserSettingGuidanceLevel>>({});
+  const [formVisibility, setFormVisibility] = useState<Record<string, UserSettingVisibilityLevel>>({});
 
   // [v2.6] 회사 보관 정책 관련 상태 선언
   const [companyDefaultLevel, setCompanyDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
@@ -83,6 +84,7 @@ export default function CompanyAutomationForm({
     setFormEnabled(automation ? automation.enabled : true);
     setFormNoticeText(automation?.noticeText ?? "");
     setFormGuidance(automation?.userSettingGuidance ?? {});
+    setFormVisibility(automation?.userSettingVisibility ?? {});
 
     // [v2.7] 회사 보관 정책 초기화
     const opPolicy = template.operatorRetentionPolicy || {
@@ -214,6 +216,7 @@ export default function CompanyAutomationForm({
           allowUserOverride: finalAllowUserOverride,
         },
         userSettingGuidance: formGuidance,
+        userSettingVisibility: formVisibility,
         isNew: !automation,
       });
 
@@ -384,34 +387,98 @@ export default function CompanyAutomationForm({
                 <label className="ux_label" style={{ fontSize: "12px", color: "#4b5563" }}>
                   {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
                 </label>
-                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                  <span style={{ fontSize: "11px", color: "#6b7280" }}>개인설정 안내:</span>
-                  <select
-                    className="ux_select_compact"
-                    value={formGuidance[field.key] || ""}
-                    onChange={(e) => {
-                      const val = e.target.value as UserSettingGuidanceLevel | "";
-                      setFormGuidance((prev) => {
-                        const copy = { ...prev };
-                        if (val) {
-                          copy[field.key] = val;
-                        } else {
-                          delete copy[field.key];
-                        }
-                        return copy;
-                      });
-                    }}
-                    style={{ width: "160px", height: "26px", fontSize: "11px", padding: "0 4px" }}
-                  >
-                    <option value="">없음</option>
-                    <option value="required_override">사용자 직접 설정 필수</option>
-                    <option value="recommended_override">사용자 직접 설정 권고</option>
-                  </select>
+                
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  {/* 사용자 설정창 숨김 토글 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <label className="ux_toggle_switch" title="개인값이 없는 사용자에게만 숨겨지며, 사용자가 이미 개인 설정값을 저장한 경우에는 숨기지 않고 표시됩니다.">
+                      <span className={`ux_toggle_switch_state ${formVisibility[field.key] !== "hide_when_empty" ? "ux_toggle_switch_state_visible" : ""}`}>
+                        보이기
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="ux_toggle_switch_input"
+                        checked={formVisibility[field.key] === "hide_when_empty"}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormVisibility((prev) => {
+                            const copy = { ...prev };
+                            if (checked) {
+                              copy[field.key] = "hide_when_empty";
+                            } else {
+                              delete copy[field.key];
+                            }
+                            return copy;
+                          });
+
+                          // 숨김 활성화 시 안내 등급을 자동으로 "없음"으로 초기화
+                          if (checked) {
+                            setFormGuidance((prev) => {
+                              const copy = { ...prev };
+                              delete copy[field.key];
+                              return copy;
+                            });
+                          }
+                        }}
+                      />
+                      <span className="ux_toggle_switch_track">
+                        <span className="ux_toggle_switch_thumb"></span>
+                      </span>
+                      <span className={`ux_toggle_switch_state ${formVisibility[field.key] === "hide_when_empty" ? "ux_toggle_switch_state_hidden" : ""}`}>
+                        숨김
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* 개인설정 안내 등급 선택 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <span style={{ fontSize: "11px", color: "#6b7280" }}>안내:</span>
+                    <select
+                      className={`ux_select_compact ${
+                        formGuidance[field.key] === "required_override" 
+                          ? "ux_guidance_select_required" 
+                          : formGuidance[field.key] === "recommended_override" 
+                            ? "ux_guidance_select_recommended" 
+                            : ""
+                      }`}
+                      value={formGuidance[field.key] || ""}
+                      disabled={formVisibility[field.key] === "hide_when_empty"}
+                      onChange={(e) => {
+                        const val = e.target.value as UserSettingGuidanceLevel | "";
+                        setFormGuidance((prev) => {
+                          const copy = { ...prev };
+                          if (val) {
+                            copy[field.key] = val;
+                          } else {
+                            delete copy[field.key];
+                          }
+                          return copy;
+                        });
+                      }}
+                      style={{
+                        width: "80px",
+                        height: "26px",
+                        fontSize: "11px",
+                        padding: "0 4px",
+                        cursor: formVisibility[field.key] === "hide_when_empty" ? "not-allowed" : "default"
+                      }}
+                      title={formVisibility[field.key] === "hide_when_empty" ? "숨김을 켜면 사용자 직접 설정 필수/권고 안내보다 숨김 처리가 우선됩니다." : ""}
+                    >
+                      <option value="">없음</option>
+                      <option value="required_override">필수</option>
+                      <option value="recommended_override">권고</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              {field.description && (
-                <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
-                  💡 {field.description}
+              {/* 설명 자리: 숨김 ON이면 🔒 안내, 아니면 💡 설명 — 항상 1줄 자리 고정 */}
+              {(formVisibility[field.key] === "hide_when_empty" || field.description) && (
+                <span style={{ fontSize: "11px", color: formVisibility[field.key] === "hide_when_empty" ? "#ea580c" : "#6b7280", marginTop: "-2px", marginBottom: "2px" }}>
+                  {formVisibility[field.key] === "hide_when_empty"
+                    ? "🔒 숨김: 사용자에게 숨김 처리됨 (단, 개인값 있는 경우 예외)"
+                    : field.description
+                      ? `💡 ${field.description}`
+                      : null}
                 </span>
               )}
 

@@ -313,6 +313,7 @@ export interface ClientContract {
 }
 
 export type UserSettingGuidanceLevel = "required_override" | "recommended_override";
+export type UserSettingVisibilityLevel = "hide_when_empty";
 
 /**
  * clientAutomations 컬렉션 — 회사가 실제 등록한 자동화 설정 (문서 ID = automationId)
@@ -339,6 +340,8 @@ export interface ClientAutomation {
   noticeText?: string;
   /** 사용자 개인설정 안내/강조 가이드 정책 정보 (UI 표시 전용) */
   userSettingGuidance?: Record<string, UserSettingGuidanceLevel>;
+  /** 사용자 설정창 표시 여부 (UI 표시 전용, 개인값 없을 때 숨김 처리용) */
+  userSettingVisibility?: Record<string, UserSettingVisibilityLevel>;
   /** 회사관리자 전용 — 직원 실행·노출 차단 (operator 매핑/enabled와 독립) */
   companyDisabled?: boolean;
   companyDisabledAt?: string;

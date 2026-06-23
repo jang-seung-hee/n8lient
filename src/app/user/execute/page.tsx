@@ -181,18 +181,27 @@ export default function UserExecute() {
       .map((f) => f.key);
 
     const personalSettingsMap = userSettings?.settings || {};
+    const visibilityMap = currentAuto.userSettingVisibility || {};
 
     let hasRequiredMissing = false;
     let hasRecommendedMissing = false;
     let hasGuidanceFields = false;
 
     for (const key of schemaKeys) {
+      const visibility = visibilityMap[key];
+      const shouldHideWhenEmpty = visibility === "hide_when_empty";
+      const rawVal = personalSettingsMap[key];
+      const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
+
+      // 숨김 필드이고 개인값이 없으면 경고(상태점) 계산에서 완벽히 제외
+      if (shouldHideWhenEmpty && !hasPersonalValue) {
+        continue;
+      }
+
       const level = guidance[key];
       if (!level) continue;
 
       hasGuidanceFields = true;
-      const rawVal = personalSettingsMap[key];
-      const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
 
       if (level === "required_override" && !hasPersonalValue) {
         hasRequiredMissing = true;

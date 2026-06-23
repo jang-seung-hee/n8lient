@@ -294,6 +294,14 @@ export default function UserPersonalSettingsModal({
                 const rawVal = personalSettings[field.key];
                 const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
 
+                const visibility = currentAuto.userSettingVisibility?.[field.key];
+                const shouldHideWhenEmpty = visibility === "hide_when_empty";
+
+                // 조건부 숨김 판정: 회사관리자가 숨김을 켰고 개인값이 비어있는 경우
+                if (shouldHideWhenEmpty && !hasPersonalValue) {
+                  return null;
+                }
+
                 let badgeElement = <span style={{ fontSize: "10px", color: "#9ca3af" }}>개인 맞춤용</span>;
                 let guidanceText = "";
                 let inputBorderColor = undefined;
@@ -395,6 +403,12 @@ export default function UserPersonalSettingsModal({
                         placeholder={`${helpText} (비워두면 기본값 사용)`}
                         style={{ borderColor: inputBorderColor }}
                       />
+                    )}
+
+                    {shouldHideWhenEmpty && hasPersonalValue && (
+                      <span className="ux_guidance_badge_recommended" style={{ fontSize: "11px", fontWeight: "600", marginTop: "2px", display: "inline-flex", alignSelf: "flex-start", padding: "2px 8px" }}>
+                        ℹ️ 기존 개인 설정값이 있어 표시 중입니다. 값을 비우면 회사 기본값으로 처리됩니다.
+                      </span>
                     )}
 
                     {guidanceText && (
