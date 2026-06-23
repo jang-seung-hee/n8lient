@@ -7,6 +7,8 @@ import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings, UserRe
 import { isGoogleDriveFolderIdConfigKey, normalizeSettingsDriveFolderIds } from "@/common/googleDrive/googleDriveFolderIdField";
 import { GoogleDriveFolderIdInput } from "@/components/core/GoogleDriveFolderIdInput";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
+import { hasPersonalSettingValue, resolveFieldGuidanceState } from "@/features/user/settings/resolvePersonalSettingFieldState";
+import UserSettingGuidanceBadge from "@/components/custom/user-settings/UserSettingGuidanceBadge";
 
 interface UserPersonalSettingsModalProps {
   isOpen: boolean;
@@ -292,7 +294,7 @@ export default function UserPersonalSettingsModal({
 
                 const guidance = currentAuto.userSettingGuidance?.[field.key];
                 const rawVal = personalSettings[field.key];
-                const hasPersonalValue = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== "";
+                const hasPersonalValue = hasPersonalSettingValue(rawVal);
 
                 const visibility = currentAuto.userSettingVisibility?.[field.key];
                 const shouldHideWhenEmpty = visibility === "hide_when_empty";
@@ -302,26 +304,10 @@ export default function UserPersonalSettingsModal({
                   return null;
                 }
 
-                let badgeElement = <span style={{ fontSize: "10px", color: "#9ca3af" }}>개인 맞춤용</span>;
-                let guidanceText = "";
-                let inputBorderColor = undefined;
-
-                if (guidance === "required_override") {
-                  if (hasPersonalValue) {
-                    badgeElement = <span className="ux_guidance_badge_success">개인 설정 완료</span>;
-                  } else {
-                    badgeElement = <span className="ux_guidance_badge_required">개인 설정 필수</span>;
-                    guidanceText = "개인 설정이 필요합니다.";
-                    inputBorderColor = "#fecaca"; // 옅은 빨강 경계선 가이드
-                  }
-                } else if (guidance === "recommended_override") {
-                  if (hasPersonalValue) {
-                    badgeElement = <span className="ux_guidance_badge_success">개인 설정 완료</span>;
-                  } else {
-                    badgeElement = <span className="ux_guidance_badge_recommended">개인 설정 권장</span>;
-                    guidanceText = "회사 기본값으로 처리됩니다. 개인 설정을 권장합니다.";
-                  }
-                }
+                const { badgeType, guidanceText, inputBorderColor } = resolveFieldGuidanceState(
+                  guidance,
+                  hasPersonalValue
+                );
 
                 return (
                   <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -329,7 +315,7 @@ export default function UserPersonalSettingsModal({
                       <label className="ux_label" style={{ fontSize: "12px" }}>
                         {field.label}
                       </label>
-                      {badgeElement}
+                      <UserSettingGuidanceBadge badgeType={badgeType} />
                     </div>
 
                     {field.type === "textarea" ? (
