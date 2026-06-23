@@ -807,3 +807,31 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
     * 단순히 프론트엔드 UI 화면단에서 제외하는 수준으로는 API 직접 주입 우회 우려가 있어, 게이트웨이 `finalSettings` 병합(`mergeAutomationSettings`) 단계에서의 무시/방어 필터링 처리가 필수적임.
     * 도입 시 `clientContracts`/`clientAutomations` 다큐먼트, UI 편집 폼, 설정 병합 유틸, 그리고 필수값(`required`) 검증 유효성 예외 처리까지 공통 영역(App + Gateway + Firestore + validation) 전반에 걸친 유동적 수정이 요구됨.
   * **결정 사항**: MVP 단계에서의 실행 안전성과 회귀 위험을 배제하기 위해 **현재 구현은 보류**하고 기술 백로그로 남김. 추후 설정 고도화 또는 운영자 매핑 폼 리팩토링 진행 시 이 구조적 설계안을 재검토하여 추진할 예정임.
+
+### [2026-06-21] 사용자 결과 메시지 및 링크 처리 UI 정합성 개선
+
+* **결과 요약 → 처리 결과 확인**
+  * `[06] 처리 결과 요약` 섹션의 제목을 `[02] 처리 결과 확인`으로 변경하고 기본적으로 펼침(expanded) 상태로 표시하도록 수정했다.
+  * 이는 `result.summary` (처리 결과 요약 문구), `result.resultUrl` (구글 시트/드라이브 경로), `processorResult.structuredData.actionLinks` (AI 생성 action 링크 배열) 등 사용자에게 표시될 콘텐츠의 핵심 성격을 더 잘 반영하기 위한 조치이다.
+  * 관련 파일: `src/components/custom/UserResultDetailSection.tsx`
+
+* **결과 링크 자동 링크화 및 칩 표시**
+  * `result.resultUrl`, `processorResult.summary`, `processorResult.structuredData.actionLinks`에 포함된 URL들은 `LinkifiedText` 컴포넌트를 통해 자동으로 링크화되며, `ux_link_chip` 디자인 패턴을 적용하여 시각적으로 구분되는 칩 형태로 표시되도록 구현되었다.
+  * 관련 파일: `src/components/custom/UserResultDetailSection.tsx`
+
+* **결과 데이터 제공 책임 분리 확정**
+  * 사용자에게 표시될 완료 메시지 및 링크 데이터 생성 책임은 최종적으로 n8n 워크플로우가 부담하는 것으로 확정되었다.
+  * 게이트웨이(`gateway/src/routes/webhook.ts`)는 callback 페이로드 수신 및 `submissions` 컬렉션 저장만 담당하며, 앱은 `[02] 처리 결과 확인` 섹션에 표시되는 내용만 담당한다.
+  * n8n 워크플로우 커스터마이징 시에는 AI가 처리 결과 확인 메시지 초안을 작성하고, 사용자의 검토 및 승인 후 callback payload에 반영하는 절차를 표준으로 따르도록 하였다.
+  * 권장 n8n 노드 순서는 `[24A] Build User Result Message` → `[24B] Build Success Callback Payload` → `[24C] Gateway Callback`이다.
+
+* **기초설계서 및 프롬프트 세트 업데이트**
+  * n8n 기반 기초설계서 10종 전체와 관련 프롬프트 세트에 처리 결과 확인 메시지 및 링크 생성 관련 내용을 최소한으로 보강한 ZIP 세트가 생성되었다.
+  * 관련 파일: `n8n-prompt-sets/n8n-basic-design-sets-v2.1.zip`
+
+* **보안 원칙 준수**
+  * 처리 결과 확인 메시지 및 링크에 Token, Secret, API Key, OAuth Token 등 민감한 정보가 포함되지 않도록 보안 기준을 명확히 하였다.
+
+* **형식 오류 검증**
+  * `[02] 처리 결과 확인` 섹션에서 렌더링되는 `userMessage`가 텍스트가 아닌 잘못된 형식(예: HTML 태그만 있는 문자열)인 경우에도 `UserResultDetailSection` 내에서 안전하게 텍스트로 변환되어 렌더링되도록 하여 뷰어 붕괴(Viewer Collapse)나 무반응 문제를 방지했다.
+  * 관련 파일: `src/components/custom/UserResultDetailSection.tsx`

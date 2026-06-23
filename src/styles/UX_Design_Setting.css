@@ -908,7 +908,10 @@
 .ux_notice_highlight_database,
 .ux_notice_highlight_storage,
 .ux_notice_highlight_drive,
-.ux_notice_highlight_result {
+.ux_notice_highlight_result,
+.ux_notice_highlight_success,
+.ux_notice_highlight_notice,
+.ux_notice_highlight_error {
   display: inline;
   padding: 1px 5px;
   border-radius: 6px;
@@ -937,6 +940,21 @@
 }
 
 .ux_notice_highlight_result {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.ux_notice_highlight_success {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.ux_notice_highlight_notice {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.ux_notice_highlight_error {
   color: #be123c;
   background: #ffe4e6;
 }

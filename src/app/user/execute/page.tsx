@@ -99,32 +99,32 @@ export default function UserExecute() {
     // 1. 이메일 표시 판정
     const hasEmail = emailWillSend && emailTo;
     const emailDisplay = hasEmail ? (
-      <span className="ux_notice_highlight_email">{emailTo}</span>
+      <span className="ux_notice_highlight_success">{emailTo}</span>
     ) : (
-      "해당사항 없음"
+      <span className="ux_notice_highlight_notice">해당사항 없음</span>
     );
 
     // 2. 데이터베이스 표시 판정: processed_result 이상 또는 databaseEnabled일 때
     const isDbEnabled = databaseEnabled || retentionLevel === "processed_result" || retentionLevel === "full_archive";
     const dbDisplay = isDbEnabled ? (
-      <span className="ux_notice_highlight_database">보관처리 됨</span>
+      <span className="ux_notice_highlight_success">보관처리 됨</span>
     ) : (
-      "해당사항 없음"
+      <span className="ux_notice_highlight_notice">보관하지 않음</span>
     );
 
     // 3. 스토리지 표시 판정: full_archive 또는 storageEnabled일 때
     const isStorageEnabled = storageEnabled || retentionLevel === "full_archive";
     const storageDisplay = isStorageEnabled ? (
-      <span className="ux_notice_highlight_storage">보관처리 됨</span>
+      <span className="ux_notice_highlight_success">보관처리 됨</span>
     ) : (
-      "해당사항 없음"
+      <span className="ux_notice_highlight_notice">보관하지 않음</span>
     );
 
     // 4. 구글드라이브 표시 판정
     const driveDisplay = googleDriveEnabled ? (
-      <span className="ux_notice_highlight_drive">구글드라이브 저장/내보내기 예정</span>
+      <span className="ux_notice_highlight_success">구글드라이브 저장/내보내기 예정</span>
     ) : (
-      "해당사항 없음"
+      <span className="ux_notice_highlight_notice">해당사항 없음</span>
     );
 
     return (
@@ -154,7 +154,7 @@ export default function UserExecute() {
             워크플로우 처리가 성공하면 설정된 결과보고 방식에 따라 결과가 전달됩니다.
           </p>
           <p style={{ margin: 0 }}>
-            단, 워크플로우 실패 시에는 <span className="ux_notice_highlight_result">로그화면</span>에서만 확인할 수 있습니다.
+            단, 워크플로우 실패 시에는 <span className="ux_notice_highlight_error">로그화면</span>에서만 확인할 수 있습니다.
           </p>
         </div>
       </div>
