@@ -15,6 +15,20 @@ import {
   type MicrophonePermissionState,
 } from "@/common/utils/microphone";
 
+function resolveAudioExtensionFromMimeType(mimeType: string): string {
+  const normalized = mimeType.toLowerCase();
+
+  if (normalized.includes("webm")) return "webm";
+  if (normalized.includes("mp4")) return "m4a";
+  if (normalized.includes("aac")) return "aac";
+  if (normalized.includes("mpeg")) return "mp3";
+  if (normalized.includes("mp3")) return "mp3";
+  if (normalized.includes("wav")) return "wav";
+  if (normalized.includes("ogg")) return "ogg";
+
+  return "webm";
+}
+
 interface WorkflowInputPanelProps {
   acceptedInputTypes: Array<"text" | "file" | "image" | "audio">;
   allowedFileTypes?: string[];
@@ -179,14 +193,38 @@ export default function WorkflowInputPanel({
       setMicPermissionState("granted");
       setMicPermissionUiState("idle");
 
-      let mimeType = "audio/webm";
-      if (typeof MediaRecorder !== "undefined") {
-        if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
-        else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
-        else if (MediaRecorder.isTypeSupported("audio/mpeg")) mimeType = "audio/mpeg";
+      const recordingMimeCandidates = [
+        { mimeType: "audio/webm;codecs=opus", ext: "webm" },
+        { mimeType: "audio/webm", ext: "webm" },
+        { mimeType: "audio/mp4", ext: "m4a" },
+        { mimeType: "audio/aac", ext: "aac" },
+        { mimeType: "audio/mpeg", ext: "mp3" },
+      ];
+
+      const selectedFormat = recordingMimeCandidates.find((candidate) =>
+        typeof MediaRecorder !== "undefined" &&
+        MediaRecorder.isTypeSupported(candidate.mimeType)
+      ) ?? null;
+
+      let mediaRecorder: MediaRecorder;
+      let selectedMimeType = selectedFormat?.mimeType ?? "";
+      let selectedExtension = selectedFormat?.ext ?? "webm";
+
+      try {
+        mediaRecorder = selectedFormat
+          ? new MediaRecorder(stream, { mimeType: selectedFormat.mimeType })
+          : new MediaRecorder(stream);
+
+        if (!selectedMimeType && mediaRecorder.mimeType) {
+          selectedMimeType = mediaRecorder.mimeType;
+          selectedExtension = resolveAudioExtensionFromMimeType(mediaRecorder.mimeType);
+        }
+      } catch (error) {
+        mediaRecorder = new MediaRecorder(stream);
+        selectedMimeType = mediaRecorder.mimeType || "audio/webm";
+        selectedExtension = resolveAudioExtensionFromMimeType(selectedMimeType);
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -194,9 +232,8 @@ export default function WorkflowInputPanel({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        const ext = mimeType.split("/")[1] || "webm";
-        const audioFile = new File([audioBlob], `recorded_audio_${Date.now()}.${ext}`, { type: mimeType });
+        const audioBlob = new Blob(audioChunksRef.current, { type: selectedMimeType || "audio/webm" });
+        const audioFile = new File([audioBlob], `recorded_audio_${Date.now()}.${selectedExtension}`, { type: selectedMimeType || "audio/webm" });
         const url = URL.createObjectURL(audioBlob);
 
         setAudioUrl(url);
