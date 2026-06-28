@@ -892,3 +892,12 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 
 * **물리적 UI 컴포넌트 격리 및 헬퍼 함수 추출**
   - 400줄 제한 프로젝트 룰 준수를 위해 실행 화면(`page.tsx`), 회사 관리자 자동화 편집 폼(`CompanyAutomationForm.tsx`), 사용자 개인설정 모달(`UserPersonalSettingsModal.tsx`)에서 공지 문구 조립 및 상태점 계산 로직을 순수 헬퍼(`resolveCompletionNotice`, `resolveUserSettingGuidanceStatus`)로 격리하고, 에디터 필드 및 보관 정책, 제출 버튼, 디버그 정보 영역을 신규 독립 컴포넌트로 분리하였습니다. 동작 변경 없이 라인 수 감소 및 가독성을 개선하였습니다.
+
+### [2026-06-25] iOS / Safari 음성 녹음 포맷 호환성 보강
+
+* **음성 녹음 포맷 자동 선택 및 명시적 확장자 매핑**
+  - **결정**: iOS/Safari 등 `.webm` 녹음을 지원하지 않거나 재생 호환성이 낮은 브라우저 환경을 위해, `MediaRecorder` 생성 시 지원 포맷 후보군(`webm`, `m4a`, `aac`, `mp3` 등)을 검출해 맞춤 생성하고, Blob 및 File 객체의 확장자를 일대일 명시 매핑하여 저장 및 재생 호환성을 개선하였습니다.
+  - **이유**: 기존에 `mimeType.split("/")[1]` 방식으로 확장자를 단순 추출할 때, `audio/mp4` 환경에서 `.mp4`로 파일이 생성되어 외부 재생이나 일부 호환성 상의 불이익이 있었던 문제를 해결하고, MediaRecorder 생성 과정의 안전을 도모하기 위함입니다.
+  - **관련 파일**: [WorkflowInputPanel.tsx](file:///e:/05.Python_Project/34.n8n-project/%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8%20%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/src/components/custom/WorkflowInputPanel.tsx)
+  - **주의사항**: `route.ts`, `n8lient-gateway`, `n8n webhook` 등 서버단 및 검증 파일(validateExecution.ts) 등은 전혀 수정되지 않았습니다. 실기기 환경(Windows Chrome, iPhone Safari 등)에서 선택된 포맷과 확장자가 정상 동작하는지 테스트가 병행되어야 합니다.
+  - **최소 검증 기준**: `npx tsc --noEmit` 통과 및 `npm run build` 빌드 통과.
