@@ -20,6 +20,7 @@ const buildTitleContract_1 = require("./shared/buildTitleContract");
 const resolveRetentionPolicy_1 = require("./shared/resolveRetentionPolicy");
 const resolveEffectiveRetentionLevel_1 = require("./shared/resolveEffectiveRetentionLevel");
 const isClientContractActiveForEmployee_1 = require("./shared/isClientContractActiveForEmployee");
+const validateResultAccess_1 = require("./shared/validateResultAccess");
 // .env 파일 로드 (로컬 개발용)
 dotenv_1.default.config();
 /**
@@ -508,6 +509,15 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             sizeBytes: file.size,
             inputType: input.inputType || "file"
         } : null;
+        // ── 5.5. 결과 권한 모드(accessMode) 결정 ──────────────────
+        let rawAccessMode = undefined;
+        if (autoDoc.resultAccessPolicy && typeof autoDoc.resultAccessPolicy === "object") {
+            rawAccessMode = autoDoc.resultAccessPolicy.defaultAccessMode;
+        }
+        if (!rawAccessMode && templateDoc.resultAccessPolicy && typeof templateDoc.resultAccessPolicy === "object") {
+            rawAccessMode = templateDoc.resultAccessPolicy.defaultAccessMode;
+        }
+        const finalAccessMode = (0, validateResultAccess_1.resolveResultAccessMode)(rawAccessMode);
         // [v2] Firebase Storage 원본 파일 업로드 (retentionPolicy.storeOriginalFiles 가 true일 때만 저장)
         let originalFileRefs = [];
         if (file) {
@@ -568,6 +578,7 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                                 gatewayTraceId,
                                 hint: "Firebase Storage 업로드 중 오류가 발생했습니다. 권한 또는 네트워크 상태를 확인하세요.",
                             },
+                            accessMode: finalAccessMode,
                             retryOf: null,
                             settingsMergeSummary,
                             createdAt: now.toISOString(),
@@ -621,6 +632,7 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             retentionPolicySnapshot: retentionPolicy,
             result: { resultUrl: null, summary: null },
             error: { code: null, message: null },
+            accessMode: finalAccessMode,
             retryOf: null,
             settingsMergeSummary,
             createdAt: now.toISOString(),
@@ -702,8 +714,11 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
             }
             const errorDetails = {
                 phase: "GATEWAY_N8N_CALL",
+                stage: "UPSTREAM_CALL",
                 source: "gateway",
                 httpStatus,
+                upstreamStatus: httpStatus || null,
+                webhookSecretId,
                 occurredAt: new Date().toISOString(),
                 gatewayTraceId,
                 n8nServerKey,
@@ -717,15 +732,19 @@ app.post("/api/automation/execute", auth_1.checkAuth, upload.single("file_0"), a
                     status: "failed",
                     updatedAt: new Date().toISOString(),
                     error: {
-                        code: "GATEWAY_EXECUTE_FAILED",
-                        message: n8nErr.message || "게이트웨이 통신 실패"
+                        code: httpStatus === 404 ? "N8N_WEBHOOK_NOT_FOUND" : "GATEWAY_EXECUTE_FAILED",
+                        message: httpStatus === 404 ? "n8n 워크플로우의 Webhook 경로를 찾을 수 없습니다. (미등록 또는 비활성)" : (n8nErr.message || "게이트웨이 통신 실패")
                     },
                     errorDetails
                 });
             }
             return res.status(httpStatus || 500).json({
                 success: false,
-                error: `실행 실패: ${n8nErr.message}`,
+                error: httpStatus === 404 ? "n8n 워크플로우 Webhook 미등록 또는 비활성" : `실행 실패: ${n8nErr.message}`,
+                errorCode: httpStatus === 404 ? "N8N_WEBHOOK_NOT_FOUND" : "GATEWAY_EXECUTE_FAILED",
+                stage: "UPSTREAM_CALL",
+                upstreamStatus: httpStatus || null,
+                webhookSecretId,
                 errorDetails
             });
         }
