@@ -9,6 +9,7 @@ import { getAdminAuth, getAdminFirestore } from "@/lib/firebaseAdmin";
 import { validateExecution } from "@/common/validation/validateExecution";
 import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 import { DEFAULT_RETENTION_POLICY } from "@/types/n8lient";
+import { resolveResultAccessMode } from "@/common/validation/validateResultAccess";
 
 // 안내 모달용 completionNotice 조립 헬퍼 함수
 function buildCompletionNotice(
@@ -476,6 +477,16 @@ export async function POST(req: NextRequest) {
     // ── 6. 환경변수에서 Webhook URL 조회 (서버 공통 Base URL + 자동화별 Path) ────
     const webhookConfig = getWebhookConfig(n8nServerKey, webhookSecretId);
 
+    // ── 6.5. 결과 권한 모드(accessMode) 결정 ──────────────────
+    let rawAccessMode: string | undefined = undefined;
+    if (autoDoc.resultAccessPolicy && typeof autoDoc.resultAccessPolicy === "object") {
+      rawAccessMode = autoDoc.resultAccessPolicy.defaultAccessMode;
+    }
+    if (!rawAccessMode && templateDoc.resultAccessPolicy && typeof templateDoc.resultAccessPolicy === "object") {
+      rawAccessMode = templateDoc.resultAccessPolicy.defaultAccessMode;
+    }
+    const finalAccessMode = resolveResultAccessMode(rawAccessMode);
+
     // ── 7. submissions 문서 생성 (status: queued) ─────────────────────────
     const now = new Date();
     const dateStr = now.toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
@@ -510,6 +521,7 @@ export async function POST(req: NextRequest) {
         code: null,
         message: null,
       },
+      accessMode: finalAccessMode,
       retryOf: null,
       settingsMergeSummary,
       templateStatusAtExecution: templateDoc.status === "draft" ? "draft" : "published",

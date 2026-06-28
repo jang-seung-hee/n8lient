@@ -24,6 +24,7 @@ import {
   buildClientContractId,
   isClientContractActiveForEmployee,
 } from "./shared/isClientContractActiveForEmployee";
+import { resolveResultAccessMode } from "./shared/validateResultAccess";
 
 // .env 파일 로드 (로컬 개발용)
 dotenv.config();
@@ -581,6 +582,16 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       inputType: input.inputType || "file"
     } : null;
 
+    // ── 5.5. 결과 권한 모드(accessMode) 결정 ──────────────────
+    let rawAccessMode: string | undefined = undefined;
+    if (autoDoc.resultAccessPolicy && typeof autoDoc.resultAccessPolicy === "object") {
+      rawAccessMode = autoDoc.resultAccessPolicy.defaultAccessMode;
+    }
+    if (!rawAccessMode && templateDoc.resultAccessPolicy && typeof templateDoc.resultAccessPolicy === "object") {
+      rawAccessMode = templateDoc.resultAccessPolicy.defaultAccessMode;
+    }
+    const finalAccessMode = resolveResultAccessMode(rawAccessMode);
+
     // [v2] Firebase Storage 원본 파일 업로드 (retentionPolicy.storeOriginalFiles 가 true일 때만 저장)
     let originalFileRefs: FileRef[] = [];
     if (file) {
@@ -641,6 +652,7 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
                 gatewayTraceId,
                 hint: "Firebase Storage 업로드 중 오류가 발생했습니다. 권한 또는 네트워크 상태를 확인하세요.",
               },
+              accessMode: finalAccessMode,
               retryOf: null,
               settingsMergeSummary,
               createdAt: now.toISOString(),
@@ -696,6 +708,7 @@ app.post("/api/automation/execute", checkAuth, upload.single("file_0"), async (r
       retentionPolicySnapshot: retentionPolicy,
       result: { resultUrl: null, summary: null },
       error: { code: null, message: null },
+      accessMode: finalAccessMode,
       retryOf: null,
       settingsMergeSummary,
       createdAt: now.toISOString(),

@@ -134,6 +134,20 @@ export type N8nErrorCode =
   | "CLIENT_AUTOMATION_COMPANY_DISABLED";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 결과데이터 열람 권한 관련 타입 (v1.0)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 결과 열람 권한 모드 */
+export type ResultAccessMode = "private" | "company";
+
+/** 결과 열람 권한 설정 정책 */
+export interface ResultAccessPolicy {
+  defaultAccessMode?: ResultAccessMode;
+  ownerCanChangeAccess?: boolean;
+  adminCanChangeAccess?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Firestore 컬렉션 도큐먼트 인터페이스
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -283,6 +297,7 @@ export interface WorkflowTemplate {
   retentionPolicy?: RetentionPolicy; // [v2.5] 보관 정책 추가 (하위 호환)
   retentionCapabilities?: RetentionCapabilities; // [v2.6] 지원 범위
   operatorRetentionPolicy?: OperatorRetentionPolicy; // [v2.6] 오퍼레이터 제한 정책
+  resultAccessPolicy?: ResultAccessPolicy; // [v1.0] 결과 데이터 권한 정책
   createdAt: string;
   updatedAt: string;
 }
@@ -349,6 +364,7 @@ export interface ClientAutomation {
   companyDisableReason?: string;
   deploymentMode?: "test" | "production";
   templateStatusAtBinding?: "draft" | "published";
+  resultAccessPolicy?: ResultAccessPolicy; // [v1.0] 회사 자동화별 결과 권한 정책
   createdBy: Uid;
   createdAt: string;
   updatedAt: string;
@@ -659,6 +675,12 @@ export interface Submission {
   
   templateStatusAtExecution?: "draft" | "published";
   isTestExecution?: boolean;
+  
+  // ── v1.0 결과 권한 필드 (옵셔널) ──
+  accessMode?: ResultAccessMode;
+  accessChangedBy?: string;
+  accessChangedAt?: string | null;
+  accessChangeReason?: string;
   
   createdAt: string;
   updatedAt: string;
