@@ -2,7 +2,7 @@
 // WorkflowForm의 폼 상태를 WorkflowTemplate 객체로 조립하는 유틸 함수입니다.
 // notifyDraftChange(debounce)와 handleSubmitInternal에서 공통 사용합니다.
 
-import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
+import type { WorkflowTemplate, ConfigSchemaField, ResultAccessMode } from "@/types/n8lient";
 
 /** RetentionLevel 공통 타입 */
 type RetentionLevel = "notify_only" | "processed_result" | "full_archive";
@@ -40,6 +40,7 @@ export interface AssembleTemplateParams {
   requiredInputMode: "none" | "at_least_one" | "all";
   requiredInputTypes: string[];
   maxFiles: number;
+  defaultAccessMode: ResultAccessMode;
   initialData: WorkflowTemplate | null;
   /** [v2.9] getMaybeUndefined 헬퍼: 터치되지 않은 누락 필드는 undefined 반환 */
   getMaybeUndefined: <T>(fieldPath: string, currentVal: T) => T | undefined;
@@ -76,6 +77,7 @@ export function assembleWorkflowTemplate({
   supportsEmailNotification, supportsResultPolicyRouter,
   opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
   requiredInputMode, requiredInputTypes, maxFiles,
+  defaultAccessMode,
   initialData,
   getMaybeUndefined,
   cleanSchema = false,
@@ -136,6 +138,11 @@ export function assembleWorkflowTemplate({
       defaultLevel: getMaybeUndefined("operatorRetentionPolicy.defaultLevel", opDefaultLevel) as any,
       allowCompanyOverride: getMaybeUndefined("operatorRetentionPolicy.allowCompanyOverride", allowCompanyOverride) as any,
       allowUserOverride: getMaybeUndefined("operatorRetentionPolicy.allowUserOverride", allowUserOverride) as any,
+    },
+    resultAccessPolicy: {
+      defaultAccessMode,
+      ownerCanChangeAccess: false,
+      adminCanChangeAccess: true,
     },
     createdAt: initialData?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),

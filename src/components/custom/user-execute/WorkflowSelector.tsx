@@ -100,6 +100,61 @@ export default function WorkflowSelector({
           })()}
         </button>
       </div>
+      {currentAuto && (
+        (() => {
+          const policy = currentAuto.retentionPolicy || currentTemplate?.retentionPolicy || { level: "full_archive" };
+          const level = policy.level || "full_archive";
+
+          let rawAccessMode: string | undefined = undefined;
+          if (currentAuto.resultAccessPolicy && typeof currentAuto.resultAccessPolicy === "object") {
+            rawAccessMode = currentAuto.resultAccessPolicy.defaultAccessMode;
+          }
+          if (!rawAccessMode && currentTemplate?.resultAccessPolicy && typeof currentTemplate.resultAccessPolicy === "object") {
+            rawAccessMode = currentTemplate.resultAccessPolicy.defaultAccessMode;
+          }
+          const resolvedAccessMode = rawAccessMode === "company" ? "company" : "private";
+
+          let accessModeBadgeText = "";
+          let badgeBgColor = "";
+          let badgeTextColor = "";
+
+          if (level === "notify_only") {
+            accessModeBadgeText = "DB 결과: 저장 안 함";
+            badgeBgColor = "#f3f4f6";
+            badgeTextColor = "#4b5563";
+          } else if (resolvedAccessMode === "company") {
+            accessModeBadgeText = "DB 결과: 회사 공개";
+            badgeBgColor = "#d1fae5";
+            badgeTextColor = "#065f46";
+          } else {
+            accessModeBadgeText = "DB 결과: 개인 보관";
+            badgeBgColor = "#eff6ff";
+            badgeTextColor = "#1d4ed8";
+          }
+
+          return (
+            <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    fontWeight: 600,
+                    backgroundColor: badgeBgColor,
+                    color: badgeTextColor,
+                  }}
+                >
+                  🔒 {accessModeBadgeText}
+                </span>
+              </div>
+              <p className="ux_caption" style={{ margin: 0, fontSize: "11px", color: "#6b7280", lineHeight: 1.3 }}>
+                💡 DB 결과 공개 범위입니다. 이메일·캘린더·Google Drive는 공개 전환 대상이 아닙니다.
+              </p>
+            </div>
+          );
+        })()
+      )}
     </div>
   );
 }

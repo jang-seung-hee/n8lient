@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { RetentionLevel } from "@/types/n8lient";
+import type { RetentionLevel, ResultAccessMode } from "@/types/n8lient";
 import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import {
   getDiagnosticStyles,
@@ -36,6 +36,8 @@ export interface WorkflowRetentionPolicyFormProps {
   setAllowCompanyOverride: (val: boolean) => void;
   allowUserOverride: boolean;
   setAllowUserOverride: (val: boolean) => void;
+  defaultAccessMode: ResultAccessMode;
+  setDefaultAccessMode: (val: ResultAccessMode) => void;
   diagnostics?: WorkflowImportDiagnostics | null;
   isStructureLocked?: boolean;
 }
@@ -65,6 +67,8 @@ export default function WorkflowRetentionPolicyForm({
   setAllowCompanyOverride,
   allowUserOverride,
   setAllowUserOverride,
+  defaultAccessMode,
+  setDefaultAccessMode,
   diagnostics = null,
   isStructureLocked = false,
 }: WorkflowRetentionPolicyFormProps) {
@@ -332,6 +336,57 @@ export default function WorkflowRetentionPolicyForm({
             {getFieldDiagnosticMessage("operatorRetentionPolicy.allowedLevels", diagnostics)}
           </span>
         )}
+      </div>
+
+      {/* [v1.0] DB 결과 열람 범위 (Result Access Policy) */}
+      <div
+        style={{
+          backgroundColor: "#eff6ff",
+          border: "1px solid #bfdbfe",
+          borderRadius: "8px",
+          padding: "12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        }}
+      >
+        <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#1e3a8a", margin: 0 }}>
+          🔒 DB 결과 열람 범위 (Result Access Mode)
+        </h4>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label className="ux_label" style={{ fontSize: "12px", color: "#1e3a8a" }}>
+            신규 결과 저장 시 기본 공개 범위
+          </label>
+          <select
+            className="ux_select_compact"
+            value={defaultAccessMode}
+            onChange={(e) => setDefaultAccessMode(e.target.value as ResultAccessMode)}
+            style={{
+              height: "32px",
+              fontSize: "12px",
+              borderRadius: "6px",
+              padding: "0 6px",
+              border: "1px solid #bfdbfe",
+              backgroundColor: "#ffffff",
+              color: "#111111",
+            }}
+          >
+            <option value="private">개인 보관</option>
+            <option value="company">회사 공개</option>
+          </select>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+            <span style={{ fontSize: "10.5px", color: "#1e3a8a", opacity: 0.85, fontWeight: 600 }}>
+              • 개인 보관: 실행자 본인만 N8Lient DB 결과를 볼 수 있습니다.
+            </span>
+            <span style={{ fontSize: "10.5px", color: "#1e3a8a", opacity: 0.85, fontWeight: 600 }}>
+              • 회사 공개: 같은 회사 구성원이 N8Lient DB 결과를 볼 수 있습니다.
+            </span>
+            <span style={{ fontSize: "10.5px", color: "#6b7280", marginTop: "4px", lineHeight: 1.3 }}>
+              💡 N8Lient DB에 저장되는 처리 결과를 누가 볼 수 있는지 정합니다. 이메일, 캘린더, Google Drive로 전달·생성된 외부 결과에는 적용되지 않습니다.
+            </span>
+          </div>
+        </div>
       </div>
     </>
   );

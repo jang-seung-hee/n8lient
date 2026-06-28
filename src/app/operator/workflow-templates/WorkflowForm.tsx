@@ -73,6 +73,7 @@ export function WorkflowForm({
     requiredInputMode, setRequiredInputMode,
     requiredInputTypes, setRequiredInputTypes,
     maxFiles, setMaxFiles,
+    defaultAccessMode, setDefaultAccessMode,
     originalSchemaKeys,
     originalStatus,
     markTouched,
@@ -164,6 +165,8 @@ export function WorkflowForm({
           setAllowCompanyOverride={(val) => { setAllowCompanyOverride(val); markTouched("operatorRetentionPolicy.allowCompanyOverride"); }}
           allowUserOverride={allowUserOverride}
           setAllowUserOverride={(val) => { setAllowUserOverride(val); markTouched("operatorRetentionPolicy.allowUserOverride"); }}
+          defaultAccessMode={defaultAccessMode}
+          setDefaultAccessMode={(val) => { setDefaultAccessMode(val); markTouched("resultAccessPolicy.defaultAccessMode"); }}
           diagnostics={diagnostics}
           isStructureLocked={isStructureLocked}
         />

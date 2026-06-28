@@ -4,7 +4,7 @@
 // WorkflowForm.tsx는 이 훅을 사용하여 UI 조립만 담당합니다.
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import type { WorkflowTemplate, ConfigSchemaField } from "@/types/n8lient";
+import type { WorkflowTemplate, ConfigSchemaField, ResultAccessMode } from "@/types/n8lient";
 import type { WorkflowImportDiagnostics } from "@/features/operator/workflowTemplateImport";
 import { playAppSound } from "@/lib/appSound";
 import { validateWorkflowFormBeforeSubmit } from "./workflowFormSubmitValidator";
@@ -94,6 +94,9 @@ export function useWorkflowForm({
   const [missingImportFields, setMissingImportFields] = useState<Set<string>>(new Set());
   const [touchedImportFields, setTouchedImportFields] = useState<Set<string>>(new Set());
 
+  // ── [v1.0] resultAccessPolicy 상태 ──────────────────────────────────────
+  const [defaultAccessMode, setDefaultAccessMode] = useState<ResultAccessMode>("private");
+
   // ── 수정/배포 일관성 보호 상태 ─────────────────────────────────────────────
   const [originalSchemaKeys, setOriginalSchemaKeys] = useState<Set<string>>(new Set());
   const [originalStatus, setOriginalStatus] = useState<"draft" | "published" | "disabled" | null>(null);
@@ -182,6 +185,9 @@ export function useWorkflowForm({
       setAllowCompanyOverride(op.allowCompanyOverride);
       setAllowUserOverride(op.allowUserOverride);
 
+      const accessPolicy = initialData.resultAccessPolicy || { defaultAccessMode: "private" };
+      setDefaultAccessMode(accessPolicy.defaultAccessMode || "private");
+
       if (isEditMode) {
         setOriginalSchemaKeys(new Set(initialData.configSchema.map((f) => f.key)));
         setOriginalStatus(initialData.status);
@@ -205,6 +211,7 @@ export function useWorkflowForm({
       setSupportsResultRefs(true); setSupportsEmailNotification(false); setSupportsResultPolicyRouter(true);
       setOpAllowedLevels(["notify_only", "processed_result", "full_archive"]);
       setOpDefaultLevel("full_archive"); setAllowCompanyOverride(true); setAllowUserOverride(true);
+      setDefaultAccessMode("private");
       setOriginalSchemaKeys(new Set()); setOriginalStatus(null);
     }
   }, [initialData, isEditMode]);
@@ -221,6 +228,7 @@ export function useWorkflowForm({
     supportsEmailNotification, supportsResultPolicyRouter,
     opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
     requiredInputMode, requiredInputTypes, maxFiles,
+    defaultAccessMode,
     initialData, getMaybeUndefined,
   });
 
@@ -244,6 +252,7 @@ export function useWorkflowForm({
     supportsEmailNotification, supportsResultPolicyRouter,
     opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
     requiredInputMode, requiredInputTypes, maxFiles,
+    defaultAccessMode,
     initialData, missingImportFields, touchedImportFields,
   ]);
 
@@ -262,6 +271,7 @@ export function useWorkflowForm({
     supportsEmailNotification, supportsResultPolicyRouter,
     opAllowedLevels, opDefaultLevel, allowCompanyOverride, allowUserOverride,
     requiredInputMode, requiredInputTypes, maxFiles,
+    defaultAccessMode,
   ]);
 
   // initialData가 바뀔 때마다 isFirstRender를 리셋합니다.
@@ -375,6 +385,7 @@ export function useWorkflowForm({
     requiredInputMode, setRequiredInputMode,
     requiredInputTypes, setRequiredInputTypes,
     maxFiles, setMaxFiles,
+    defaultAccessMode, setDefaultAccessMode,
     originalSchemaKeys, originalStatus,
     missingImportFields, touchedImportFields, markTouched,
     handleMoveField, handleSelectOptionsChange, handleAddField,
