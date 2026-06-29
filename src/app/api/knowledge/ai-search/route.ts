@@ -79,9 +79,19 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. 검색 토큰 추출 및 1차 권한 필터링 쿼리 수행
-    const searchTokens = buildSearchTokens(query);
+    const rawTokens = buildSearchTokens(query);
 
-    // 토큰이 0개이면 전체 문서 반환을 차단하고 안내 메시지를 반환 (Phase 2.2 보강)
+    // Phase 2.2c: 불용어 제거 — 의미 없는 공통어가 넓은 범위의 문서를 끌어오는 것을 방지
+    const STOPWORDS = new Set([
+      "오늘", "어제", "내일", "지금", "그것", "이것", "저것",
+      "알려줘", "알려", "줘", "뭐야", "뭔가", "뭐", "대해", "대한",
+      "것은", "것을", "것이", "입니다", "있어", "있나", "있는",
+      "해줘", "해줘요", "어때", "어떤", "어떻게", "좀", "제발",
+      "정말", "너무", "그냥", "혹시", "근데", "그런데",
+    ]);
+    const searchTokens = rawTokens.filter((t) => !STOPWORDS.has(t));
+
+    // 불용어 제거 후 유효 토큰이 0개이면 차단
     if (searchTokens.length === 0) {
       return NextResponse.json({
         success: true,
@@ -190,13 +200,16 @@ export async function POST(req: NextRequest) {
       return timeB - timeA;
     });
 
-    const candidateIndexes = filtered.slice(0, resolvedMaxSources);
+    // Phase 2.2c: 최소 관련도 점수 미달 문서 제거 — 토큰 우연 매칭 차단
+    const MIN_RELEVANCE_SCORE = 2;
+    const relevantFiltered = filtered.filter((d) => d.score >= MIN_RELEVANCE_SCORE);
+    const candidateIndexes = relevantFiltered.slice(0, resolvedMaxSources);
 
-    // 후보가 0개인 경우 AI 호출 생략 및 기본 정보 리턴 (요구사항 14 준수)
+    // 후보가 0개인 경우 AI 호출 생략 및 기본 정보 리턴
     if (candidateIndexes.length === 0) {
       return NextResponse.json({
         success: true,
-        answer: "제공된 자료에서 질문과 관련된 내용을 찾을 수 없습니다.",
+        answer: "저장된 자료에서 질문과 관련된 근거를 찾지 못했습니다.",
         sources: [],
         usage: {
           model: "none",
