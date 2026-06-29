@@ -901,3 +901,52 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   - **관련 파일**: [WorkflowInputPanel.tsx](file:///e:/05.Python_Project/34.n8n-project/%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8%20%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/src/components/custom/WorkflowInputPanel.tsx)
   - **주의사항**: `route.ts`, `n8lient-gateway`, `n8n webhook` 등 서버단 및 검증 파일(validateExecution.ts) 등은 전혀 수정되지 않았습니다. 실기기 환경(Windows Chrome, iPhone Safari 등)에서 선택된 포맷과 확장자가 정상 동작하는지 테스트가 병행되어야 합니다.
   - **최소 검증 기준**: `npx tsc --noEmit` 통과 및 `npm run build` 빌드 통과.
+
+  ### [2026-06-29] 결과데이터 권한관리 정책 및 accessMode 반영
+
+* **결정**
+
+  * N8Lient DB에 저장되는 결과 데이터의 열람 범위는 `accessMode`로 관리한다.
+  * 1차 값은 `private` / `company` 두 가지만 사용한다.
+
+    * `private`: 작성자 본인만 DB 결과 열람.
+    * `company`: 같은 `clientId`의 회사 구성원이 DB 결과 열람.
+  * 외부 공개로 오해될 수 있으므로 `public` 명칭은 사용하지 않는다.
+
+* **retentionPolicy와 accessMode 분리**
+
+  * `retentionPolicy`: 이메일 전송, DB 저장, Storage 보관 여부.
+  * `accessMode`: DB에 저장된 결과를 누가 볼 수 있는지.
+  * 이메일, 캘린더, Google Drive Optional Export는 `accessMode` 적용 대상이 아니다.
+  * `notify_only`는 DB 결과 본문이 저장되지 않으므로 accessMode가 `company`여도 사용자 화면에서는 `DB 결과: 저장 안 함`으로 표시한다.
+
+* **구현 상태**
+
+  * 커밋 `2a11b74`: accessMode 저장 기반 추가.
+
+    * `ResultAccessMode`, `ResultAccessPolicy` 타입 추가.
+    * `WorkflowTemplate`, `ClientAutomation`, `Submission`에 권한 필드 추가.
+    * 신규 submission 생성 시 accessMode 저장.
+    * 우선순위: `clientAutomation.resultAccessPolicy.defaultAccessMode` → `workflowTemplate.resultAccessPolicy.defaultAccessMode` → `private`.
+    * 누락/이상값은 `private`으로 fallback.
+  * 커밋 `c3d2d61`: 기본 공개값 설정 UI 및 사용자 배지 추가.
+
+    * 오퍼레이터 워크플로우 템플릿 편집 화면에 `DB 결과 열람 범위` 설정 추가.
+    * 사용자 실행 화면 워크플로우 선택 영역에 `DB 결과: 저장 안 함 / 개인 보관 / 회사 공개` 배지 표시.
+    * 안내 문구: “DB 결과 공개 범위입니다. 이메일·캘린더·Google Drive는 공개 전환 대상이 아닙니다.”
+
+* **마이그레이션**
+
+  * `scripts/dry-run-result-access-migration.ts` 추가.
+  * 기존 완료 데이터 중 `accessMode`가 없는 결과를 `company`로 전환하기 위한 대상 산정용 dry-run 스크립트다.
+  * 필수 인자: `--clientId`.
+  * 실제 Firestore update는 하지 않는다.
+  * 실제 공개 마이그레이션은 dry-run 결과 확인 후 별도 승인으로 진행한다.
+
+* **아직 구현하지 않은 것**
+
+  * company 결과 실제 회사공유 조회.
+  * 공개/공개취소/관리자 공개철회 UI.
+  * Firestore Rules의 company 조회 개방.
+  * Firebase Storage 다운로드 권한의 accessMode 연동.
+  * n8n, callback payload, retentionPolicy, 이메일 정책 변경.
