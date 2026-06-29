@@ -950,3 +950,26 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * Firestore Rules의 company 조회 개방.
   * Firebase Storage 다운로드 권한의 accessMode 연동.
   * n8n, callback payload, retentionPolicy, 이메일 정책 변경.
+
+### [2026-06-29] N8Lient 통합 자료검색 Phase 1 및 AI 지식검색 Phase 2.1 MVP 완료
+- **결정**: `knowledgeSearchIndex` 검색 인덱스 구조와 실시간/백필 인덱싱 기법을 도입하고, 지식검색 UI 개선과 함께 Gemini API를 직접 연동하는 AI 지식검색 Phase 2.1 MVP를 구현했다.
+- **주요 내용**:
+  * **통합 자료검색 Phase 1 완료**:
+    * `knowledgeSearchIndex` 컬렉션을 신설하고 N-Gram 2-Gram 기반 `searchTokens`를 도입했다.
+    * `beta_testing_company` 기준 기존 submissions 데이터 74건 백필 처리를 완료했다.
+    * Cloud Run Gateway 최신화 배포(Revision: `n8lient-gateway-00037-x29`) 후 신규 callback 자동 인덱싱 실증을 완료했다.
+    * `/user/data/search` 페이지 내 결과 없음 UX(필터 초기화), 정규식 split 기반 텍스트 하이라이트(제목/요약), 정렬 3종(최신순/오래된순/정확도순), 이모지 없는 워크플로우별 모아보기, 태그 퀵 필터링, 소요시간 표시 보강을 완료했다.
+  * **AI 지식검색 Phase 2.1 MVP 추가**:
+    * 신규 route: `POST /api/knowledge/ai-search`
+    * 신규 화면: `/user/data/ai-search`
+    * 사용자의 질문에 맞춰 권한 범위(`private` / `company`) 1차 및 2차 `canReadSubmissionResult` 검증을 거친 근거 문서 본문을 Gemini API에 주입하여 답변을 생성한다.
+    * Gemini API 호출 시 Netlify 환경변수 `GEMINI_API_KEY` 설정이 요구되며, 모델명은 `GEMINI_MODEL` (기본값: `gemini-2.5-flash`)로 관리된다.
+  * **미변경 및 미구현 영역**:
+    * 임베딩(embedding), RAG, 벡터 검색(vector search)은 아직 미구현이다.
+    * Firestore Rules, n8n workflow, callback payload, retentionPolicy는 변경하지 않았다.
+- **관련 파일**: `src/app/user/data/search/page.tsx`, `src/app/api/knowledge/search/route.ts`, `src/app/user/data/ai-search/page.tsx`, `src/app/api/knowledge/ai-search/route.ts`, `src/components/core/DataPanel.tsx`, `src/styles/UX_Design_Setting.css`
+- **커밋 해시**: `997b3bb` (AI 지식검색 MVP 기능 추가 완료)
+- **다음 단계**: AI 지식검색 Phase 2.2 고도화 사전설계.
+- **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
+
+
