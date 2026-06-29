@@ -9,6 +9,27 @@ import type { App } from "firebase-admin/app";
 let adminApp: App | null = null;
 
 /**
+ * private key 환경변수의 개행 및 이스케이프 포맷을 일관되게 정규화합니다.
+ */
+function normalizePrivateKey(raw?: string): string | undefined {
+  if (!raw) return undefined;
+
+  let key = raw.trim();
+
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1);
+  }
+
+  return key
+    .replace(/_NL_/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
+}
+
+/**
  * Firebase Admin SDK 앱 인스턴스를 반환합니다.
  * 최초 호출 시에만 초기화되며, 이후에는 기존 인스턴스를 재사용합니다.
  */
@@ -78,8 +99,8 @@ export function getAdminApp(): App {
     credential: admin.credential.cert({
       projectId,
       clientEmail,
-      // 환경변수의 개행 문자 이스케이프 처리 (\n → 실제 개행)
-      privateKey: privateKey.replace(/\\n/g, "\n"),
+      // 환경변수의 개행 문자 이스케이프 및 _NL_ 플레이스홀더 통합 정규화
+      privateKey: normalizePrivateKey(privateKey),
     }),
   });
 
