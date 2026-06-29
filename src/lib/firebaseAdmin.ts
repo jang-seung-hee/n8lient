@@ -16,9 +16,51 @@ export function getAdminApp(): App {
   if (adminApp) return adminApp;
 
   // 필수 환경변수 누락 체크
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  let projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  let clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    // [v1.0] 로컬 개발 환경 보완: adminsdk env 파일 수동 파싱 및 환경변수 병합
+    if (process.env.NODE_ENV === "development") {
+      try {
+        const fs = require("fs");
+        const path = require("path");
+        const rootDir = process.cwd();
+        const files = fs.readdirSync(rootDir);
+        const adminsdkEnv = files.find((f: string) => f.includes("adminsdk") && (f.endsWith(".env") || f.includes(".env")));
+        if (adminsdkEnv) {
+          const envPath = path.join(rootDir, adminsdkEnv);
+          const envContent = fs.readFileSync(envPath, "utf-8").trim();
+          if (envContent.startsWith("{")) {
+            const serviceAccount = JSON.parse(envContent);
+            process.env.FIREBASE_ADMIN_PROJECT_ID = serviceAccount.project_id;
+            process.env.FIREBASE_ADMIN_CLIENT_EMAIL = serviceAccount.client_email;
+            process.env.FIREBASE_ADMIN_PRIVATE_KEY = serviceAccount.private_key;
+          } else {
+            envContent.split(/\r?\n/).forEach((line: string) => {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith("#")) return;
+              const match = trimmed.match(/^([^=]+)=(.*)$/);
+              if (match) {
+                const key = match[1].trim();
+                let val = match[2].trim();
+                if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+                  val = val.substring(1, val.length - 1);
+                }
+                process.env[key] = val;
+              }
+            });
+          }
+          projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+          clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+          privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+        }
+      } catch (err: any) {
+        console.warn("⚠️ [firebaseAdmin] adminsdk.env 로딩 중 에러 발생:", err.message);
+      }
+    }
+  }
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(

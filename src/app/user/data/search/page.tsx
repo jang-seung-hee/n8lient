@@ -18,7 +18,7 @@ import { ExecutionResultDetailModal } from "@/components/results/ExecutionResult
 import { playAppSound } from "@/lib/appSound";
 
 export default function IntegratedSearchPage() {
-  const { user, userDoc } = useAuthUser();
+  const { user, userDoc, loading } = useAuthUser();
 
   // 검색 조건 필터 상태
   const [query, setQuery] = useState("");
@@ -62,7 +62,7 @@ export default function IntegratedSearchPage() {
   // 검색 트리거 함수
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!user) return;
+    if (loading || !user) return;
 
     playAppSound("click");
     setSearching(true);
@@ -109,11 +109,11 @@ export default function IntegratedSearchPage() {
 
   // 마운트 시 최초 자동 스캔
   useEffect(() => {
-    if (user) {
+    if (!loading && user) {
       handleSearch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, accessScope, workflowKey, startDateStr, endDateStr]);
+  }, [loading, user, accessScope, workflowKey, startDateStr, endDateStr]);
 
   // 검색 결과 카드 클릭 시 상세 조회
   const handleCardClick = async (submissionId: string) => {
@@ -166,6 +166,22 @@ export default function IntegratedSearchPage() {
       minute: "2-digit",
     });
   };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}>
+        <span>사용자 인증 정보를 불러오는 중입니다...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{ textAlign: "center", padding: "40px", color: "#ef4444" }}>
+        <span>⚠️ 로그인 후 이용할 수 있습니다.</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ boxSizing: "border-box", minWidth: 0, paddingBottom: "40px" }}>
