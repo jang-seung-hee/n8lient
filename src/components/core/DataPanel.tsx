@@ -34,7 +34,7 @@ export function DataPanel({ className = "" }: DataPanelProps) {
 
   const knowledgeItems = [
     { label: "통합 자료검색", path: "/user/data/search", icon: "🔍", enabled: true },
-    { label: "AI 지식검색", path: "#", icon: "🧠 (준비중)", enabled: false },
+    { label: "AI 지식검색", path: "/user/data/ai-search", icon: "🧠", enabled: true },
     { label: "AI 업무비서", path: "#", icon: "🤖 (준비중)", enabled: false },
   ];
 
