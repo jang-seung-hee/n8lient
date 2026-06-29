@@ -32,6 +32,12 @@ export function DataPanel({ className = "" }: DataPanelProps) {
     { label: "내정보", path: "/user/profile", icon: "👤" },
   ];
 
+  const knowledgeItems = [
+    { label: "통합 자료검색", path: "/user/data/search", icon: "🔍", enabled: true },
+    { label: "AI 지식검색", path: "#", icon: "🧠 (준비중)", enabled: false },
+    { label: "AI 업무비서", path: "#", icon: "🤖 (준비중)", enabled: false },
+  ];
+
   // 초기 탭 판정 로직: 현재 pathname이 dataItems 중 하나의 path로 시작하면 "data" 탭을 기본값으로 활성화
   const isDataPath = dataItems.some((item) => pathname.startsWith(item.path));
   const [activeTab, setActiveTab] = useState<UserSidebarTab>(isDataPath ? "data" : "navigation");
@@ -107,20 +113,55 @@ export function DataPanel({ className = "" }: DataPanelProps) {
         {isDarkSidebar ? (
           <div>
             {activeTab === "navigation" && (
-              <nav className="ux_user_sidebar_menu">
-                {mainItems.map((item) => {
-                  const isActive = pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      className={`ux_user_sidebar_link ${isActive ? "ux_user_sidebar_link_active" : ""}`}
-                    >
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
+              <nav className="ux_user_sidebar_menu" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  {mainItems.map((item) => {
+                    const isActive = pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        className={`ux_user_sidebar_link ${isActive ? "ux_user_sidebar_link_active" : ""}`}
+                      >
+                        <span>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <div style={{ borderTop: "1px solid var(--ux-user-sidebar-border)", paddingTop: "12px" }}>
+                  <h3 style={{ fontSize: "11px", fontWeight: 600, color: "var(--ux-user-sidebar-muted)", paddingLeft: "8px", marginBottom: "8px", textTransform: "uppercase" }}>
+                    지식 활용
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    {knowledgeItems.map((item) => {
+                      const isActive = pathname === item.path;
+                      if (!item.enabled) {
+                        return (
+                          <div
+                            key={item.label}
+                            className="ux_user_sidebar_link"
+                            style={{ opacity: 0.4, cursor: "not-allowed", display: "flex", gap: "8px", alignItems: "center" }}
+                          >
+                            <span>{item.icon}</span>
+                            <span>{item.label}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <Link
+                          key={item.path}
+                          href={item.path}
+                          className={`ux_user_sidebar_link ${isActive ? "ux_user_sidebar_link_active" : ""}`}
+                        >
+                          <span>{item.icon}</span>
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </nav>
             )}
 
@@ -144,46 +185,110 @@ export function DataPanel({ className = "" }: DataPanelProps) {
           </div>
         ) : (
           /* 공용 UI 기본 레이아웃 및 폼 (기존 일반 사이드바 구조 무영향 보존) */
-          <div>
-            <h2
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                color: "#6b7280",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginBottom: "8px",
-                paddingLeft: "4px",
-              }}
-            >
-              데이터 분석활용
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              {dataItems.map((item) => {
-                const isActive = pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    href={item.path}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      padding: "8px 10px",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      textDecoration: "none",
-                      color: isActive ? "#111111" : "#4b5563",
-                      backgroundColor: isActive ? "#f3f4f6" : "transparent",
-                      fontWeight: isActive ? 600 : 400,
-                      transition: "background-color 0.15s ease",
-                    }}
-                  >
-                    <span>{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div>
+              <h2
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "8px",
+                  paddingLeft: "4px",
+                }}
+              >
+                지식 활용
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {knowledgeItems.map((item) => {
+                  const isActive = pathname === item.path;
+                  if (!item.enabled) {
+                    return (
+                      <div
+                        key={item.label}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "8px 10px",
+                          fontSize: "13px",
+                          color: "#9ca3af",
+                          cursor: "not-allowed",
+                        }}
+                      >
+                        <span>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.path}
+                      href={item.path}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "8px 10px",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        textDecoration: "none",
+                        color: isActive ? "#111111" : "#4b5563",
+                        backgroundColor: isActive ? "#f3f4f6" : "transparent",
+                        fontWeight: isActive ? 600 : 400,
+                        transition: "background-color 0.15s ease",
+                      }}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <h2
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "8px",
+                  paddingLeft: "4px",
+                }}
+              >
+                데이터 분석활용
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {dataItems.map((item) => {
+                  const isActive = pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      href={item.path}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "8px 10px",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        textDecoration: "none",
+                        color: isActive ? "#111111" : "#4b5563",
+                        backgroundColor: isActive ? "#f3f4f6" : "transparent",
+                        fontWeight: isActive ? 600 : 400,
+                        transition: "background-color 0.15s ease",
+                      }}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

@@ -864,6 +864,41 @@ app.post("/api/automation/callback", async (req, res) => {
         }
         await docRef.update(updateData);
         console.log(`[callback] submissionId=${submissionId} (level=${level}) 업데이트 완료. Status: ${updateData.status}, processorResult=${!!updateData.processorResult}, resultRefs=${updateData.resultRefs?.length ?? 0}건`);
+        // [v1.0] knowledgeSearchIndex 생성 (Best-Effort)
+        if (status === "success") {
+            try {
+                const { shouldIndexSubmission, buildKnowledgeSearchIndexDocRaw } = require("./shared/knowledgeSearchIndex");
+                const fullDocSnapForIndex = await docRef.get();
+                if (fullDocSnapForIndex.exists) {
+                    const submissionDataForIndex = fullDocSnapForIndex.data();
+                    if (submissionDataForIndex && shouldIndexSubmission(submissionDataForIndex)) {
+                        // lookup 템플릿 정보 (workflowName 용도)
+                        const templateSnapForIndex = await db.collection("workflowTemplates").doc(submissionDataForIndex.workflowKey).get();
+                        const templateDataForIndex = templateSnapForIndex.exists ? templateSnapForIndex.data() : null;
+                        const workflowName = templateDataForIndex?.name || submissionDataForIndex.workflowKey;
+                        // lookup 사용자 정보 (ownerName, ownerEmail 용도)
+                        const userSnapForIndex = await db.collection("users").doc(submissionDataForIndex.uid).get();
+                        const userDataForIndex = userSnapForIndex.exists ? userSnapForIndex.data() : null;
+                        const ownerName = userDataForIndex?.displayName || "";
+                        const ownerEmail = userDataForIndex?.email || "";
+                        const rawIndexDoc = buildKnowledgeSearchIndexDocRaw(submissionDataForIndex, ownerName, ownerEmail, workflowName);
+                        // 시간 문자열 필드를 Firestore Timestamp 형태로 변환
+                        const admin = require("firebase-admin");
+                        const indexDoc = {
+                            ...rawIndexDoc,
+                            createdAt: admin.firestore.Timestamp.fromDate(new Date(rawIndexDoc.createdAt)),
+                            completedAt: rawIndexDoc.completedAt ? admin.firestore.Timestamp.fromDate(new Date(rawIndexDoc.completedAt)) : null,
+                            updatedAt: admin.firestore.Timestamp.fromDate(new Date(rawIndexDoc.updatedAt)),
+                        };
+                        await db.collection("knowledgeSearchIndex").doc(submissionId).set(indexDoc);
+                        console.log(`[callback] knowledgeSearchIndex 생성 완료. submissionId=${submissionId}`);
+                    }
+                }
+            }
+            catch (indexErr) {
+                console.warn(`[callback-index-error] knowledgeSearchIndex 생성 중 오류 발생(무시됨):`, indexErr.message);
+            }
+        }
         return res.status(200).json({ success: true });
     }
     catch (error) {

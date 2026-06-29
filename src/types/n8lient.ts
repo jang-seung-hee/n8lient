@@ -759,3 +759,32 @@ export interface ClientPublicProfile {
   updatedAt?: string;
 }
 
+export interface KnowledgeSearchIndexDoc {
+  submissionId: string;
+
+  clientId: string;
+  ownerUid: string;
+  ownerName?: string;
+  ownerEmail?: string;
+
+  workflowKey: string;
+  automationId?: string;
+  workflowName?: string;
+
+  accessMode: ResultAccessMode;
+  retentionLevel: "processed_result" | "full_archive";
+
+  title: string;
+  summary?: string;
+  keywords?: string[];
+  tags?: string[];
+  searchText: string;
+  searchTokens: string[];
+
+  createdAt: any; // Firestore Timestamp 호환용
+  completedAt?: any | null;
+  updatedAt: any;
+
+  sourceType: "submission";
+}
+

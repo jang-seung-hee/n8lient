@@ -5,9 +5,20 @@
 import fs from "fs";
 import path from "path";
 
-const sourcePath = path.resolve(__dirname, "../src/common/validation/validateExecution.ts");
 const targetDir = path.resolve(__dirname, "../n8lient-gateway/src/shared");
-const targetPath = path.resolve(targetDir, "validateExecution.ts");
+
+const filesToSync = [
+  {
+    src: path.resolve(__dirname, "../src/common/validation/validateExecution.ts"),
+    dest: "validateExecution.ts",
+    comment: "Source: src/common/validation/validateExecution.ts"
+  },
+  {
+    src: path.resolve(__dirname, "../src/common/knowledge/knowledgeSearchIndex.ts"),
+    dest: "knowledgeSearchIndex.ts",
+    comment: "Source: src/common/knowledge/knowledgeSearchIndex.ts"
+  }
+];
 
 function syncFiles() {
   console.log("=========================================");
@@ -15,25 +26,28 @@ function syncFiles() {
   console.log("=========================================");
 
   try {
-    if (!fs.existsSync(sourcePath)) {
-      throw new Error(`원본 검증 소스 파일이 존재하지 않습니다: ${sourcePath}`);
-    }
-
     // 대상 디렉토리가 없으면 재귀적으로 생성
     if (!fs.existsSync(targetDir)) {
       console.log(`[sync] 대상 디렉토리가 없어 새로 생성합니다: ${targetDir}`);
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    const sourceContent = fs.readFileSync(sourcePath, "utf-8");
-    const autoGenComment = `// AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
-// Source: src/common/validation/validateExecution.ts
+    for (const item of filesToSync) {
+      if (!fs.existsSync(item.src)) {
+        throw new Error(`원본 검증 소스 파일이 존재하지 않습니다: ${item.src}`);
+      }
+
+      const sourceContent = fs.readFileSync(item.src, "utf-8");
+      const autoGenComment = `// AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
+// ${item.comment}
 
 `;
-    const finalContent = autoGenComment + sourceContent;
+      const finalContent = autoGenComment + sourceContent;
+      const targetPath = path.resolve(targetDir, item.dest);
 
-    fs.writeFileSync(targetPath, finalContent, "utf-8");
-    console.log(`✅ [sync] 성공적으로 파일을 복사 완료했습니다: ${targetPath}`);
+      fs.writeFileSync(targetPath, finalContent, "utf-8");
+      console.log(`✅ [sync] 성공적으로 파일을 복사 완료했습니다: ${targetPath}`);
+    }
   } catch (err: any) {
     console.error("❌ [sync] 복사 동기화 중 오류가 발생했습니다:", err.message);
     process.exit(1);
