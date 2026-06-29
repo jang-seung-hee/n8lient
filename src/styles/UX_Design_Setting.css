@@ -1819,3 +1819,12 @@
   background-color: #fff7ed !important;
   font-weight: 600;
 }
+
+/* 통합 자료검색 매칭 텍스트 하이라이트 스타일 */
+.search-highlight {
+  background-color: #fef08a !important; /* light yellow-200 */
+  color: #1e3a8a !important; /* dark blue-900 */
+  font-weight: 700 !important;
+  border-radius: 2px !important;
+  padding: 0 2px !important;
+}

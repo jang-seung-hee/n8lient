@@ -41,7 +41,19 @@ export async function POST(req: NextRequest) {
 
     // 3. 요청 바디 파싱
     const body = await req.json();
-    const { query = "", accessScope = "all", workflowKey = "", startDateStr = "", endDateStr = "", limit = 50 } = body;
+    const { 
+      query = "", 
+      accessScope = "all", 
+      workflowKey = "", 
+      startDateStr = "", 
+      endDateStr = "", 
+      limit = 50,
+      sortOption = "latest"
+    } = body;
+
+    // sortOption enum validation
+    const allowedSortOptions = ["latest", "oldest", "accuracy"];
+    const activeSortOption = allowedSortOptions.includes(sortOption) ? sortOption : "latest";
 
     // 4. 검색 토큰 추출 (Firestore array-contains-any 용도)
     const searchTokens = buildSearchTokens(query);
@@ -90,7 +102,7 @@ export async function POST(req: NextRequest) {
       rawResults = Array.from(mergedMap.values());
     }
 
-    // 6. 서버 메모리 내 추가 필터링 (워플키, 날짜) 및 정렬
+    // 6. 서버 메모리 내 추가 필터링 (워플키, 날짜)
     let filtered = rawResults;
 
     if (workflowKey) {
@@ -114,11 +126,50 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 최신순 정렬
+    // 7. 정렬 전 가중치 스코어(accuracy) 계산
+    const queryLower = query.toLowerCase().trim();
+    filtered = filtered.map((d) => {
+      let score = 0;
+      if (queryLower) {
+        // 토큰 매칭 계산
+        const docTokens = d.searchTokens || [];
+        const matchTokens = searchTokens.filter((token) => docTokens.includes(token));
+        score += matchTokens.length;
+
+        // 직접 포함 가중치
+        if (d.title && d.title.toLowerCase().includes(queryLower)) {
+          score += 5;
+        }
+        if (d.summary && d.summary.toLowerCase().includes(queryLower)) {
+          score += 3;
+        }
+        if (Array.isArray(d.keywords)) {
+          const matchKeywords = d.keywords.filter((kw: string) => 
+            kw.toLowerCase().includes(queryLower)
+          );
+          score += matchKeywords.length * 2;
+        }
+      }
+      return { ...d, score };
+    });
+
+    // 8. 정렬 옵션에 맞춰 정렬 수행
     filtered.sort((a, b) => {
       const timeA = a.createdAt?.seconds ? a.createdAt.seconds : new Date(a.createdAt).getTime() / 1000;
       const timeB = b.createdAt?.seconds ? b.createdAt.seconds : new Date(b.createdAt).getTime() / 1000;
-      return timeB - timeA;
+
+      if (activeSortOption === "accuracy" && queryLower) {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        // 정확도가 같을 때 최신순으로 정렬
+        return timeB - timeA;
+      } else if (activeSortOption === "oldest") {
+        return timeA - timeB;
+      } else {
+        // latest (최신순)
+        return timeB - timeA;
+      }
     });
 
     // limit 적용
