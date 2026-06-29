@@ -972,4 +972,14 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
 - **다음 단계**: AI 지식검색 Phase 2.2 고도화 사전설계.
 - **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
 
+### [2026-06-29] N8Lient AI 지식검색 Phase 2 완료
+- **결정**: `knowledgeSearchIndex` 기반의 AI 지식검색 MVP 기능 배포, 401 인증 예방을 위한 어드민 프라이빗 키 정규화 보강 및 검색 품질 고도화(불용어 필터링, 스코어 임계점 설정)를 완료했다.
+- **주요 내용**:
+  * **Phase 2.1 AI 지식검색 MVP 실증 완료**: `/user/data/ai-search` 신규 UI 페이지 및 `/api/knowledge/ai-search` POST 라우트 개설. Netlify 서버리스 호스팅 환경에 적합한 Gemini REST API 연동 완료.
+  * **Phase 2.2a queryTokens 0개 early return 완료**: 짧은/무의미한 쿼리 시 불필요한 Firestore 전체 탐색 및 Gemini 호출 방지 처리 (`7f800ee`).
+  * **Phase 2.2b 출처 번호 안정화 완료**: AI 프롬프트에 `[자료번호 1]`부터 `[자료번호 N]`까지 실제 제공된 sources 범위 한계를 주입하여 인용 번호와 하단 출처 카드 일치 확보 (`f08446f`).
+  * **Phase 2.2c 낮은 관련도 후보 차단 완료**: 불용어(Stopwords) 제거 필터를 추가하여 공통 단어 혼선 방지 및 최소 매칭 점수 임계점(`MIN_RELEVANCE_SCORE = 2`) 적용을 통한 무관 자료 차단 완료 (`19d9d24`).
+  * **운영 UI 확인 결과**: "오늘 날씨 알려줘" 와 같은 무관 질문 시 관련 없는 출처 카드 노출 전면 차단, "욕구" 등 유효 지식 키워드 질문 시 정상 매칭 및 출처 카드 일치 동작 검증 완료.
+- **관련 파일**: `src/app/api/knowledge/ai-search/route.ts`, `src/app/user/data/ai-search/page.tsx`, `src/components/core/DataPanel.tsx`, `src/lib/firebaseAdmin.ts`
+- **최종 완료 커밋**: `7f800ee`, `f08446f`, `19d9d24`, `40fc11b` (Firebase Admin key 정규화 보강)
 
