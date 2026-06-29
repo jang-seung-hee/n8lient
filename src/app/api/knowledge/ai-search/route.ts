@@ -81,6 +81,20 @@ export async function POST(req: NextRequest) {
     // 4. 검색 토큰 추출 및 1차 권한 필터링 쿼리 수행
     const searchTokens = buildSearchTokens(query);
 
+    // 토큰이 0개이면 전체 문서 반환을 차단하고 안내 메시지를 반환 (Phase 2.2 보강)
+    if (searchTokens.length === 0) {
+      return NextResponse.json({
+        success: true,
+        answer: "질문이 너무 짧거나 검색 가능한 단어가 부족합니다. 조금 더 구체적으로 입력해 주세요.",
+        sources: [],
+        usage: {
+          model: "none",
+          sourceCount: 0,
+          estimatedInputChars: 0,
+        },
+      });
+    }
+
     const runQuery = async (scopeMode: "mine" | "company") => {
       let queryRef = db.collection("knowledgeSearchIndex").where("clientId", "==", clientId);
 
