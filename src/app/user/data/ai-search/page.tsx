@@ -70,8 +70,11 @@ function renderBoldTokens(text: string) {
   );
 }
 
+import { useRouter } from "next/navigation";
+
 export default function AIKnowledgeSearchPage() {
   const { user, userDoc, loading } = useAuthUser();
+  const router = useRouter();
 
   // 검색 조건 필터 상태
   const [query, setQuery] = useState("");
@@ -180,39 +183,10 @@ export default function AIKnowledgeSearchPage() {
     setAccessScope("all");
   };
 
-  // 출처 카드 클릭 상세 모달 조회
-  const handleCardClick = async (submissionId: string) => {
-    if (!user || loadingDetail) return;
-
+  // 출처 카드 클릭 상세 모달 조회 대신 새 뷰어로 이동
+  const handleCardClick = (submissionId: string) => {
     playAppSound("click");
-    setLoadingDetail(true);
-    try {
-      const idToken = await user.getIdToken();
-      const detailUrl = `/api/knowledge/submission-detail?submissionId=${submissionId}`;
-
-      const res = await fetch(detailUrl, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSelectedSubmission(data.submission);
-        setShowDetailModal(true);
-        playAppSound("success");
-      } else {
-        alert(data.error || "상세 데이터를 불러오지 못했습니다. 권한이 없을 수 있습니다.");
-        playAppSound("error");
-      }
-    } catch (err) {
-      console.error("[detail-fetch-error]", err);
-      alert("상세 데이터 조회 중 네트워크 오류가 발생했습니다.");
-      playAppSound("error");
-    } finally {
-      setLoadingDetail(false);
-    }
+    router.push(`/user/data/view/${submissionId}`);
   };
 
   const formatDisplayDate = (createdAt: any) => {
