@@ -69,9 +69,8 @@ export function N8lientDataGrid<TData>({
     const checkboxColumn: ColumnDef<TData, any> = {
       id: "select",
       header: ({ table }) => {
-        // 인터랙션 표준화: 전체 선택은 "현재 페이지 내 선택 가능 로우"가 아니라,
-        // 어드민 대량 철회 누락 방지를 위해 "전체 페이지의 필터된 선택 가능 로우"를 가리킵니다.
-        const selectableRows = table.getFilteredRowModel().flatRows.filter((r) => {
+        // 전체 선택은 "현재 페이지에 표시된 row 중 선택 가능한 항목"만 선택/해제합니다. (안전성 조치)
+        const selectableRows = table.getRowModel().rows.filter((r) => {
           return isRowSelectable ? isRowSelectable(r.original) : true;
         });
         
