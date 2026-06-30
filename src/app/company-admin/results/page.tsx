@@ -19,6 +19,7 @@ import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge"
 import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
 import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
 import { ColumnDef } from "@tanstack/react-table";
+import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 
 // 텍스트 축약 헬퍼 함수
 const truncateText = (value: string, maxLength = 25) => {
@@ -182,12 +183,18 @@ export default function AdminResults() {
         header: "N8N 워크플로우명",
         size: 280,
         meta: { headerAlign: "center", cellAlign: "left" },
-        accessorFn: (row) => row.input?.title || row.workflowKey || "-",
+        accessorFn: (row) => {
+          const key = row.workflowKey;
+          const resolved = resolveWorkflowDisplayName({ workflowKey: key });
+          return (resolved !== key && resolved) || row.input?.title || key || "-";
+        },
         cell: ({ row }) => {
-          const title = row.original.input?.title || row.original.workflowKey || "-";
+          const key = row.original.workflowKey;
+          const resolved = resolveWorkflowDisplayName({ workflowKey: key });
+          const workflowLabel = (resolved !== key && resolved) || row.original.input?.title || key || "-";
           return (
-            <span className="ux_table_text_ellipsis" style={{ fontWeight: 600, color: "#111827" }} title={title}>
-              {truncateText(title, 25)}
+            <span className="ux_table_text_ellipsis" style={{ fontWeight: 600, color: "#111827" }} title={key}>
+              {truncateText(workflowLabel, 25)}
             </span>
           );
         },
