@@ -1030,3 +1030,67 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * `a7719f7` (Phase 3.1a 실시간 인덱스 동기화 반영 완료)
 * **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
 
+---
+
+### [2026-06-30] N8Lient Phase 3.4 관리자형 DataGrid 표준화
+
+* **결정**: 회사 관리자 영역의 주요 5개 목록 화면 전체에 `N8lientDataGrid` 컴포넌트를 표준으로 적용하고, 테이블/헤더/셀/배지/페이지네이션 스타일을 `UX_Design_Setting.css` 중앙 CSS로 완전히 이관했다.
+
+* **적용 범위 (Phase 3.4 A~H 전 구간 완료)**:
+  * `/company-admin/knowledge-access` — 자료 공개 관리
+  * `/company-admin/users` — 사용자 목록
+  * `/company-admin/approvals` — 가입 승인
+  * `/company-admin/automations` — 자동화 설정 목록
+  * `/company-admin/results` — 실행 로그
+
+* **DataGrid 핵심 표준 (v1)**:
+  * `@tanstack/react-table` 기반 클라이언트 페이지네이션.
+  * `pageSize` 선택지: 10 / 20 / 50 / 100 (기본 20).
+  * 전체 선택은 현재 페이지 기준, `disabled` 행 제외.
+  * `meta.headerAlign` / `meta.cellAlign` 컬럼 메타 데이터로 정렬 클래스(`ux_table_th_center` 등)를 className으로만 적용 — inline `textAlign` 사용 금지.
+  * 행 hover 스타일, 셀 여백, 배지, 페이지네이션 버튼은 모두 `ux_*` 클래스로 제어.
+
+* **날짜/표시 정책**:
+  * `Invalid Date` 표시 금지.
+  * `toDateSafe` 유틸로 Firestore Timestamp · string · null 방어 후 `formatCompactDateTime`으로 `YY.MM.DD HH:mm` (24시간제) 형식화.
+
+* **워크플로우 표시명 정책**:
+  * `resolveWorkflowDisplayName` + `fetchWorkflowTemplatesByKeys` 조합으로 한글 표시명 변환.
+  * 표시 우선순위: `workflowTemplates.name` → `clientAutomations.automationName` → `workflowKey`.
+  * 표시 글자수 25자 제한, 초과 시 `…` 말줄임, 원본 `workflowKey`는 `title` 툴팁 유지.
+
+* **실행 로그(`/company-admin/results`) 특이사항**:
+  * 소요 시간 계산 헬퍼 `formatDuration` 추가.
+  * 기존 `ExecutionResultDetailModal` 유지, Result Data Viewer 이동 기능 추가 없음.
+
+* **CSS 추가 규칙**:
+  * `ux_table_text_ellipsis` 클래스 추가 (`white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`).
+  * `N8lientDataGrid.tsx` 내부의 `textAlign` inline style 전량 제거.
+
+* **오퍼레이터 링크 수정**:
+  * 오퍼레이터 사이드바의 사용자 콘솔 이동 링크를 `/`에서 `/user`로 수정 (리다이렉트 루프 해결).
+  * 관련 파일: `src/components/core/OperatorSidebar.tsx`
+
+* **관련 주요 커밋 (최신 15건)**:
+  * `d33a6e9` fix: update operator user-console redirect link
+  * `10b9a8e` fix: map workflow labels in results grid
+  * `6043e4f` fix: use friendly workflow labels in results grid
+  * `5a590cd` fix: refine execution results grid columns
+  * `74d9c90` fix: prevent line wrapping on automation type column
+  * `c3d2d61` fix: refine knowledge access grid columns
+  * `3a0f227` fix: remove inline text alignment from data grid
+  * `b7ba7b4` fix: refine automation grid column alignment
+  * `ee69bed` fix: adjust automation grid column widths
+  * `5858357` refactor: apply data grid to admin automation and results pages
+  * `000b983` refactor: apply data grid to company approvals page
+  * `1c94f05` fix: resolve maximum update depth exceeded error in data grid
+  * `c367e98` fix: move data grid row cursor style to CSS
+  * `7a0b124` refactor: apply data grid to company users page
+  * `5318555` fix: limit data grid select all to current page
+
+* **아직 적용하지 않은 영역**:
+  * `/operator/*` 화면 DataGrid 표준 적용 (현재 별도 테이블 유지).
+  * 서버 사이드 페이지네이션 전환 (현재 클라이언트 페이지네이션).
+
+* **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
+
