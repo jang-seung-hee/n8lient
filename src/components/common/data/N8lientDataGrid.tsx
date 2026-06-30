@@ -57,14 +57,23 @@ export function N8lientDataGrid<TData>({
     pageSize: 20,
   });
 
-  // 외부 selectedIds 프로퍼티 변화와 TanStack 로컬 rowSelection 상태 동기화
+  // 외부 selectedIds 프로퍼티 변화와 TanStack 로컬 rowSelection 상태 동기화 (무한 루프 방어)
   useEffect(() => {
+    const currentKeys = Object.keys(rowSelection);
+    const isSameSelection =
+      currentKeys.length === selectedIds.length &&
+      selectedIds.every((id) => rowSelection[id]);
+
+    if (isSameSelection) {
+      return;
+    }
+
     const nextSelection: RowSelectionState = {};
     selectedIds.forEach((id) => {
       nextSelection[id] = true;
     });
     setRowSelection(nextSelection);
-  }, [selectedIds]);
+  }, [selectedIds, rowSelection]);
 
   // 체크박스 컬럼 동적 정의
   const finalColumns = React.useMemo(() => {
