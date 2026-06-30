@@ -160,6 +160,7 @@ export default function SubmissionDataViewPage() {
             originalFiles,
             resultFiles,
             durationText,
+            canChangeAccessMode: data.canChangeAccessMode || false, // 추가: 서버 최종 권한 연동
           };
 
           setSafeData(mappedDTO);
@@ -192,6 +193,40 @@ export default function SubmissionDataViewPage() {
       setSafeData((prev) => prev ? { ...prev, workflowName: displayName } : null);
     }
   }, [safeData?.workflowKey, automations, templates]);
+
+  // 공개범위 변경 API 호출 상태 핸들러
+  const handleUpdateAccessMode = async (newMode: "private" | "company") => {
+    if (!user || !safeData) return;
+
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/knowledge/submission-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          submissionId,
+          accessMode: newMode,
+        }),
+      });
+
+      const result = await res.json();
+      if (res.ok && result.success) {
+        // 성공 시 로컬 상태의 DTO 공개범위를 갱신하여 배지 즉시 교체
+        setSafeData((prev) => prev ? { ...prev, accessMode: newMode } : null);
+        playAppSound("success");
+      } else {
+        alert(result.error || "공개범위 변경에 실패했습니다.");
+        playAppSound("error");
+      }
+    } catch (err) {
+      console.error("[update-access-mode-error]", err);
+      alert("네트워크 오류로 공개범위를 변경하지 못했습니다.");
+      playAppSound("error");
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -244,6 +279,7 @@ export default function SubmissionDataViewPage() {
       <ResultDataViewerMeta
         data={safeData}
         onOpenReport={() => setShowReportModal(true)}
+        onUpdateAccessMode={handleUpdateAccessMode} // 콜백 바인딩
       />
 
       {/* 본문 렌더링 영역 */}

@@ -1,7 +1,7 @@
 // [ResultDataViewerMeta.tsx]
 // 이 파일은 Result Data Viewer의 상단 메타데이터(제목, 워크플로우 분류, 공개범위, 생성일 등) 및
 // 하단 접힘(Collapsible) 형태의 최소 운영 정보 영역을 제공하는 UI 컴포넌트입니다.
-// 보안 규정: Firebase Storage 내부 path 등 민감정보 노출 방지 및 UI 중앙 스타일 적용을 준수합니다.
+// 보안 규정: canChangeAccessMode 가 true일 때만 작성자 본인에게 공개범위 전환 버튼을 노출합니다.
 // 한국어 주석 표준을 준수합니다.
 
 import React, { useState } from "react";
@@ -24,15 +24,18 @@ export interface SafeSubmissionViewDTO {
   originalFiles: Array<{ name: string; size?: number; mimeType?: string; index: number }>;
   resultFiles: Array<{ name: string; size?: number; mimeType?: string; index: number; isDriveUrl?: boolean; url?: string }>;
   durationText?: string | null;
+  canChangeAccessMode?: boolean; // 추가: 서버 검증 기반 변경 권한 여부
 }
 
 interface ResultDataViewerMetaProps {
   data: SafeSubmissionViewDTO;
   onOpenReport?: () => void;
+  onUpdateAccessMode?: (newMode: "private" | "company") => Promise<void>; // 추가: 공개범위 변경 콜백
 }
 
-export function ResultDataViewerMeta({ data, onOpenReport }: ResultDataViewerMetaProps) {
+export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode }: ResultDataViewerMetaProps) {
   const [showDebug, setShowDebug] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const formatDisplayDate = (createdAt: any) => {
     if (!createdAt) return "";
@@ -58,6 +61,26 @@ export function ResultDataViewerMeta({ data, onOpenReport }: ResultDataViewerMet
     setShowDebug((prev) => !prev);
   };
 
+  const handleToggleAccessMode = async (newMode: "private" | "company") => {
+    if (!onUpdateAccessMode || updating) return;
+
+    playAppSound("click");
+    const confirmMessage = newMode === "company"
+      ? "이 자료를 회사 구성원이 볼 수 있도록 공개하시겠습니까?"
+      : "이 자료를 다시 본인만 볼 수 있도록 변경하시겠습니까?";
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await onUpdateAccessMode(newMode);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "20px" }}>
       {/* 상단 메타 헤더 카드 */}
@@ -79,19 +102,35 @@ export function ResultDataViewerMeta({ data, onOpenReport }: ResultDataViewerMet
             >
               📂 {data.workflowName || data.workflowKey}
             </span>
+            
             {/* 공개범위 배지 */}
-            <span
-              className={`ux_badge ${isCompany ? "ux_badge_success" : "ux_badge_info"}`}
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                padding: "2px 8px",
-                borderRadius: "4px",
-                height: "auto",
-              }}
-            >
-              {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span
+                className={`ux_badge ${isCompany ? "ux_badge_success" : "ux_badge_info"}`}
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  height: "auto",
+                }}
+              >
+                {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
+              </span>
+
+              {/* canChangeAccessMode 가 true일 때만 변경 단추 노출 */}
+              {data.canChangeAccessMode && onUpdateAccessMode && (
+                <button
+                  onClick={() => handleToggleAccessMode(isCompany ? "private" : "company")}
+                  disabled={updating}
+                  className="ux_viewer_action_btn"
+                  title="본인 자료의 공개범위를 변경합니다."
+                  style={{ cursor: updating ? "not-allowed" : "pointer" }}
+                >
+                  {updating ? "변경 중..." : isCompany ? "개인 보관으로 되돌리기" : "회사 공개로 전환"}
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ fontSize: "12.5px", color: "#6b7280" }}>
