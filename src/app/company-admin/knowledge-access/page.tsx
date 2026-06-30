@@ -207,60 +207,58 @@ export default function KnowledgeAccessPage() {
       </div>
 
       {/* 검색 및 필터 카드 */}
-      <div className="ux_card" style={{ padding: "16px 20px", marginBottom: "20px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-          <div style={{ flex: "1 1 200px" }}>
-            <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>자료 제목 검색</label>
-            <input
-              type="text"
-              placeholder="제목 검색..."
-              className="ux_input"
-              value={searchTitle}
-              onChange={(e) => setSearchTitle(e.target.value)}
-            />
-          </div>
-          <div style={{ flex: "1 1 200px" }}>
-            <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>작성자 이름/이메일 검색</label>
-            <input
-              type="text"
-              placeholder="작성자 검색..."
-              className="ux_input"
-              value={searchOwner}
-              onChange={(e) => setSearchOwner(e.target.value)}
-            />
-          </div>
-          <div style={{ flex: "1 1 150px" }}>
-            <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>공개 상태 필터</label>
-            <select
-              className="ux_select"
-              value={filterAccessMode}
-              onChange={(e) => setFilterAccessMode(e.target.value as any)}
-            >
-              <option value="all">전체</option>
-              <option value="company">🏢 회사 공개</option>
-              <option value="private">🔒 개인 보관</option>
-            </select>
-          </div>
-          <div style={{ flex: "1 1 150px" }}>
-            <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>자동화 필터</label>
-            <select
-              className="ux_select"
-              value={filterWorkflow}
-              onChange={(e) => setFilterWorkflow(e.target.value)}
-            >
-              <option value="all">전체 자동화</option>
-              {workflowOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="ux_filter_bar" style={{ marginBottom: "20px" }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>자료 제목 검색</label>
+          <input
+            type="text"
+            placeholder="제목 검색..."
+            className="ux_input"
+            value={searchTitle}
+            onChange={(e) => setSearchTitle(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: "1 1 200px" }}>
+          <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>작성자 이름/이메일 검색</label>
+          <input
+            type="text"
+            placeholder="작성자 검색..."
+            className="ux_input"
+            value={searchOwner}
+            onChange={(e) => setSearchOwner(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: "1 1 150px" }}>
+          <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>공개 상태 필터</label>
+          <select
+            className="ux_select"
+            value={filterAccessMode}
+            onChange={(e) => setFilterAccessMode(e.target.value as any)}
+          >
+            <option value="all">전체</option>
+            <option value="company">🏢 회사 공개</option>
+            <option value="private">🔒 개인 보관</option>
+          </select>
+        </div>
+        <div style={{ flex: "1 1 150px" }}>
+          <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>자동화 필터</label>
+          <select
+            className="ux_select"
+            value={filterWorkflow}
+            onChange={(e) => setFilterWorkflow(e.target.value)}
+          >
+            <option value="all">전체 자동화</option>
+            {workflowOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       {/* 벌크 조작 컨트롤러 */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+      <div className="ux_bulk_bar" style={{ marginBottom: "12px" }}>
         <span className="ux_caption" style={{ fontSize: "13px" }}>
           선택한 항목: <strong>{selectedIds.length}</strong>개 / 필터된 결과: {filteredItems.length}건
         </span>
@@ -281,19 +279,19 @@ export default function KnowledgeAccessPage() {
       )}
 
       {/* 목록 테이블 카드 */}
-      <div className="ux_card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="ux_table_wrap">
         {loading ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+          <div className="ux_loading_state">
             자료 공개 목록을 불러오는 중...
           </div>
         ) : filteredItems.length === 0 ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+          <div className="ux_empty_state" style={{ border: "none", boxShadow: "none" }}>
             조회된 공개 자료 내역이 없습니다.
           </div>
         ) : (
-          <table className="ux_table" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="ux_table">
             <thead>
-              <tr style={{ backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+              <tr>
                 <th style={{ width: "40px", padding: "12px 16px", textAlign: "center" }}>
                   <input
                     type="checkbox"
@@ -302,13 +300,13 @@ export default function KnowledgeAccessPage() {
                     disabled={selectableFilteredCount === 0}
                   />
                 </th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: 600, color: "#374151" }}>자료 제목</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: 600, color: "#374151" }}>작성자</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: 600, color: "#374151" }}>자동화 분류</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: 600, color: "#374151" }}>생성 시각</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: 600, color: "#374151" }}>공개상태</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: 600, color: "#374151" }}>공개범위 변경일</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#374151", width: "80px" }}>작업</th>
+                <th>자료 제목</th>
+                <th>작성자</th>
+                <th>자동화 분류</th>
+                <th>생성 시각</th>
+                <th>공개상태</th>
+                <th>공개범위 변경일</th>
+                <th style={{ textAlign: "center", width: "80px" }}>작업</th>
               </tr>
             </thead>
             <tbody>
@@ -319,8 +317,8 @@ export default function KnowledgeAccessPage() {
                 return (
                   <tr
                     key={item.submissionId}
+                    className="ux_table_row_hover"
                     style={{
-                      borderBottom: "1px solid #f3f4f6",
                       backgroundColor: isSelected ? "#eff6ff" : "transparent",
                     }}
                   >
@@ -339,7 +337,7 @@ export default function KnowledgeAccessPage() {
                         }
                       />
                     </td>
-                    <td style={{ padding: "12px 16px", fontSize: "13px", fontWeight: 500, color: "#111827" }}>
+                    <td style={{ fontWeight: 500 }}>
                       {item.viewerUrl ? (
                         <a
                           href={item.viewerUrl}
@@ -356,29 +354,28 @@ export default function KnowledgeAccessPage() {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "12px 16px", fontSize: "13px", color: "#4b5563" }}>
+                    <td>
                       {item.ownerName} <span style={{ fontSize: "11px", color: "#9ca3af" }}>({item.ownerEmail})</span>
                     </td>
-                    <td style={{ padding: "12px 16px", fontSize: "13px", color: "#4b5563" }}>
+                    <td>
                       {item.workflowName}
                     </td>
-                    <td style={{ padding: "12px 16px", fontSize: "13px", color: "#4b5563" }}>
+                    <td>
                       {formatDate(item.createdAt)}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td>
                       <span
-                        className={`ux_badge ${
-                          item.accessMode === "company" ? "ux_badge_success" : "ux_badge_info"
+                        className={`ux_status_badge ${
+                          item.accessMode === "company" ? "ux_status_badge_company" : "ux_status_badge_private"
                         }`}
-                        style={{ fontSize: "11px", padding: "2px 6px" }}
                       >
                         {item.accessMode === "company" ? "🏢 회사 공개" : "🔒 개인 보관"}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 16px", fontSize: "13px", color: "#4b5563" }}>
+                    <td>
                       {formatDate(item.accessModeUpdatedAt)}
                     </td>
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                    <td style={{ textAlign: "center" }}>
                       {item.viewerUrl ? (
                         <a
                           href={item.viewerUrl}

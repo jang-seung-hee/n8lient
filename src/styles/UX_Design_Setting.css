@@ -1857,3 +1857,158 @@
   color: var(--ux-badge-info-color);
   border-color: var(--ux-alert-info-border);
 }
+
+/* ============================================================
+   Phase 3.4A Data UI Foundation CSS — 테이블 및 리스트 표준 클래스
+   ============================================================ */
+
+/* 1. 테이블 컨테이너 및 테이블 자체 */
+.ux_table_wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--ux-card-radius);
+  border: var(--ux-card-border);
+  background-color: var(--ux-card-bg);
+  box-shadow: var(--ux-card-shadow);
+}
+
+.ux_table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ux-font-size-body);
+  line-height: var(--ux-line-height-body);
+}
+
+.ux_table th {
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: var(--ux-font-weight-label);
+  color: var(--ux-text-color-secondary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ux_table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: var(--ux-text-color-secondary);
+  vertical-align: middle;
+}
+
+.ux_table tr:last-child td {
+  border-bottom: none;
+}
+
+.ux_table_row_hover:hover {
+  background-color: #f9fafb !important;
+}
+
+/* 2. 공통 링크 */
+.ux_link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.ux_link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* 3. 빈 데이터 및 로딩 상태 */
+.ux_empty_state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  color: var(--ux-text-color-muted);
+  font-size: var(--ux-font-size-body);
+  background-color: var(--ux-card-bg);
+  border: var(--ux-card-border);
+  border-radius: var(--ux-card-radius);
+  box-shadow: var(--ux-card-shadow);
+}
+
+.ux_loading_state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  color: var(--ux-text-color-muted);
+  font-size: var(--ux-font-size-body);
+}
+
+/* 4. 필터 및 벌크 액션 바 */
+.ux_filter_bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+  background-color: var(--ux-card-bg);
+  border: var(--ux-card-border);
+  border-radius: var(--ux-card-radius);
+  box-shadow: var(--ux-card-shadow);
+}
+
+.ux_bulk_bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+/* 5. 페이지네이션 */
+.ux_pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-size: var(--ux-font-size-caption);
+  color: var(--ux-text-color-secondary);
+}
+
+/* 6. 공통 상태 배지 */
+.ux_status_badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--ux-font-size-micro);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ux_status_badge_company {
+  color: var(--ux-badge-success-color);
+  background-color: var(--ux-badge-success-bg);
+}
+
+.ux_status_badge_private {
+  color: var(--ux-badge-info-color);
+  background-color: var(--ux-badge-info-bg);
+}
+
+.ux_status_badge_success {
+  color: var(--ux-badge-success-color);
+  background-color: var(--ux-badge-success-bg);
+}
+
+.ux_status_badge_error {
+  color: var(--ux-badge-danger-color);
+  background-color: var(--ux-badge-danger-bg);
+}
+
+.ux_status_badge_pending {
+  color: var(--ux-badge-warning-color);
+  background-color: var(--ux-badge-warning-bg);
+}
