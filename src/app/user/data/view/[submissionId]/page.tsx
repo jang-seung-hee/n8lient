@@ -161,6 +161,7 @@ export default function SubmissionDataViewPage() {
             resultFiles,
             durationText,
             canChangeAccessMode: data.canChangeAccessMode || false, // 추가: 서버 최종 권한 연동
+            canAdminRevokeCompanyAccess: data.canAdminRevokeCompanyAccess || false, // [v3.3A] 추가: 관리자 공개 철회 권한 연동
           };
 
           setSafeData(mappedDTO);
@@ -228,6 +229,41 @@ export default function SubmissionDataViewPage() {
     }
   };
 
+  // [v3.3A] 관리자 공개철회 API 호출 상태 핸들러
+  const handleAdminRevokeAccessMode = async () => {
+    if (!user || !safeData) return;
+
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/knowledge/submission-access-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          submissionId,
+          accessMode: "private",
+        }),
+      });
+
+      const result = await res.json();
+      if (res.ok && result.success) {
+        playAppSound("success");
+        alert("회사 공개 철회가 완료되었습니다.\n(자료가 작성자의 개인 보관함으로 격리되어 관리자 열람 권한이 회수됩니다.)");
+        // 관리자는 더 이상 해당 자료를 볼 권한이 없으므로, 통합 자료검색 목록으로 리다이렉트
+        router.push("/user/data/search");
+      } else {
+        alert(result.error || "공개 철회 처리에 실패했습니다.");
+        playAppSound("error");
+      }
+    } catch (err) {
+      console.error("[admin-revoke-access-mode-error]", err);
+      alert("네트워크 오류로 공개 철회 처리를 완료하지 못했습니다.");
+      playAppSound("error");
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}>
@@ -280,6 +316,7 @@ export default function SubmissionDataViewPage() {
         data={safeData}
         onOpenReport={() => setShowReportModal(true)}
         onUpdateAccessMode={handleUpdateAccessMode} // 콜백 바인딩
+        onAdminRevokeAccessMode={handleAdminRevokeAccessMode} // [v3.3A] 관리자 철회 콜백 바인딩
       />
 
       {/* 본문 렌더링 영역 */}

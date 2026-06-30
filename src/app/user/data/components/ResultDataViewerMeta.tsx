@@ -25,15 +25,17 @@ export interface SafeSubmissionViewDTO {
   resultFiles: Array<{ name: string; size?: number; mimeType?: string; index: number; isDriveUrl?: boolean; url?: string }>;
   durationText?: string | null;
   canChangeAccessMode?: boolean; // 추가: 서버 검증 기반 변경 권한 여부
+  canAdminRevokeCompanyAccess?: boolean; // [v3.3A] 추가: 관리자 공개 철회 권한 여부
 }
 
 interface ResultDataViewerMetaProps {
   data: SafeSubmissionViewDTO;
   onOpenReport?: () => void;
   onUpdateAccessMode?: (newMode: "private" | "company") => Promise<void>; // 추가: 공개범위 변경 콜백
+  onAdminRevokeAccessMode?: () => Promise<void>; // [v3.3A] 추가: 관리자 공개철회 콜백
 }
 
-export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode }: ResultDataViewerMetaProps) {
+export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode, onAdminRevokeAccessMode }: ResultDataViewerMetaProps) {
   const [showDebug, setShowDebug] = useState(false);
   const [updating, setUpdating] = useState(false);
 
@@ -76,6 +78,22 @@ export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode }:
     setUpdating(true);
     try {
       await onUpdateAccessMode(newMode);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleAdminRevoke = async () => {
+    if (!onAdminRevokeAccessMode || updating) return;
+
+    playAppSound("click");
+    if (!window.confirm("이 자료를 회사 공개자료에서 제외하고 작성자 개인 보관으로 되돌리시겠습니까?")) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await onAdminRevokeAccessMode();
     } finally {
       setUpdating(false);
     }
@@ -128,6 +146,19 @@ export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode }:
                   style={{ cursor: updating ? "not-allowed" : "pointer" }}
                 >
                   {updating ? "변경 중..." : isCompany ? "개인 보관으로 되돌리기" : "회사 공개로 전환"}
+                </button>
+              )}
+
+              {/* [v3.3A] canAdminRevokeCompanyAccess 가 true일 때 회사 관리자 철회 단추 노출 */}
+              {data.canAdminRevokeCompanyAccess && onAdminRevokeAccessMode && (
+                <button
+                  onClick={handleAdminRevoke}
+                  disabled={updating}
+                  className="ux_button ux_button_danger ux_button_compact"
+                  title="회사 관리자 권한으로 본 자료의 회사 공유를 강제 철회합니다."
+                  style={{ cursor: updating ? "not-allowed" : "pointer", fontSize: "11px", height: "24px", padding: "0 8px" }}
+                >
+                  {updating ? "철회 중..." : "⚠️ 회사 공개 철회"}
                 </button>
               )}
             </div>

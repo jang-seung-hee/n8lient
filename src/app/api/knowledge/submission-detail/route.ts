@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
 
     // 6. 정책 조회 우선순위 (clientAutomation -> workflowTemplate -> false)
     let ownerCanChangeAccess = false;
+    let adminCanChangeAccess = true; // 기본값 true로 설정
     const automationId = submissionData.automationId;
     const workflowKey = submissionData.workflowKey;
 
@@ -89,17 +90,43 @@ export async function GET(req: NextRequest) {
         if (autoData?.resultAccessPolicy?.ownerCanChangeAccess !== undefined) {
           ownerCanChangeAccess = autoData.resultAccessPolicy.ownerCanChangeAccess;
         }
+        if (autoData?.resultAccessPolicy?.adminCanChangeAccess !== undefined) {
+          adminCanChangeAccess = autoData.resultAccessPolicy.adminCanChangeAccess;
+        }
       }
     }
 
-    if (!ownerCanChangeAccess && workflowKey) {
+    if (workflowKey) {
       const templateSnap = await db.collection("workflowTemplates").doc(workflowKey).get();
       if (templateSnap.exists) {
         const templateData = templateSnap.data();
-        if (templateData?.resultAccessPolicy?.ownerCanChangeAccess !== undefined) {
-          ownerCanChangeAccess = templateData.resultAccessPolicy.ownerCanChangeAccess;
+        if (autoDocPolicyCheckMissing(automationId)) {
+          // 자동화 문서가 없거나 결과 정책이 누락된 경우만 템플릿 상속
+          if (templateData?.resultAccessPolicy?.ownerCanChangeAccess !== undefined && !ownerCanChangeAccess) {
+            ownerCanChangeAccess = templateData.resultAccessPolicy.ownerCanChangeAccess;
+          }
+        }
+        // adminCanChangeAccess의 템플릿 상속 조건 (기존 자동화 레벨에 명시적 설정이 없을 때만)
+        if (automationId) {
+          const autoSnap = await db.collection("clientAutomations").doc(automationId).get();
+          const autoData = autoSnap.data();
+          if (autoData?.resultAccessPolicy?.adminCanChangeAccess === undefined) {
+            if (templateData?.resultAccessPolicy?.adminCanChangeAccess !== undefined) {
+              adminCanChangeAccess = templateData.resultAccessPolicy.adminCanChangeAccess;
+            }
+          }
+        } else {
+          if (templateData?.resultAccessPolicy?.adminCanChangeAccess !== undefined) {
+            adminCanChangeAccess = templateData.resultAccessPolicy.adminCanChangeAccess;
+          }
         }
       }
+    }
+
+    // 헬퍼: 자동화 설정 내 access 정책 누락 여부
+    function autoDocPolicyCheckMissing(autoId: string) {
+      if (!autoId) return true;
+      return false; // useEffect 계열 상속을 통해 안전 기본값이라도 항상 저장되므로 폴백 제어 가능
     }
 
     // 7. 서버 최종 변경 권한 canChangeAccessMode 계산 (작성자 본인이고, 정책상 허용될 때)
@@ -107,13 +134,26 @@ export async function GET(req: NextRequest) {
                     (submissionData.ownerUserId && submissionData.ownerUserId === uid);
     const canChangeAccessMode = Boolean(isOwner && ownerCanChangeAccess);
 
+    // 8. 관리자 공개철회 권한 canAdminRevokeCompanyAccess 계산
+    const isCompanyAdmin = userDoc.role === "company_admin";
+    const isOperator = userDoc.role === "operator";
+    const isCurrentModeCompany = submissionData.accessMode === "company";
+    const isClientMatching = userDoc.clientId && submissionData.clientId && userDoc.clientId === submissionData.clientId;
+
+    const canAdminRevokeCompanyAccess = Boolean(
+      (isOperator || (isCompanyAdmin && isClientMatching)) &&
+      isCurrentModeCompany &&
+      adminCanChangeAccess
+    );
+
     return NextResponse.json({
       success: true,
       submission: {
         ...submissionData,
         submissionId // 안전 보장용 매핑
       },
-      canChangeAccessMode
+      canChangeAccessMode,
+      canAdminRevokeCompanyAccess
     });
 
   } catch (error: any) {
