@@ -258,8 +258,8 @@ export default function KnowledgeAccessPage() {
         cell: ({ row }) => {
           const val = row.original.workflowName || "-";
           return (
-            <span title={val}>
-              {truncateText(val, 22)}
+            <span className="ux_table_text_ellipsis" title={val}>
+              {truncateText(val, 20)}
             </span>
           );
         },

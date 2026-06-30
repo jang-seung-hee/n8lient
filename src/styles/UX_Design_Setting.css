@@ -2029,3 +2029,12 @@
 .ux_table_th_center {
   text-align: center;
 }
+
+.ux_table_text_ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
