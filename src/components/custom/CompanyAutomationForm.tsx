@@ -13,6 +13,8 @@ import ConfigFieldPolicyControl from "@/components/custom/company-automation/Con
 import CompanyRetentionPolicySection from "@/components/custom/company-automation/CompanyRetentionPolicySection";
 import CompanyAutomationNoticeSection from "@/components/custom/company-automation/CompanyAutomationNoticeSection";
 import CompanyAutomationActiveSection from "@/components/custom/company-automation/CompanyAutomationActiveSection";
+import CompanyAccessPolicySection from "@/components/custom/company-automation/CompanyAccessPolicySection";
+import type { ResultAccessMode } from "@/types/n8lient";
 
 interface CompanyAutomationFormProps {
   db: Firestore;
@@ -57,7 +59,7 @@ export default function CompanyAutomationForm({
   const [formSettings, setFormSettings] = useState<Record<string, string | number | boolean>>({});
   const [formGuidance, setFormGuidance] = useState<Record<string, UserSettingGuidanceLevel>>({});
   const [formVisibility, setFormVisibility] = useState<Record<string, UserSettingVisibilityLevel>>({});
-
+ 
   // [v2.6] 회사 보관 정책 관련 상태 선언
   const [companyDefaultLevel, setCompanyDefaultLevel] = useState<"notify_only" | "processed_result" | "full_archive">("full_archive");
   const [coAllowedUserLevels, setCoAllowedUserLevels] = useState<("notify_only" | "processed_result" | "full_archive")[]>([
@@ -66,6 +68,12 @@ export default function CompanyAutomationForm({
     "full_archive",
   ]);
   const [coAllowUserOverride, setCoAllowUserOverride] = useState(true);
+
+  // [v3.2] 결과 공개 정책 관련 상태 선언
+  const [defaultAccessMode, setDefaultAccessMode] = useState<ResultAccessMode>("private");
+  const [ownerCanChangeAccess, setOwnerCanChangeAccess] = useState(false);
+  const [adminCanChangeAccess, setAdminCanChangeAccess] = useState(true);
+  const [policySource, setPolicySource] = useState<"custom" | "inherited" | "default">("default");
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -81,6 +89,12 @@ export default function CompanyAutomationForm({
     const lowercaseKey = key.toLowerCase();
     const forbiddenKeywords = ["token", "secret", "apikey", "credential", "accesstoken", "refreshtoken"];
     return forbiddenKeywords.some((keyword) => lowercaseKey.includes(keyword));
+  };
+
+  // 버전 접두사를 분리하는 보수적 헬퍼 함수
+  const getWorkflowKeyBase = (key: string): string => {
+    const match = key.match(/^(.+?)(-\d+)+$/);
+    return match ? match[1] : key;
   };
 
   useEffect(() => {
@@ -113,6 +127,65 @@ export default function CompanyAutomationForm({
     setCoAllowedUserLevels(coPolicy.allowedUserLevels);
     setCoAllowUserOverride(coPolicy.allowUserOverride);
 
+    // [v3.2] 결과 공개 정책 초기화 (우선순위 상속 적용)
+    const initAccessPolicy = async () => {
+      // 1. 기존 설정이 명시적으로 존재하는 경우
+      if (automation?.resultAccessPolicy) {
+        setDefaultAccessMode(automation.resultAccessPolicy.defaultAccessMode || "private");
+        setOwnerCanChangeAccess(Boolean(automation.resultAccessPolicy.ownerCanChangeAccess));
+        setAdminCanChangeAccess(automation.resultAccessPolicy.adminCanChangeAccess !== false);
+        setPolicySource("custom");
+        return;
+      }
+
+      // 2. 신규인 경우: 동일 clientId 하위 계열(workflowKeyBase 일치) 기존 정책 탐색
+      if (!automation && clientId) {
+        const { getCompanyAutomations } = require("@/features/admin/companyAdminService");
+        try {
+          const currentBase = getWorkflowKeyBase(contract.workflowKey);
+          const allAutos = await getCompanyAutomations(db, clientId);
+          
+          // 동일 계열(workflowKeyBase가 일치하고 resultAccessPolicy가 있는) 자동화 중 가장 최신화된 것 탐색
+          const siblingAutos = allAutos.filter((a: ClientAutomation) => 
+            a.workflowKey !== contract.workflowKey && 
+            getWorkflowKeyBase(a.workflowKey) === currentBase && 
+            a.resultAccessPolicy !== undefined
+          );
+
+          if (siblingAutos.length > 0) {
+            // updatedAt 기준 내림차순 정렬하여 가장 최근 정책 획득
+            siblingAutos.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            const matchedPolicy = siblingAutos[0].resultAccessPolicy!;
+            setDefaultAccessMode(matchedPolicy.defaultAccessMode || "private");
+            setOwnerCanChangeAccess(Boolean(matchedPolicy.ownerCanChangeAccess));
+            setAdminCanChangeAccess(matchedPolicy.adminCanChangeAccess !== false);
+            setPolicySource("inherited");
+            console.log(`[resultAccessPolicy] 동일 계열 자동화(${siblingAutos[0].workflowKey}) 정책 복사 완료.`);
+            return;
+          }
+        } catch (e) {
+          console.warn("[resultAccessPolicy] 계열 자동화 상속 탐색 중 경고:", e);
+        }
+      }
+
+      // 3. 템플릿 상속
+      if (template.resultAccessPolicy) {
+        setDefaultAccessMode(template.resultAccessPolicy.defaultAccessMode || "private");
+        setOwnerCanChangeAccess(Boolean(template.resultAccessPolicy.ownerCanChangeAccess));
+        setAdminCanChangeAccess(template.resultAccessPolicy.adminCanChangeAccess !== false);
+        setPolicySource("inherited");
+        return;
+      }
+
+      // 4. 안전 기본값
+      setDefaultAccessMode("private");
+      setOwnerCanChangeAccess(false);
+      setAdminCanChangeAccess(true);
+      setPolicySource("default");
+    };
+
+    initAccessPolicy();
+
     const initialSettings: Record<string, string | number | boolean> = {};
     template.configSchema.forEach((field) => {
       if (isSecurityField(field.key, field.type)) return;
@@ -128,7 +201,7 @@ export default function CompanyAutomationForm({
       }
     });
     setFormSettings(initialSettings);
-  }, [automation, template, contract]);
+  }, [automation, template, contract, clientId]);
 
   const handleFieldChange = (key: string, value: string | number | boolean) => {
     setFormSettings((prev) => ({
@@ -219,6 +292,11 @@ export default function CompanyAutomationForm({
           allowedUserLevels: coAllowedUserLevels,
           allowUserOverride: finalAllowUserOverride,
         },
+        resultAccessPolicy: {
+          defaultAccessMode,
+          ownerCanChangeAccess,
+          adminCanChangeAccess,
+        },
         userSettingGuidance: formGuidance,
         userSettingVisibility: formVisibility,
         isNew: !automation,
@@ -298,15 +376,29 @@ export default function CompanyAutomationForm({
           };
 
           return (
-            <CompanyRetentionPolicySection
-              companyDefaultLevel={companyDefaultLevel}
-              coAllowedUserLevels={coAllowedUserLevels}
-              coAllowUserOverride={coAllowUserOverride}
-              opPolicy={opPolicy}
-              contractRetentionLimit={contractRetentionLimit}
-              onChangeCompanyDefaultLevel={(lvl) => setCompanyDefaultLevel(lvl)}
-              onChangeCoAllowUserOverride={(override) => setCoAllowUserOverride(override)}
-            />
+            <>
+              <CompanyRetentionPolicySection
+                companyDefaultLevel={companyDefaultLevel}
+                coAllowedUserLevels={coAllowedUserLevels}
+                coAllowUserOverride={coAllowUserOverride}
+                opPolicy={opPolicy}
+                contractRetentionLimit={contractRetentionLimit}
+                onChangeCompanyDefaultLevel={(lvl) => setCompanyDefaultLevel(lvl)}
+                onChangeCoAllowUserOverride={(override) => setCoAllowUserOverride(override)}
+              />
+              
+              <div style={{ marginTop: "12px" }}>
+                <CompanyAccessPolicySection
+                  defaultAccessMode={defaultAccessMode}
+                  ownerCanChangeAccess={ownerCanChangeAccess}
+                  adminCanChangeAccess={adminCanChangeAccess}
+                  policySource={policySource}
+                  onChangeDefaultAccessMode={(mode) => setDefaultAccessMode(mode)}
+                  onChangeOwnerCanChangeAccess={(allow) => setOwnerCanChangeAccess(allow)}
+                  onChangeAdminCanChangeAccess={(allow) => setAdminCanChangeAccess(allow)}
+                />
+              </div>
+            </>
           );
         })()}
 

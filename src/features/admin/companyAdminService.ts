@@ -224,6 +224,7 @@ export async function saveClientAutomation(
     contractRetentionLimit?: ContractRetentionLimit;
     userSettingGuidance?: ClientAutomation["userSettingGuidance"];
     userSettingVisibility?: ClientAutomation["userSettingVisibility"];
+    resultAccessPolicy?: ClientAutomation["resultAccessPolicy"]; // 추가: 결과 데이터 열람 범위 설정 정책
     isNew?: boolean;
   }): Promise<{ success: boolean; message?: string }> {
   try {
@@ -241,6 +242,7 @@ export async function saveClientAutomation(
       contractRetentionLimit,
       userSettingGuidance,
       userSettingVisibility,
+      resultAccessPolicy,
     } = params;
 
     // 1. 런타임 필수 설정 키 검증 (configSchema.key 기준)
@@ -313,6 +315,9 @@ export async function saveClientAutomation(
         : {}),
       ...(userSettingVisibility ?? existing?.userSettingVisibility
         ? { userSettingVisibility: userSettingVisibility ?? existing?.userSettingVisibility }
+        : {}),
+      ...(resultAccessPolicy ?? existing?.resultAccessPolicy
+        ? { resultAccessPolicy: resultAccessPolicy ?? existing?.resultAccessPolicy }
         : {}),
       ...(trimmedNotice ? { noticeText: trimmedNotice } : {}),
       ...(existing?.companyDisabled === true
