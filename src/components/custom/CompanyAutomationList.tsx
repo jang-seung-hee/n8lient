@@ -90,7 +90,7 @@ export default function CompanyAutomationList({
   }, [contracts, automations, templates, searchQuery, filters]);
 
   // 텍스트 축약 헬퍼 함수
-  const truncateText = (value: string, maxLength = 15) => {
+  const truncateText = (value: string, maxLength = 25) => {
     if (!value) return "-";
     return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
   };
@@ -101,7 +101,8 @@ export default function CompanyAutomationList({
       {
         id: "workflowName",
         header: "N8N 워크플로우명",
-        size: 240, // 기존 대비 약 30% 확장
+        size: 240, // 기존 대비 약 30% 확장 유지
+        meta: { headerAlign: "center" }, // 헤더는 가운데 정렬, 셀은 기본 좌측 정렬
         accessorFn: (row) => {
           const template = templates[row.workflowKey];
           const auto = automations.find((a) => a.workflowKey === row.workflowKey);
@@ -121,7 +122,7 @@ export default function CompanyAutomationList({
           });
           return (
             <span style={{ fontWeight: 600, color: "#111827" }} title={fullText}>
-              {truncateText(fullText, 15)}
+              {truncateText(fullText, 25)}
             </span>
           );
         },
@@ -129,7 +130,8 @@ export default function CompanyAutomationList({
       {
         accessorKey: "workflowKey",
         header: "workflowKey",
-        size: 200, // 기존 대비 약 30% 확장
+        size: 200, // 기존 대비 약 30% 확장 유지
+        meta: { headerAlign: "center" }, // 헤더는 가운데 정렬, 셀은 기본 좌측 정렬
         cell: ({ row }) => {
           const key = row.original.workflowKey;
           return (
@@ -137,7 +139,7 @@ export default function CompanyAutomationList({
               style={{ fontFamily: "monospace", color: "#6b7280", fontSize: "12px" }}
               title={key}
             >
-              {truncateText(key, 15)}
+              {truncateText(key, 25)}
             </span>
           );
         },
@@ -145,7 +147,8 @@ export default function CompanyAutomationList({
       {
         id: "configStatus",
         header: "설정 상태",
-        size: 90, // 폭 약 10% 축소
+        size: 90, // 폭 약 10% 축소 유지
+        meta: { headerAlign: "center", cellAlign: "center" }, // 둘 다 가운데 정렬
         accessorFn: (row) => {
           const auto = automations.find((a) => a.workflowKey === row.workflowKey);
           return auto ? "configured" : "draft";
@@ -162,7 +165,8 @@ export default function CompanyAutomationList({
       {
         id: "enabled",
         header: "활성 여부",
-        size: 90, // 폭 약 10% 축소
+        size: 90, // 폭 약 10% 축소 유지
+        meta: { headerAlign: "center", cellAlign: "center" }, // 둘 다 가운데 정렬
         accessorFn: (row) => {
           const auto = automations.find((a) => a.workflowKey === row.workflowKey);
           return auto?.enabled ? "true" : "false";
@@ -179,7 +183,8 @@ export default function CompanyAutomationList({
       {
         id: "employeeAccess",
         header: "직원 사용",
-        size: 90, // 폭 약 10% 축소
+        size: 90, // 폭 약 10% 축소 유지
+        meta: { headerAlign: "center", cellAlign: "center" }, // 둘 다 가운데 정렬
         cell: ({ row }) => {
           const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
           if (!auto) {
@@ -196,7 +201,8 @@ export default function CompanyAutomationList({
       {
         id: "settingCount",
         header: "설정 항목 수",
-        size: 100, // 폭 약 10% 축소
+        size: 100, // 폭 약 10% 축소 유지
+        meta: { headerAlign: "center", cellAlign: "center" }, // 둘 다 가운데 정렬
         cell: ({ row }) => {
           const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
           const settingCount = auto?.settings ? Object.keys(auto.settings).length : 0;
@@ -210,7 +216,7 @@ export default function CompanyAutomationList({
       {
         id: "actions",
         header: "액션",
-        meta: { align: "center" }, // 가운데 정렬 사양 연동
+        meta: { headerAlign: "center", cellAlign: "center" }, // 둘 다 가운데 정렬
         cell: ({ row }) => (
           <div>
             <button
