@@ -7,8 +7,6 @@ import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { ExecutionLogSearchBar } from "@/components/results/ExecutionLogSearchBar";
-import { ExecutionLogTable } from "@/components/results/ExecutionLogTable";
-import { mapSubmissionToRow } from "@/components/results/executionLogViewModel";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
 import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
@@ -16,8 +14,11 @@ import { subscribeCompanySubmissions } from "@/features/submission/submissionQue
 import { filterSubmissions } from "@/common/submission/submissionFilters";
 import { doc, getDoc } from "firebase/firestore";
 import type { Submission, SubmissionStatus } from "@/types/n8lient";
-
-const PAGE_SIZE = 20;
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
+import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
+import { ColumnDef } from "@tanstack/react-table";
 
 export default function AdminResults() {
   const { userDoc } = useAuthUser();
@@ -31,7 +32,6 @@ export default function AdminResults() {
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [currentPage, setCurrentPage] = useState(1);
 
   // 상세 모달 상태
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
@@ -96,47 +96,100 @@ export default function AdminResults() {
 
   const actorDisplaySource = useSubmissionActorDisplaySource(activeSubmission);
 
-  // 클라이언트 사이드 필터링 적용 (실패 단계 및 실패 위치 필터 추가 반영)
-  const filteredList = filterSubmissions(submissions, {
-    searchQuery,
-    status: filters.status as SubmissionStatus | "all",
-    errorPhase: filters.errorPhase as any,
-    errorSource: filters.errorSource as any,
-  });
+  // 클라이언트 사이드 필터링 적용
+  const filteredList = useMemo(() => {
+    return filterSubmissions(submissions, {
+      searchQuery,
+      status: filters.status as SubmissionStatus | "all",
+      errorPhase: filters.errorPhase as any,
+      errorSource: filters.errorSource as any,
+    });
+  }, [submissions, searchQuery, filters]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+  const actorLabelByUid = useSubmissionActorLabelMap(filteredList);
 
-  const pagedLogs = useMemo(
-    () =>
-      filteredList.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE
-      ),
-    [filteredList, currentPage]
-  );
+  // TanStack Table 용 ColumnDef 설계
+  const gridColumns = useMemo<ColumnDef<Submission>[]>(() => {
+    return [
+      {
+        id: "workflowName",
+        header: "N8N 워크플로우명",
+        accessorFn: (row) => row.input.title || row.workflowKey || "-",
+        cell: ({ row }) => (
+          <span style={{ fontWeight: 600, color: "#111827" }}>
+            {row.original.input.title || row.original.workflowKey || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "userEmail",
+        header: "요청자",
+        cell: ({ row }) => {
+          const uid = row.original.uid;
+          const emailFallback = (row.original as any).googleEmail || (row.original as any).userEmail || "알 수 없음";
+          const displayLabel = actorLabelByUid[uid] || emailFallback;
+          return <span>{displayLabel}</span>;
+        },
+      },
+      {
+        accessorKey: "createdAt",
+        header: "요청 시각",
+        cell: ({ row }) => {
+          const reqAt = row.original.createdAt;
+          return (
+            <span style={{ fontSize: "12px", color: "#6b7280" }}>
+              {reqAt ? new Date(reqAt).toLocaleString() : "-"}
+            </span>
+          );
+        },
+      },
+      {
+        id: "executionTime",
+        header: "소요 시간",
+        cell: ({ row }) => {
+          const time = (row.original as any).executionTimeMs;
+          return (
+            <span style={{ color: "#4b5563" }}>
+              {time ? `${(time / 1000).toFixed(1)}초` : "-"}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "상태",
+        cell: ({ row }) => {
+          const status = row.original.status;
+          let badgeType: "success" | "error" | "pending" | "default" = "default";
+          let label = status as string;
 
-  const actorLabelByUid = useSubmissionActorLabelMap(pagedLogs);
+          if (status === "success") {
+            badgeType = "success";
+            label = "완료";
+          } else if (status === "failed" || status === "config_error") {
+            badgeType = "error";
+            label = status === "config_error" ? "설정 오류" : "실패";
+          } else if (status === "processing" || status === "queued") {
+            badgeType = "pending";
+            label = "실행 중";
+          } else if (status === "skipped") {
+            badgeType = "default";
+            label = "제외됨";
+          }
 
-  // Submission 객체 리스트를 ExecutionLogRow 리스트로 매핑 변환
-  const tableRows = useMemo(() => {
-    return pagedLogs.map((log) => mapSubmissionToRow(log, undefined, companyName));
-  }, [pagedLogs, companyName]);
-
-  // 필터·검색 변경 시 1페이지로 초기화
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filters.status, filters.errorPhase, filters.errorSource]);
-
-  // 결과 건수 감소 시 현재 페이지 보정
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+          return (
+            <N8lientStatusBadge type={badgeType}>
+              {label}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+    ];
+  }, [actorLabelByUid]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div>
+    <div className="ux_page_layout" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="ux_page_header">
         <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           📜 N8N 워크플로우 실행 로그
         </h2>
@@ -156,76 +209,21 @@ export default function AdminResults() {
         </div>
       )}
 
-      <div className="ux_card_compact" style={{ padding: 0, overflow: "hidden" }}>
-        {loading && submissions.length === 0 ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
-            실행 로그를 불러오는 중...
-          </div>
-        ) : (
-          <>
-            <ExecutionLogTable
-              rows={tableRows}
-              onRowClick={(row) => handleRowClick(row.raw)}
-              actorLabelByUid={actorLabelByUid}
-            />
-            {filteredList.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  borderTop: "1px solid #e5e7eb",
-                  backgroundColor: "#f9fafb",
-                  fontSize: "13px",
-                  color: "#374151",
-                }}
-              >
-                <span style={{ color: "#6b7280" }}>
-                  총 {filteredList.length}건 · {currentPage} / {totalPages} 페이지
-                </span>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      backgroundColor: currentPage <= 1 ? "#f3f4f6" : "#ffffff",
-                      color: currentPage <= 1 ? "#9ca3af" : "#374151",
-                      cursor: currentPage <= 1 ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    이전
-                  </button>
-                  <span style={{ fontSize: "12px", color: "#6b7280", minWidth: "48px", textAlign: "center" }}>
-                    {currentPage} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage >= totalPages}
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      backgroundColor: currentPage >= totalPages ? "#f3f4f6" : "#ffffff",
-                      color: currentPage >= totalPages ? "#9ca3af" : "#374151",
-                      cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    다음
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {loading ? (
+        <N8lientLoadingState message="실행 로그를 불러오는 중..." />
+      ) : filteredList.length === 0 ? (
+        <N8lientEmptyState
+          title="조회된 실행 결과가 없습니다."
+          description="검색 필터 조건을 조정해 보세요."
+        />
+      ) : (
+        <N8lientDataGrid
+          data={filteredList}
+          columns={gridColumns}
+          getRowId={(row) => row.submissionId}
+          onRowClick={handleRowClick}
+        />
+      )}
 
       {isModalOpen && activeSubmission && (
         <ExecutionResultDetailModal

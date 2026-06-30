@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+// 한국어 주석 표준을 준수합니다.
+import { useState, useMemo } from "react";
 import { ListSearchFilterBar, FilterField } from "@/components/core/ListSearchFilterBar";
 import type { ClientContract, ClientAutomation, WorkflowTemplate } from "@/types/n8lient";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
+import { ColumnDef } from "@tanstack/react-table";
 
 interface CompanyAutomationListProps {
   contracts: ClientContract[];
@@ -46,41 +51,165 @@ export default function CompanyAutomationList({
   };
 
   // 필터링 적용
-  const filteredContracts = contracts.filter((contract) => {
-    const template = templates[contract.workflowKey];
-    const auto = automations.find((a) => a.workflowKey === contract.workflowKey);
+  const filteredContracts = useMemo(() => {
+    return contracts.filter((contract) => {
+      const template = templates[contract.workflowKey];
+      const auto = automations.find((a) => a.workflowKey === contract.workflowKey);
 
-    // 1. 검색어 필터링
-    const name = resolveWorkflowDisplayName({
-      template,
-      automation: auto ?? null,
-      workflowKey: contract.workflowKey,
+      // 1. 검색어 필터링
+      const name = resolveWorkflowDisplayName({
+        template,
+        automation: auto ?? null,
+        workflowKey: contract.workflowKey,
+      });
+      const key = contract.workflowKey;
+      const matchSearch =
+        name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        key.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchSearch) return false;
+
+      // 2. 설정 상태 필터링
+      const configStatus = filters["configStatus"];
+      if (configStatus) {
+        const isConfigured = !!auto;
+        if (configStatus === "configured" && !isConfigured) return false;
+        if (configStatus === "draft" && isConfigured) return false;
+      }
+
+      // 3. 활성 여부 필터링
+      const enabledFilter = filters["enabled"];
+      if (enabledFilter) {
+        const isEnabled = auto?.enabled ?? false;
+        if (enabledFilter === "true" && !isEnabled) return false;
+        if (enabledFilter === "false" && (isEnabled || !auto)) return false;
+      }
+
+      return true;
     });
-    const key = contract.workflowKey;
-    const matchSearch =
-      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      key.toLowerCase().includes(searchQuery.toLowerCase());
+  }, [contracts, automations, templates, searchQuery, filters]);
 
-    if (!matchSearch) return false;
-
-    // 2. 설정 상태 필터링
-    const configStatus = filters["configStatus"];
-    if (configStatus) {
-      const isConfigured = !!auto;
-      if (configStatus === "configured" && !isConfigured) return false;
-      if (configStatus === "draft" && isConfigured) return false;
-    }
-
-    // 3. 활성 여부 필터링
-    const enabledFilter = filters["enabled"];
-    if (enabledFilter) {
-      const isEnabled = auto?.enabled ?? false;
-      if (enabledFilter === "true" && !isEnabled) return false;
-      if (enabledFilter === "false" && (isEnabled || !auto)) return false;
-    }
-
-    return true;
-  });
+  // TanStack Table용 컬럼 정의
+  const gridColumns = useMemo<ColumnDef<ClientContract>[]>(() => {
+    return [
+      {
+        id: "workflowName",
+        header: "N8N 워크플로우명",
+        accessorFn: (row) => {
+          const template = templates[row.workflowKey];
+          const auto = automations.find((a) => a.workflowKey === row.workflowKey);
+          return resolveWorkflowDisplayName({
+            template,
+            automation: auto ?? null,
+            workflowKey: row.workflowKey,
+          });
+        },
+        cell: ({ row }) => {
+          const template = templates[row.original.workflowKey];
+          const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
+          return (
+            <span style={{ fontWeight: 600, color: "#111827" }}>
+              {resolveWorkflowDisplayName({
+                template,
+                automation: auto ?? null,
+                workflowKey: row.original.workflowKey,
+              })}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "workflowKey",
+        header: "workflowKey",
+        cell: ({ row }) => (
+          <span style={{ fontFamily: "monospace", color: "#6b7280", fontSize: "12px" }}>
+            {row.original.workflowKey}
+          </span>
+        ),
+      },
+      {
+        id: "configStatus",
+        header: "설정 상태",
+        accessorFn: (row) => {
+          const auto = automations.find((a) => a.workflowKey === row.workflowKey);
+          return auto ? "configured" : "draft";
+        },
+        cell: ({ row }) => {
+          const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
+          return (
+            <N8lientStatusBadge type={auto ? "success" : "error"}>
+              {auto ? "설정 완료" : "설정 미완료"}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+      {
+        id: "enabled",
+        header: "활성 여부",
+        accessorFn: (row) => {
+          const auto = automations.find((a) => a.workflowKey === row.workflowKey);
+          return auto?.enabled ? "true" : "false";
+        },
+        cell: ({ row }) => {
+          const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
+          return (
+            <N8lientStatusBadge type={auto?.enabled ? "success" : "error"}>
+              {auto?.enabled ? "활성화" : "비활성화"}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+      {
+        id: "employeeAccess",
+        header: "직원 사용",
+        cell: ({ row }) => {
+          const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
+          if (!auto) {
+            return <span style={{ fontSize: "11px", color: "#9ca3af" }}>-</span>;
+          }
+          const isEmployeeDisabled = auto.companyDisabled === true;
+          return (
+            <N8lientStatusBadge type={isEmployeeDisabled ? "pending" : "success"}>
+              {isEmployeeDisabled ? "사용 안함" : "사용함"}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+      {
+        id: "settingCount",
+        header: "설정 항목 수",
+        cell: ({ row }) => {
+          const auto = automations.find((a) => a.workflowKey === row.original.workflowKey);
+          const settingCount = auto?.settings ? Object.keys(auto.settings).length : 0;
+          return (
+            <span style={{ fontWeight: 500, color: "#4b5563" }}>
+              {settingCount}개
+            </span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "액션",
+        cell: ({ row }) => (
+          <div style={{ textAlign: "right" }}>
+            <button
+              className="ux_button_compact ux_button_secondary"
+              onClick={() => onSelectContract(row.original)}
+              style={{
+                fontSize: "11px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+              }}
+            >
+              🔍 상세 보기
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [automations, templates, onSelectContract]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -91,140 +220,16 @@ export default function CompanyAutomationList({
       />
 
       {filteredContracts.length === 0 ? (
-        <div
-          style={{
-            padding: "40px 16px",
-            border: "1px dashed #e5e7eb",
-            borderRadius: "8px",
-            textAlign: "center",
-            color: "#6b7280",
-            fontSize: "13px",
-            backgroundColor: "#ffffff",
-          }}
-        >
-          계약된 N8N 워크플로우가 없거나 검색 결과가 없습니다.
-        </div>
+        <N8lientEmptyState
+          title="계약된 N8N 워크플로우가 없거나 검색 결과가 없습니다."
+          description="검색 필터 조건을 조정해 보세요."
+        />
       ) : (
-        <div
-          className="ux_card"
-          style={{
-            padding: 0,
-            boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <div className="ux_scroll_area">
-            <div style={{ minWidth: "760px" }}>
-          {/* 테이블 헤더 */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr",
-              padding: "10px 16px",
-              backgroundColor: "#f9fafb",
-              borderBottom: "1px solid #e5e7eb",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "#374151",
-            }}
-          >
-            <span>N8N 워크플로우명</span>
-            <span>workflowKey</span>
-            <span>설정 상태</span>
-            <span>활성 여부</span>
-            <span>직원 사용</span>
-            <span>설정 항목 수</span>
-            <span style={{ textAlign: "right" }}>액션</span>
-          </div>
-
-          {/* 목록 바디 */}
-          {filteredContracts.map((contract, idx) => {
-            const template = templates[contract.workflowKey];
-            const auto = automations.find((a) => a.workflowKey === contract.workflowKey);
-            const settingCount = auto?.settings ? Object.keys(auto.settings).length : 0;
-
-            return (
-              <div
-                key={contract.contractId}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr",
-                  padding: "12px 16px",
-                  borderBottom: idx < filteredContracts.length - 1 ? "1px solid #f3f4f6" : "none",
-                  fontSize: "13px",
-                  color: "#111111",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ fontWeight: 600, color: "#111827" }}>
-                  {resolveWorkflowDisplayName({
-                    template,
-                    automation: auto ?? null,
-                    workflowKey: contract.workflowKey,
-                  })}
-                </span>
-                <span style={{ fontFamily: "monospace", color: "#6b7280", fontSize: "12px" }}>
-                  {contract.workflowKey}
-                </span>
-                <span>
-                  {auto ? (
-                    <span style={{ color: "#059669", fontWeight: 500 }}>설정 완료</span>
-                  ) : (
-                    <span style={{ color: "#dc2626", fontWeight: 500 }}>⚠️ 설정 미완료</span>
-                  )}
-                </span>
-                <span>
-                  <span
-                    className={auto?.enabled ? "ux_badge ux_badge_success" : "ux_badge ux_badge_danger"}
-                    style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px" }}
-                  >
-                    {auto?.enabled ? "활성화" : "비활성화"}
-                  </span>
-                </span>
-                <span>
-                  {!auto ? (
-                    <span style={{ fontSize: "11px", color: "#9ca3af" }}>-</span>
-                  ) : auto.companyDisabled === true ? (
-                    <span
-                      className="ux_badge ux_badge_warning"
-                      style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px" }}
-                    >
-                      사용 안함
-                    </span>
-                  ) : (
-                    <span
-                      className="ux_badge ux_badge_info"
-                      style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px" }}
-                    >
-                      사용함
-                    </span>
-                  )}
-                </span>
-                <span style={{ fontWeight: 500, color: "#4b5563", paddingLeft: "8px" }}>
-                  {settingCount}개
-                </span>
-                <div style={{ textAlign: "right" }}>
-                  <button
-                    className="ux_button_compact ux_button_secondary"
-                    onClick={() => onSelectContract(contract)}
-                    style={{
-                      fontSize: "11px",
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                      transition: "all 0.15s ease",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ffffff")}
-                  >
-                    🔍 상세 보기
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-            </div>
-          </div>
-        </div>
+        <N8lientDataGrid
+          data={filteredContracts}
+          columns={gridColumns}
+          getRowId={(row) => row.contractId}
+        />
       )}
     </div>
   );
