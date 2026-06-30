@@ -28,6 +28,55 @@ interface AdminKnowledgeItem {
   viewerUrl: string | null;
 }
 
+// 텍스트 축약 헬퍼 함수
+const truncateText = (value: string, maxLength: number) => {
+  if (!value) return "-";
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+};
+
+// 날짜 안전 변환 헬퍼 함수 (Firestore Timestamp, Date, string, number 대응)
+const toDateSafe = (value: unknown): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    const maybeDate = (value as { toDate?: () => Date }).toDate?.();
+    return maybeDate && !Number.isNaN(maybeDate.getTime()) ? maybeDate : null;
+  }
+
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    const seconds = (value as { seconds?: number }).seconds;
+    if (typeof seconds === "number") {
+      const date = new Date(seconds * 1000);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+};
+
+// YY.MM.DD HH:mm 24시간제 변환 헬퍼 함수
+const formatCompactDateTime = (value: unknown, fallback = "-") => {
+  const date = toDateSafe(value);
+  if (!date) return fallback;
+
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+
+  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+};
+
 export default function KnowledgeAccessPage() {
   const { user, loading: authLoading } = useAuthUser();
 
@@ -153,19 +202,6 @@ export default function KnowledgeAccessPage() {
     }
   };
 
-  // 포맷팅 헬퍼
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    const date = new Date(dateStr);
-    return date.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   // 체크박스 활성/비활성 판정
   const isCheckboxSelectable = (item: AdminKnowledgeItem) => {
     return item.accessMode === "company" && item.canAdminRevokeCompanyAccess;
@@ -177,8 +213,11 @@ export default function KnowledgeAccessPage() {
       {
         accessorKey: "title",
         header: "자료 제목",
+        size: 280, // 폭 넓힘
+        meta: { headerAlign: "center", cellAlign: "left" },
         cell: ({ row }) => {
           const item = row.original;
+          const displayTitle = item.title || "-";
           return item.viewerUrl ? (
             <a
               href={item.viewerUrl}
@@ -186,12 +225,13 @@ export default function KnowledgeAccessPage() {
               rel="noopener noreferrer"
               className="ux_link"
               style={{ fontWeight: 600 }}
+              title={displayTitle}
             >
-              {item.title}
+              {truncateText(displayTitle, 25)}
             </a>
           ) : (
-            <span style={{ color: "#6b7280", fontStyle: "italic" }}>
-              🔒 {item.title}
+            <span style={{ color: "#6b7280", fontStyle: "italic" }} title={displayTitle}>
+              🔒 {truncateText(displayTitle, 25)}
             </span>
           );
         },
@@ -199,6 +239,8 @@ export default function KnowledgeAccessPage() {
       {
         accessorKey: "ownerName",
         header: "작성자",
+        size: 170,
+        meta: { headerAlign: "center", cellAlign: "left" },
         cell: ({ row }) => {
           const item = row.original;
           return (
@@ -211,15 +253,29 @@ export default function KnowledgeAccessPage() {
       {
         accessorKey: "workflowName",
         header: "자동화 분류",
+        size: 200,
+        meta: { headerAlign: "center", cellAlign: "left" },
+        cell: ({ row }) => {
+          const val = row.original.workflowName || "-";
+          return (
+            <span title={val}>
+              {truncateText(val, 22)}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "createdAt",
         header: "생성 시각",
-        cell: ({ row }) => formatDate(row.original.createdAt),
+        size: 120,
+        meta: { headerAlign: "center", cellAlign: "center" },
+        cell: ({ row }) => formatCompactDateTime(row.original.createdAt, "생성일 없음"),
       },
       {
         accessorKey: "accessMode",
         header: "공개상태",
+        size: 110,
+        meta: { headerAlign: "center", cellAlign: "center" },
         cell: ({ row }) => {
           const item = row.original;
           return (
@@ -232,11 +288,15 @@ export default function KnowledgeAccessPage() {
       {
         accessorKey: "accessModeUpdatedAt",
         header: "공개범위 변경일",
-        cell: ({ row }) => formatDate(row.original.accessModeUpdatedAt),
+        size: 130,
+        meta: { headerAlign: "center", cellAlign: "center" },
+        cell: ({ row }) => formatCompactDateTime(row.original.accessModeUpdatedAt, "변경 이력 없음"),
       },
       {
         id: "actions",
         header: "작업",
+        size: 100, // 폭 최적화
+        meta: { headerAlign: "center", cellAlign: "center" },
         cell: ({ row }) => {
           const item = row.original;
           return item.viewerUrl ? (
