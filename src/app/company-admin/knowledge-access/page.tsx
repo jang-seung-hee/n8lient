@@ -8,6 +8,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { playAppSound } from "@/lib/appSound";
+import { N8lientFilterBar } from "@/components/common/data/N8lientFilterBar";
+import { N8lientBulkActionBar } from "@/components/common/data/N8lientBulkActionBar";
+import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
+import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
 
 interface AdminKnowledgeItem {
   submissionId: string;
@@ -207,7 +212,7 @@ export default function KnowledgeAccessPage() {
       </div>
 
       {/* 검색 및 필터 카드 */}
-      <div className="ux_filter_bar" style={{ marginBottom: "20px" }}>
+      <N8lientFilterBar style={{ marginBottom: "20px" }}>
         <div style={{ flex: "1 1 200px" }}>
           <label className="ux_input_label" style={{ display: "block", marginBottom: "4px", fontSize: "12px", fontWeight: 600 }}>자료 제목 검색</label>
           <input
@@ -255,22 +260,24 @@ export default function KnowledgeAccessPage() {
             ))}
           </select>
         </div>
-      </div>
+      </N8lientFilterBar>
 
       {/* 벌크 조작 컨트롤러 */}
-      <div className="ux_bulk_bar" style={{ marginBottom: "12px" }}>
-        <span className="ux_caption" style={{ fontSize: "13px" }}>
-          선택한 항목: <strong>{selectedIds.length}</strong>개 / 필터된 결과: {filteredItems.length}건
-        </span>
-        <button
-          onClick={handleBulkRevoke}
-          disabled={selectedIds.length === 0 || actionLoading}
-          className="ux_button ux_button_danger"
-          style={{ height: "32px", fontSize: "12.5px" }}
-        >
-          {actionLoading ? "철회 중..." : "선택 항목 회사 공개 철회"}
-        </button>
-      </div>
+      <N8lientBulkActionBar
+        selectedCount={selectedIds.length}
+        totalCount={filteredItems.length}
+        style={{ marginBottom: "12px" }}
+        actions={
+          <button
+            onClick={handleBulkRevoke}
+            disabled={selectedIds.length === 0 || actionLoading}
+            className="ux_button ux_button_danger"
+            style={{ height: "32px", fontSize: "12.5px" }}
+          >
+            {actionLoading ? "철회 중..." : "선택 항목 회사 공개 철회"}
+          </button>
+        }
+      />
 
       {error && (
         <div className="ux_alert ux_alert_danger" style={{ marginBottom: "20px" }}>
@@ -281,13 +288,13 @@ export default function KnowledgeAccessPage() {
       {/* 목록 테이블 카드 */}
       <div className="ux_table_wrap">
         {loading ? (
-          <div className="ux_loading_state">
-            자료 공개 목록을 불러오는 중...
-          </div>
+          <N8lientLoadingState message="자료 공개 목록을 불러오는 중..." />
         ) : filteredItems.length === 0 ? (
-          <div className="ux_empty_state" style={{ border: "none", boxShadow: "none" }}>
-            조회된 공개 자료 내역이 없습니다.
-          </div>
+          <N8lientEmptyState
+            title="조회된 공개 자료 내역이 없습니다."
+            description="필터 및 검색 조건을 조정하거나 신규 공개 등록을 대기해 주세요."
+            style={{ border: "none", boxShadow: "none" }}
+          />
         ) : (
           <table className="ux_table">
             <thead>
@@ -364,13 +371,9 @@ export default function KnowledgeAccessPage() {
                       {formatDate(item.createdAt)}
                     </td>
                     <td>
-                      <span
-                        className={`ux_status_badge ${
-                          item.accessMode === "company" ? "ux_status_badge_company" : "ux_status_badge_private"
-                        }`}
-                      >
+                      <N8lientStatusBadge type={item.accessMode}>
                         {item.accessMode === "company" ? "🏢 회사 공개" : "🔒 개인 보관"}
-                      </span>
+                      </N8lientStatusBadge>
                     </td>
                     <td>
                       {formatDate(item.accessModeUpdatedAt)}
