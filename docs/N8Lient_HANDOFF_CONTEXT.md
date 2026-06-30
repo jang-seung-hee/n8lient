@@ -1013,3 +1013,20 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * `ea0c8df` (Phase 3.1 추가 완료)
 * **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
 
+### [2026-06-30] N8Lient Phase 3.2 Result Access Policy Settings UI 추가
+
+* **결정**: Firestore 수동 백필 및 DB 개입을 거치지 않고, 회사 관리자가 브라우저 자동화 설정 화면에서 직접 각 자동화 인스턴스별 결과 데이터 공개 정책(`resultAccessPolicy`)을 조율할 수 있는 설정 UI와 상속 규칙을 구현했다.
+* **주요 내용**:
+  * **설정 UI 연동**:
+    * 자동화 설정 편집 폼(`CompanyAutomationForm.tsx`)에 공통 정책 설정 뷰(`CompanyAccessPolicySection.tsx`)를 마운트하여 기본 공개범위(`defaultAccessMode`), 작성자 공개범위 변경 허용(`ownerCanChangeAccess`), 관리자 공개철회 허용(`adminCanChangeAccess`) 컨트롤 제공.
+  * **동일 계열 상속(Inheritance) 적용**:
+    * 신규 버전 자동화 설정 진입 시 동일 `clientId` 내 이전 버전 자동화 설정(버전 접미사를 제외한 `workflowKey` 계열)의 `resultAccessPolicy`를 자동으로 조회하여 1순위 계승. 계열 정책이 없을 시 마스터 템플릿 상속 및 시스템 안전 기본값으로 단계적 롤백 지원.
+  * **수정 권한 격리**:
+    * 오직 운영자(`operator`) 및 소속 회사 관리자(`company_admin`)만 정책을 변경할 수 있도록 `hasWritePermission` 제어 완료. 일반 사용자는 폼 접근 불가.
+  * **Gateway 무수정 준수**:
+    * API Route(`execute/route.ts`) 및 Gateway 서버가 이미 `clientAutomation.resultAccessPolicy.defaultAccessMode` 설정을 최우선으로 해석하여 `submissions` 및 `knowledgeSearchIndex` 최초 accessMode를 세팅하도록 구성되어 있음을 동작 실증 완료.
+* **주요 커밋**:
+  * `d686cb3` (Phase 3.2 추가 완료)
+  * `a7719f7` (Phase 3.1a 실시간 인덱스 동기화 반영 완료)
+* **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
+
