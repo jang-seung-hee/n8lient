@@ -13,13 +13,15 @@ import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionA
 import { subscribeCompanySubmissions } from "@/features/submission/submissionQueryService";
 import { filterSubmissions } from "@/common/submission/submissionFilters";
 import { doc, getDoc } from "firebase/firestore";
-import type { Submission, SubmissionStatus } from "@/types/n8lient";
+import type { Submission, SubmissionStatus, WorkflowTemplate } from "@/types/n8lient";
 import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
 import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
 import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
 import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
 import { ColumnDef } from "@tanstack/react-table";
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
+import { getCompanyContracts } from "@/features/admin/companyAdminService";
+import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
 
 // 텍스트 축약 헬퍼 함수
 const truncateText = (value: string, maxLength = 25) => {
@@ -95,6 +97,7 @@ export default function AdminResults() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>("-");
+  const [templates, setTemplates] = useState<Record<string, WorkflowTemplate>>({});
 
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -147,6 +150,27 @@ export default function AdminResults() {
     fetchCompanyName();
   }, [userDoc?.clientId]);
 
+  // 템플릿(명세서) 데이터 로드 효과 추가
+  useEffect(() => {
+    const clientId = userDoc?.clientId;
+    if (!clientId) return;
+
+    const fetchTemplates = async () => {
+      try {
+        const contractList = await getCompanyContracts(db, clientId);
+        const tempMap = await fetchWorkflowTemplatesByKeys(
+          db,
+          contractList.map((contract) => contract.workflowKey)
+        );
+        setTemplates(tempMap);
+      } catch (err) {
+        console.error("[AdminResults] 템플릿 로드 실패:", err);
+      }
+    };
+
+    fetchTemplates();
+  }, [userDoc?.clientId]);
+
   const handleFilterChange = (query: string, filterValues: Record<string, string>) => {
     setSearchQuery(query);
     setFilters(filterValues);
@@ -175,6 +199,18 @@ export default function AdminResults() {
 
   const actorLabelByUid = useSubmissionActorLabelMap(filteredList);
 
+  // workflowKey 기준 표시명 map 생성
+  const workflowLabelByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    Object.entries(templates).forEach(([key, template]) => {
+      const displayName = template.name?.trim();
+      if (displayName) {
+        map.set(key, displayName);
+      }
+    });
+    return map;
+  }, [templates]);
+
   // TanStack Table 용 ColumnDef 설계
   const gridColumns = useMemo<ColumnDef<Submission>[]>(() => {
     return [
@@ -185,13 +221,15 @@ export default function AdminResults() {
         meta: { headerAlign: "center", cellAlign: "left" },
         accessorFn: (row) => {
           const key = row.workflowKey;
-          const resolved = resolveWorkflowDisplayName({ workflowKey: key });
-          return (resolved !== key && resolved) || row.input?.title || key || "-";
+          const mappedName = workflowLabelByKey.get(key);
+          const resolved = resolveWorkflowDisplayName({ template: templates[key] || null, workflowKey: key });
+          return mappedName || (resolved !== key && resolved) || row.input?.title || key || "-";
         },
         cell: ({ row }) => {
           const key = row.original.workflowKey;
-          const resolved = resolveWorkflowDisplayName({ workflowKey: key });
-          const workflowLabel = (resolved !== key && resolved) || row.original.input?.title || key || "-";
+          const mappedName = workflowLabelByKey.get(key);
+          const resolved = resolveWorkflowDisplayName({ template: templates[key] || null, workflowKey: key });
+          const workflowLabel = mappedName || (resolved !== key && resolved) || row.original.input?.title || key || "-";
           return (
             <span className="ux_table_text_ellipsis" style={{ fontWeight: 600, color: "#111827" }} title={key}>
               {truncateText(workflowLabel, 25)}
