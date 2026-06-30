@@ -194,10 +194,15 @@ export function N8lientDataGrid<TData>({
                 {headerGroup.headers.map((header) => {
                   const isSortable = header.column.getCanSort() && header.column.id !== "select";
                   const size = header.column.columnDef.size; // 컬럼 sizing 확장 대응
+                  const isSelect = header.column.id === "select";
                   
-                  // headerAlign이 있으면 그것을 우선, 없으면 기존 align을 fallback으로 사용
-                  const align = (header.column.columnDef.meta as any)?.align;
-                  const headerAlign = (header.column.columnDef.meta as any)?.headerAlign ?? align;
+                  const meta = header.column.columnDef.meta as {
+                    align?: "center";
+                    headerAlign?: "center";
+                    cellAlign?: "center";
+                  } | undefined;
+                  
+                  const headerAlign = isSelect ? "center" : (meta?.headerAlign ?? meta?.align);
                   const alignClass = headerAlign === "center" ? "ux_table_th_center" : "";
                   const combinedClass = [isSortable ? "ux_table_th_sortable" : "", alignClass].filter(Boolean).join(" ");
                   
@@ -208,8 +213,7 @@ export function N8lientDataGrid<TData>({
                       className={combinedClass}
                       style={{
                         userSelect: "none",
-                        width: header.column.id === "select" ? "40px" : (size ? `${size}px` : undefined),
-                        textAlign: header.column.id === "select" ? "center" : (headerAlign ? undefined : "left"),
+                        width: isSelect ? "40px" : (size ? `${size}px` : undefined),
                       }}
                     >
                       <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
@@ -245,10 +249,15 @@ export function N8lientDataGrid<TData>({
                 >
                   {row.getVisibleCells().map((cell) => {
                     const size = cell.column.columnDef.size;
+                    const isSelect = cell.column.id === "select";
                     
-                    // cellAlign이 있으면 그것을 우선, 없으면 기존 align을 fallback으로 사용
-                    const align = (cell.column.columnDef.meta as any)?.align;
-                    const cellAlign = (cell.column.columnDef.meta as any)?.cellAlign ?? align;
+                    const meta = cell.column.columnDef.meta as {
+                      align?: "center";
+                      headerAlign?: "center";
+                      cellAlign?: "center";
+                    } | undefined;
+                    
+                    const cellAlign = isSelect ? "center" : (meta?.cellAlign ?? meta?.align);
                     const alignClass = cellAlign === "center" ? "ux_table_cell_center" : "";
                     
                     return (
@@ -256,8 +265,7 @@ export function N8lientDataGrid<TData>({
                         key={cell.id}
                         className={alignClass}
                         style={{
-                          textAlign: cell.column.id === "select" ? "center" : (cellAlign ? undefined : "left"),
-                          width: cell.column.id === "select" ? "40px" : (size ? `${size}px` : undefined),
+                          width: isSelect ? "40px" : (size ? `${size}px` : undefined),
                         }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
