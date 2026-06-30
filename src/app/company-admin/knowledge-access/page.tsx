@@ -10,9 +10,9 @@ import { useAuthUser } from "@/features/auth/useAuthUser";
 import { playAppSound } from "@/lib/appSound";
 import { N8lientFilterBar } from "@/components/common/data/N8lientFilterBar";
 import { N8lientBulkActionBar } from "@/components/common/data/N8lientBulkActionBar";
-import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
-import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
 import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { ColumnDef } from "@tanstack/react-table";
 
 interface AdminKnowledgeItem {
   submissionId: string;
@@ -102,29 +102,6 @@ export default function KnowledgeAccessPage() {
     });
   }, [items, searchTitle, searchOwner, filterAccessMode, filterWorkflow]);
 
-  // 체크박스 선택 처리
-  const handleSelectAll = (checked: boolean) => {
-    playAppSound("click");
-    if (checked) {
-      // 체크박스 활성 조건 충족하는 항목들만 자동 수집
-      const revokableIds = filteredItems
-        .filter((item) => item.accessMode === "company" && item.canAdminRevokeCompanyAccess)
-        .map((item) => item.submissionId);
-      setSelectedIds(revokableIds);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const handleSelectRow = (submissionId: string, checked: boolean) => {
-    playAppSound("click");
-    if (checked) {
-      setSelectedIds((prev) => [...prev, submissionId]);
-    } else {
-      setSelectedIds((prev) => prev.filter((id) => id !== submissionId));
-    }
-  };
-
   // 일괄 공개 철회 처리
   const handleBulkRevoke = async () => {
     if (selectedIds.length === 0 || actionLoading || !user) return;
@@ -194,10 +171,97 @@ export default function KnowledgeAccessPage() {
     return item.accessMode === "company" && item.canAdminRevokeCompanyAccess;
   };
 
-  const selectableFilteredCount = filteredItems.filter(isCheckboxSelectable).length;
-  const isAllSelected =
-    selectableFilteredCount > 0 &&
-    filteredItems.filter(isCheckboxSelectable).every((item) => selectedIds.includes(item.submissionId));
+  // TanStack Table 용 ColumnDef 설계
+  const gridColumns = useMemo<ColumnDef<AdminKnowledgeItem>[]>(() => {
+    return [
+      {
+        accessorKey: "title",
+        header: "자료 제목",
+        cell: ({ row }) => {
+          const item = row.original;
+          return item.viewerUrl ? (
+            <a
+              href={item.viewerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ux_link"
+              style={{ fontWeight: 600 }}
+            >
+              {item.title}
+            </a>
+          ) : (
+            <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+              🔒 {item.title}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "ownerName",
+        header: "작성자",
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <>
+              {item.ownerName} <span style={{ fontSize: "11px", color: "#9ca3af" }}>({item.ownerEmail})</span>
+            </>
+          );
+        },
+      },
+      {
+        accessorKey: "workflowName",
+        header: "자동화 분류",
+      },
+      {
+        accessorKey: "createdAt",
+        header: "생성 시각",
+        cell: ({ row }) => formatDate(row.original.createdAt),
+      },
+      {
+        accessorKey: "accessMode",
+        header: "공개상태",
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <N8lientStatusBadge type={item.accessMode}>
+              {item.accessMode === "company" ? "🏢 회사 공개" : "🔒 개인 보관"}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+      {
+        accessorKey: "accessModeUpdatedAt",
+        header: "공개범위 변경일",
+        cell: ({ row }) => formatDate(row.original.accessModeUpdatedAt),
+      },
+      {
+        id: "actions",
+        header: "작업",
+        cell: ({ row }) => {
+          const item = row.original;
+          return item.viewerUrl ? (
+            <a
+              href={item.viewerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ux_button ux_button_secondary ux_button_compact"
+              style={{ fontSize: "11.5px", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              보기 ↗
+            </a>
+          ) : (
+            <span
+              className="ux_caption"
+              style={{ fontSize: "11px", color: "#9ca3af", cursor: "not-allowed" }}
+              title="비공개 자료이므로 열람할 수 없습니다."
+            >
+              🔒 차단
+            </span>
+          );
+        },
+      },
+    ];
+  }, []);
 
   return (
     <div className="ux_page_layout">
@@ -285,127 +349,19 @@ export default function KnowledgeAccessPage() {
         </div>
       )}
 
-      {/* 목록 테이블 카드 */}
-      <div className="ux_table_wrap">
-        {loading ? (
-          <N8lientLoadingState message="자료 공개 목록을 불러오는 중..." />
-        ) : filteredItems.length === 0 ? (
-          <N8lientEmptyState
-            title="조회된 공개 자료 내역이 없습니다."
-            description="필터 및 검색 조건을 조정하거나 신규 공개 등록을 대기해 주세요."
-            style={{ border: "none", boxShadow: "none" }}
-          />
-        ) : (
-          <table className="ux_table">
-            <thead>
-              <tr>
-                <th style={{ width: "40px", padding: "12px 16px", textAlign: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    disabled={selectableFilteredCount === 0}
-                  />
-                </th>
-                <th>자료 제목</th>
-                <th>작성자</th>
-                <th>자동화 분류</th>
-                <th>생성 시각</th>
-                <th>공개상태</th>
-                <th>공개범위 변경일</th>
-                <th style={{ textAlign: "center", width: "80px" }}>작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map((item) => {
-                const selectable = isCheckboxSelectable(item);
-                const isSelected = selectedIds.includes(item.submissionId);
-
-                return (
-                  <tr
-                    key={item.submissionId}
-                    className="ux_table_row_hover"
-                    style={{
-                      backgroundColor: isSelected ? "#eff6ff" : "transparent",
-                    }}
-                  >
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={!selectable}
-                        onChange={(e) => handleSelectRow(item.submissionId, e.target.checked)}
-                        title={
-                          item.accessMode === "private"
-                            ? "이미 개인 보관 상태입니다."
-                            : !item.canAdminRevokeCompanyAccess
-                            ? "정책상 관리자 공개 철회가 비활성화된 항목입니다."
-                            : ""
-                        }
-                      />
-                    </td>
-                    <td style={{ fontWeight: 500 }}>
-                      {item.viewerUrl ? (
-                        <a
-                          href={item.viewerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ux_link"
-                          style={{ fontWeight: 600 }}
-                        >
-                          {item.title}
-                        </a>
-                      ) : (
-                        <span style={{ color: "#6b7280", fontStyle: "italic" }}>
-                          🔒 {item.title}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {item.ownerName} <span style={{ fontSize: "11px", color: "#9ca3af" }}>({item.ownerEmail})</span>
-                    </td>
-                    <td>
-                      {item.workflowName}
-                    </td>
-                    <td>
-                      {formatDate(item.createdAt)}
-                    </td>
-                    <td>
-                      <N8lientStatusBadge type={item.accessMode}>
-                        {item.accessMode === "company" ? "🏢 회사 공개" : "🔒 개인 보관"}
-                      </N8lientStatusBadge>
-                    </td>
-                    <td>
-                      {formatDate(item.accessModeUpdatedAt)}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      {item.viewerUrl ? (
-                        <a
-                          href={item.viewerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ux_button ux_button_secondary ux_button_compact"
-                          style={{ fontSize: "11.5px", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
-                        >
-                          보기 ↗
-                        </a>
-                      ) : (
-                        <span
-                          className="ux_caption"
-                          style={{ fontSize: "11px", color: "#9ca3af", cursor: "not-allowed" }}
-                          title="비공개 자료이므로 열람할 수 없습니다."
-                        >
-                          🔒 차단
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* 목록 테이블 데이터 그리드 */}
+      <N8lientDataGrid
+        data={filteredItems}
+        columns={gridColumns}
+        getRowId={(row) => row.submissionId}
+        loading={loading}
+        emptyTitle="조회된 공개 자료 내역이 없습니다."
+        emptyDescription="필터 및 검색 조건을 조정하거나 신규 공개 등록을 대기해 주세요."
+        showCheckbox
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        isRowSelectable={isCheckboxSelectable}
+      />
     </div>
   );
 }
