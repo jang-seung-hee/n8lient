@@ -1,14 +1,20 @@
 // 이 파일은 회사 관리자가 소속 승인 완료된 사용자 목록을 조회하는 화면입니다.
+// 한국어 주석 표준을 준수합니다.
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { db } from "@/lib/firebase";
 import { getCompanyUsers } from "@/features/admin/companyAdminService";
 import type { UserDoc } from "@/types/n8lient";
 import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
 import { CompanyUserDetailModal } from "@/components/custom/CompanyUserDetailModal";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
+import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
+import { ColumnDef } from "@tanstack/react-table";
 
 export default function AdminUsers() {
   const { userDoc } = useAuthUser();
@@ -57,31 +63,72 @@ export default function AdminUsers() {
   };
 
   // 클라이언트 측 검색/필터 적용
-  const filteredUsers = users.filter((u) => {
-    const searchLower = searchQuery.toLowerCase();
-    const nameMatch = (u.displayName || "").toLowerCase().includes(searchLower);
-    const emailMatch = (u.email || "").toLowerCase().includes(searchLower);
-    const uidMatch = (u.uid || "").toLowerCase().includes(searchLower);
-    const queryMatch = nameMatch || emailMatch || uidMatch;
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const searchLower = searchQuery.toLowerCase();
+      const nameMatch = (u.displayName || "").toLowerCase().includes(searchLower);
+      const emailMatch = (u.email || "").toLowerCase().includes(searchLower);
+      const uidMatch = (u.uid || "").toLowerCase().includes(searchLower);
+      const queryMatch = nameMatch || emailMatch || uidMatch;
 
-    const roleFilter = filters.role;
-    const roleMatch = !roleFilter || u.role === roleFilter;
+      const roleFilter = filters.role;
+      const roleMatch = !roleFilter || u.role === roleFilter;
 
-    return queryMatch && roleMatch;
-  });
+      return queryMatch && roleMatch;
+    });
+  }, [users, searchQuery, filters]);
 
   const handleRowClick = (user: UserDoc) => {
     setSelectedUser(user);
     setIsModalOpen(true);
   };
 
+  // TanStack Table 용 ColumnDef 스키마 정의
+  const gridColumns = useMemo<ColumnDef<UserDoc>[]>(() => {
+    return [
+      {
+        accessorKey: "displayName",
+        header: "이름",
+        cell: ({ row }) => (
+          <span style={{ fontWeight: 500 }}>
+            {row.original.displayName || "이름 없음"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "email",
+        header: "이메일",
+      },
+      {
+        accessorKey: "role",
+        header: "역할 (Role)",
+        cell: ({ row }) => {
+          const role = row.original.role;
+          return (
+            <N8lientStatusBadge type={role === "company_admin" ? "company" : "private"}>
+              {role === "company_admin" ? "관리자" : "일반 사용자"}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+      {
+        accessorKey: "createdAt",
+        header: "가입일자",
+        cell: ({ row }) => {
+          const created = row.original.createdAt;
+          return created ? new Date(created).toLocaleDateString("ko-KR") : "-";
+        },
+      },
+    ];
+  }, []);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div>
-        <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+    <div className="ux_page_layout" style={{ gap: "20px", display: "flex", flexDirection: "column" }}>
+      <div className="ux_page_header">
+        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           👥 사내 승인 완료 사용자 목록
         </h2>
-        <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+        <p className="ux_caption" style={{ margin: 0 }}>
           회사코드 인증에 성공하여 업무 자동화 시스템 권한이 부여된 사용자 목록입니다. 목록을 클릭하여 상세 정보를 볼 수 있습니다.
         </p>
       </div>
@@ -93,88 +140,22 @@ export default function AdminUsers() {
         onChange={handleFilterChange}
       />
 
+      {/* 목록 테이블 데이터 그리드 적용 */}
       {loading ? (
-        <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
-          사용자 목록을 불러오는 중...
-        </div>
+        <N8lientLoadingState message="사용자 목록을 불러오는 중..." />
       ) : filteredUsers.length === 0 ? (
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            padding: "40px 16px",
-            textAlign: "center",
-            color: "#6b7280",
-            fontSize: "14px",
-          }}
-        >
-          {users.length === 0 ? "가입된 사내 사용자가 없습니다." : "검색 조건에 일치하는 사용자가 없습니다."}
-        </div>
+        <N8lientEmptyState
+          title={users.length === 0 ? "가입된 사내 사용자가 없습니다." : "검색 조건에 일치하는 사용자가 없습니다."}
+          description="필터링 검색어 조건을 확인해 주세요."
+        />
       ) : (
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            overflow: "hidden",
-            boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          {/* 테이블 헤더 */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.5fr 2fr 1.5fr 1.5fr",
-              padding: "12px 16px",
-              backgroundColor: "#f9fafb",
-              borderBottom: "1px solid #e5e7eb",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "#374151",
-            }}
-          >
-            <span>이름</span>
-            <span>이메일</span>
-            <span>역할 (Role)</span>
-            <span>가입일자</span>
-          </div>
-
-          {/* 목록 */}
-          {filteredUsers.map((u, idx) => (
-            <div
-              key={u.uid}
-              onClick={() => handleRowClick(u)}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.5fr 2fr 1.5fr 1.5fr",
-                padding: "12px 16px",
-                borderBottom: idx < filteredUsers.length - 1 ? "1px solid #f3f4f6" : "none",
-                fontSize: "13px",
-                color: "#111111",
-                alignItems: "center",
-                cursor: "pointer",
-                transition: "background-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-            >
-              <span style={{ fontWeight: 500 }}>{u.displayName || "이름 없음"}</span>
-              <span style={{ color: "#4b5563" }}>{u.email}</span>
-              <span
-                style={{
-                  color: u.role === "company_admin" ? "#2563eb" : "#4b5563",
-                  fontWeight: u.role === "company_admin" ? 600 : 400,
-                }}
-              >
-                {u.role === "company_admin" ? "관리자" : "일반 사용자"}
-              </span>
-              <span style={{ color: "#6b7280" }}>
-                {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "-"}
-              </span>
-            </div>
-          ))}
-        </div>
+        <N8lientDataGrid
+          data={filteredUsers}
+          columns={gridColumns}
+          getRowId={(row) => row.uid}
+          loading={loading}
+          onRowClick={handleRowClick}
+        />
       )}
 
       {/* 상세 모달 */}

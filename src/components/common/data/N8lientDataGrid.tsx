@@ -30,6 +30,9 @@ interface N8lientDataGridProps<TData> {
   selectedIds?: string[];
   onSelectionChange?: (selectedIds: string[]) => void;
   isRowSelectable?: (row: TData) => boolean;
+  
+  // 행 클릭 관련
+  onRowClick?: (row: TData) => void;
 }
 
 export function N8lientDataGrid<TData>({
@@ -43,6 +46,7 @@ export function N8lientDataGrid<TData>({
   selectedIds = [],
   onSelectionChange,
   isRowSelectable,
+  onRowClick,
 }: N8lientDataGridProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -219,8 +223,10 @@ export function N8lientDataGrid<TData>({
                 <tr
                   key={row.id}
                   className="ux_table_row_hover"
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                   style={{
                     backgroundColor: isSelected ? "#eff6ff" : "transparent",
+                    cursor: onRowClick ? "pointer" : "default",
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
