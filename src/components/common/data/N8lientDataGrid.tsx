@@ -190,8 +190,8 @@ export function N8lientDataGrid<TData>({
                     <th
                       key={header.id}
                       onClick={isSortable ? header.column.getToggleSortingHandler() : undefined}
+                      className={isSortable ? "ux_table_th_sortable" : ""}
                       style={{
-                        cursor: isSortable ? "pointer" : "default",
                         userSelect: "none",
                         width: header.column.id === "select" ? "40px" : (size ? `${size}px` : undefined),
                         textAlign: header.column.id === "select" ? "center" : "left",
@@ -222,11 +222,10 @@ export function N8lientDataGrid<TData>({
               return (
                 <tr
                   key={row.id}
-                  className="ux_table_row_hover"
+                  className={`ux_table_row_hover ${onRowClick ? "ux_table_row_clickable" : ""}`}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                   style={{
                     backgroundColor: isSelected ? "#eff6ff" : "transparent",
-                    cursor: onRowClick ? "pointer" : "default",
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {

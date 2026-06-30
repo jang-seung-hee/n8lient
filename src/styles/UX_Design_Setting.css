@@ -2012,3 +2012,12 @@
   color: var(--ux-badge-warning-color);
   background-color: var(--ux-badge-warning-bg);
 }
+
+/* 데이터 그리드 전용 마우스 커서 및 정렬 피드백 스타일 */
+.ux_table_row_clickable {
+  cursor: pointer;
+}
+
+.ux_table_th_sortable {
+  cursor: pointer;
+}
