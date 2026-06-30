@@ -227,11 +227,21 @@ export function ExecutionResultDetailModal({
         </div>
 
         {/* 푸터 */}
-        <div className="shrink-0 border-t border-gray-100 px-5 py-3">
+        <div className="shrink-0 border-t border-gray-100 px-5 py-3 flex gap-2">
+          {submission.submissionId && (
+            <a
+              href={`/user/data/view/${submission.submissionId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ux_button ux_button_primary flex-1 text-center flex items-center justify-center h-9 rounded-md text-xs no-underline"
+            >
+              가공지식 본문 보기
+            </a>
+          )}
           <button
             type="button"
             onClick={onClose}
-            className="ux_button ux_button_secondary w-full"
+            className="ux_button ux_button_secondary flex-1"
             style={{
               height: "36px",
               backgroundColor: "#f3f4f6",
