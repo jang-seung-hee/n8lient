@@ -1,8 +1,9 @@
 // 이 파일은 회사 관리자가 소속 신청을 보낸 대기 중인 사용자를 승인하거나 거절하는 가입 승인 화면입니다.
+// 한국어 주석 표준을 준수합니다.
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuthUser } from "@/features/auth/useAuthUser";
 import { db } from "@/lib/firebase";
 import {
@@ -12,6 +13,10 @@ import {
 } from "@/features/admin/companyAdminService";
 import type { CompanyJoinRequest, JoinRequestSource } from "@/types/n8lient";
 import { ListSearchFilterBar } from "@/components/core/ListSearchFilterBar";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
+import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
+import { ColumnDef } from "@tanstack/react-table";
 
 function getRequestedDisplayName(req: CompanyJoinRequest): string {
   return req.requestedDisplayName || req.displayName || req.googleDisplayName || "이름 없음";
@@ -103,55 +108,150 @@ export default function AdminApprovals() {
   };
 
   // 프론트엔드 필터링 적용
-  const filteredRequests = requests.filter((req) => {
-    const requestedName = getRequestedDisplayName(req);
-    const googleName = getGoogleDisplayName(req);
-    const email = getGoogleEmail(req);
-    const code = req.requestedCompanyCode || "";
-    const sourceLabel = getJoinSourceLabel(req.source);
-    const date = req.requestedAt ? new Date(req.requestedAt).toLocaleString() : "";
-    const q = searchQuery.toLowerCase();
+  const filteredRequests = useMemo(() => {
+    return requests.filter((req) => {
+      const requestedName = getRequestedDisplayName(req);
+      const googleName = getGoogleDisplayName(req);
+      const email = getGoogleEmail(req);
+      const code = req.requestedCompanyCode || "";
+      const sourceLabel = getJoinSourceLabel(req.source);
+      const date = req.requestedAt ? new Date(req.requestedAt).toLocaleString() : "";
+      const q = searchQuery.toLowerCase();
 
-    return (
-      requestedName.toLowerCase().includes(q) ||
-      googleName.toLowerCase().includes(q) ||
-      email.toLowerCase().includes(q) ||
-      code.toLowerCase().includes(q) ||
-      sourceLabel.toLowerCase().includes(q) ||
-      date.toLowerCase().includes(q)
-    );
-  });
+      return (
+        requestedName.toLowerCase().includes(q) ||
+        googleName.toLowerCase().includes(q) ||
+        email.toLowerCase().includes(q) ||
+        code.toLowerCase().includes(q) ||
+        sourceLabel.toLowerCase().includes(q) ||
+        date.toLowerCase().includes(q)
+      );
+    });
+  }, [requests, searchQuery]);
+
+  // TanStack Table 용 ColumnDef 설계
+  const gridColumns = useMemo<ColumnDef<CompanyJoinRequest>[]>(() => {
+    return [
+      {
+        accessorFn: getRequestedDisplayName,
+        header: "신청 성명",
+        cell: ({ row }) => (
+          <span style={{ fontWeight: 600, color: "#111827" }}>
+            {getRequestedDisplayName(row.original)}
+          </span>
+        ),
+      },
+      {
+        accessorFn: getGoogleDisplayName,
+        header: "Google 이름",
+      },
+      {
+        accessorFn: getGoogleEmail,
+        header: "Google 이메일",
+        cell: ({ row }) => (
+          <span style={{ wordBreak: "break-all" }}>
+            {getGoogleEmail(row.original)}
+          </span>
+        ),
+      },
+      {
+        accessorFn: (row) => getJoinSourceLabel(row.source),
+        header: "신청 경로",
+        cell: ({ row }) => (
+          <span style={{ color: "#6b7280", fontSize: "12px" }}>
+            {getJoinSourceLabel(row.original.source)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "requestedCompanyCode",
+        header: "코드",
+        cell: ({ row }) => (
+          <span style={{ fontFamily: "monospace", color: "#374151" }}>
+            {row.original.requestedCompanyCode}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "requestedAt",
+        header: "신청 일시",
+        cell: ({ row }) => {
+          const reqAt = row.original.requestedAt;
+          return (
+            <span style={{ color: "#6b7280", fontSize: "12px" }}>
+              {reqAt ? new Date(reqAt).toLocaleString() : "-"}
+            </span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "작업",
+        cell: ({ row }) => {
+          const req = row.original;
+          return (
+            <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => handleApprove(req.requestId)}
+                disabled={actionLoading !== null}
+                className="ux_button_compact"
+                style={{
+                  backgroundColor: "#10b981",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "5px 10px",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  boxShadow: "0 1px 2px 0 rgba(16, 185, 129, 0.2)",
+                }}
+              >
+                {actionLoading === req.requestId ? "처리중" : "승인"}
+              </button>
+              <button
+                onClick={() => handleReject(req.requestId)}
+                disabled={actionLoading !== null}
+                className="ux_button_compact"
+                style={{
+                  backgroundColor: "#ef4444",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "5px 10px",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  boxShadow: "0 1px 2px 0 rgba(239, 68, 68, 0.2)",
+                }}
+              >
+                {actionLoading === req.requestId ? "처리중" : "거절"}
+              </button>
+            </div>
+          );
+        },
+      },
+    ];
+  }, [actionLoading]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div>
-        <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111111", margin: "0 0 4px 0" }}>
+    <div className="ux_page_layout" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="ux_page_header">
+        <h2 className="ux_page_title" style={{ fontSize: "18px", margin: "0 0 4px 0" }}>
           👤 가입 승인 대기 목록
         </h2>
-        <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>
+        <p className="ux_caption" style={{ margin: 0 }}>
           회사코드를 입력해 가입 승인을 대기 중인 사용자를 승인하거나 거절 처리합니다.
         </p>
       </div>
 
       {loading ? (
-        <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
-          가입 요청 목록을 불러오는 중...
-        </div>
+        <N8lientLoadingState message="가입 요청 목록을 불러오는 중..." />
       ) : requests.length === 0 ? (
-        <div
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "6px",
-            padding: "40px 16px",
-            textAlign: "center",
-            color: "#6b7280",
-            fontSize: "13.5px",
-            boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          현재 승인 대기 중인 가입요청이 없습니다.
-        </div>
+        <N8lientEmptyState
+          title="현재 승인 대기 중인 가입요청이 없습니다."
+          description="임시 신청 내역이나 신규 가입 대기 발생을 기다려 주세요."
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ListSearchFilterBar
@@ -160,103 +260,14 @@ export default function AdminApprovals() {
             onChange={(query) => setSearchQuery(query)}
           />
 
-          {filteredRequests.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#9ca3af", backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "6px" }}>
-              검색 조건과 일치하는 승인 대기자가 없습니다.
-            </div>
-          ) : (
-            <div
-              style={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "6px",
-                overflow: "hidden",
-                boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
-              }}
-            >
-              {/* 테이블 헤더 */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.1fr 1.1fr 1.6fr 1fr 0.9fr 1.4fr 0.85fr",
-                  padding: "10px 16px",
-                  backgroundColor: "#f9fafb",
-                  borderBottom: "1px solid #e5e7eb",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#374151",
-                }}
-              >
-                <span>신청 성명</span>
-                <span>Google 이름</span>
-                <span>Google 이메일</span>
-                <span>신청 경로</span>
-                <span>코드</span>
-                <span>신청 일시</span>
-                <span style={{ textAlign: "right" }}>작업</span>
-              </div>
-
-              {filteredRequests.map((req, idx) => (
-                <div
-                  key={req.requestId}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1.1fr 1.1fr 1.6fr 1fr 0.9fr 1.4fr 0.85fr",
-                    padding: "12px 16px",
-                    borderBottom: idx < filteredRequests.length - 1 ? "1px solid #f3f4f6" : "none",
-                    fontSize: "13px",
-                    color: "#111111",
-                    alignItems: "center",
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: "#111827" }}>{getRequestedDisplayName(req)}</span>
-                  <span style={{ color: "#4b5563" }}>{getGoogleDisplayName(req)}</span>
-                  <span style={{ color: "#4b5563", wordBreak: "break-all" }}>{getGoogleEmail(req)}</span>
-                  <span style={{ color: "#6b7280", fontSize: "12px" }}>{getJoinSourceLabel(req.source)}</span>
-                  <span style={{ fontFamily: "monospace", color: "#374151" }}>{req.requestedCompanyCode}</span>
-                  <span style={{ color: "#6b7280", fontSize: "12px" }}>
-                    {new Date(req.requestedAt).toLocaleString()}
-                  </span>
-                  <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                    <button
-                      onClick={() => handleApprove(req.requestId)}
-                      disabled={actionLoading !== null}
-                      style={{
-                        backgroundColor: "#10b981",
-                        color: "#ffffff",
-                        border: "none",
-                        borderRadius: "4px",
-                        padding: "5px 10px",
-                        fontSize: "11px",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        boxShadow: "0 1px 2px 0 rgba(16, 185, 129, 0.2)",
-                      }}
-                    >
-                      {actionLoading === req.requestId ? "처리중" : "승인"}
-                    </button>
-                    <button
-                      onClick={() => handleReject(req.requestId)}
-                      disabled={actionLoading !== null}
-                      style={{
-                        backgroundColor: "#ef4444",
-                        color: "#ffffff",
-                        border: "none",
-                        borderRadius: "4px",
-                        padding: "5px 10px",
-                        fontSize: "11px",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        boxShadow: "0 1px 2px 0 rgba(239, 68, 68, 0.2)",
-                      }}
-                    >
-                      {actionLoading === req.requestId ? "처리중" : "거절"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <N8lientDataGrid
+            data={filteredRequests}
+            columns={gridColumns}
+            getRowId={(row) => row.requestId}
+            loading={loading}
+            emptyTitle="검색 조건과 일치하는 승인 대기자가 없습니다."
+            emptyDescription="검색어 철자 또는 필터 조건 값을 확인해 주세요."
+          />
         </div>
       )}
     </div>
