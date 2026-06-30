@@ -2,6 +2,7 @@
 // 이 파일은 Result Data Viewer의 핵심 본문 영역을 담당하며, 요약문, 태그, 마크다운 본문 렌더링,
 // 액션 링크 및 파일 다운로드 단추를 사용자 편의적으로 제공하는 UI 컴포넌트입니다.
 // 보안 규정: dangerouslySetInnerHTML를 지양하는 안전한 마크다운Subset 파서를 사용하고, 파일 다운로드 API를 연동합니다.
+// 액션 배지 보강: [본문 복사], [링크 복사], [공유(권한있는 사용자 한정)] 기능이 탑재되어 있습니다.
 // 한국어 주석 표준을 준수합니다.
 
 import React, { useState } from "react";
@@ -70,6 +71,13 @@ function SafeMarkdownRenderer({ text }: { text: string }) {
 
 export function ResultDataViewer({ data }: ResultDataViewerProps) {
   const [downloadingFileIndex, setDownloadingFileIndex] = useState<{ type: "original" | "result"; index: number } | null>(null);
+  
+  // 복사 피드백용 상태
+  const [copiedBody, setCopiedBody] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // 본문 콘텐츠 결정 (mdContent -> content -> summary 순서)
+  const bodyContent = data.mdContent || data.content || data.summary;
 
   const handleDownload = async (refType: "original" | "result", index: number, fileName: string) => {
     playAppSound("click");
@@ -86,8 +94,75 @@ export function ResultDataViewer({ data }: ResultDataViewerProps) {
     }
   };
 
-  // 본문 콘텐츠 결정 (mdContent -> content -> summary 순서)
-  const bodyContent = data.mdContent || data.content || data.summary;
+  // 1. 본문 복사 핸들러
+  const handleCopyBody = async () => {
+    playAppSound("click");
+    if (!bodyContent) {
+      alert("복사할 본문이 없습니다.");
+      playAppSound("error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(bodyContent);
+      setCopiedBody(true);
+      playAppSound("success");
+      setTimeout(() => setCopiedBody(false), 1500);
+    } catch (err) {
+      console.error("[copy-body-failed]", err);
+      alert("본문 복사에 실패했습니다.");
+      playAppSound("error");
+    }
+  };
+
+  // 2. 링크 복사 핸들러
+  const handleCopyLink = async (silent = false) => {
+    if (!silent) playAppSound("click");
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      if (!silent) playAppSound("success");
+      setTimeout(() => setCopiedLink(false), 1500);
+      return true;
+    } catch (err) {
+      console.error("[copy-link-failed]", err);
+      if (!silent) {
+        alert("링크 복사에 실패했습니다.");
+        playAppSound("error");
+      }
+      return false;
+    }
+  };
+
+  // 3. 공유 핸들러 (navigator.share 지원 시 Native Share, 미지원 시 링크 복사 fallback)
+  const handleShare = async () => {
+    playAppSound("click");
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: data.title,
+          text: data.summary || data.title,
+          url: window.location.href,
+        });
+        playAppSound("success");
+      } catch (err: any) {
+        // 사용자가 취소한 경우는 예외
+        if (err.name !== "AbortError") {
+          console.error("[share-failed] Native 공유 중 에러:", err);
+          handleCopyLink(true);
+        }
+      }
+    } else {
+      // 미지원 시 링크 복사 fallback
+      const success = await handleCopyLink(true);
+      if (success) {
+        alert("공유 링크가 클립보드에 복사되었습니다.\n(소속사 구성원이나 본인만 열람할 수 있습니다.)");
+        playAppSound("success");
+      } else {
+        alert("공유하기를 수행할 수 없습니다.");
+        playAppSound("error");
+      }
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -105,9 +180,37 @@ export function ResultDataViewer({ data }: ResultDataViewerProps) {
 
       {/* 2. 본문 영역 */}
       <div className="ux_card" style={{ padding: "24px 20px" }}>
-        <h3 className="ux_section_title" style={{ fontSize: "15px", borderBottom: "1px solid #f3f4f6", paddingBottom: "10px", margin: "0 0 16px 0", color: "#111827" }}>
-          📄 지식 본문
-        </h3>
+        {/* 헤더 부분 flex 정렬 및 액션 그룹 배치 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f3f4f6", paddingBottom: "10px", margin: "0 0 16px 0" }}>
+          <h3 className="ux_section_title" style={{ fontSize: "15px", margin: 0, color: "#111827" }}>
+            📄 지식 본문
+          </h3>
+          
+          {/* 액션 배지 버튼 그룹 */}
+          <div className="ux_viewer_action_group">
+            <button
+              onClick={handleCopyBody}
+              className="ux_viewer_action_btn"
+              title="지식 본문 복사하기"
+            >
+              {copiedBody ? "✓ 복사됨" : "본문 복사"}
+            </button>
+            <button
+              onClick={() => handleCopyLink(false)}
+              className="ux_viewer_action_btn"
+              title="권한이 있는 사용자만 접근 가능한 현재 뷰어 URL 복사"
+            >
+              {copiedLink ? "✓ 복사됨" : "링크 복사"}
+            </button>
+            <button
+              onClick={handleShare}
+              className="ux_viewer_action_btn"
+              title="권한이 있는 소속 사원에게 이 자료 공유하기"
+            >
+              공유
+            </button>
+          </div>
+        </div>
         
         {bodyContent ? (
           <SafeMarkdownRenderer text={bodyContent} />

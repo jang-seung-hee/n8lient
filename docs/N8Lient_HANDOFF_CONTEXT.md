@@ -985,10 +985,11 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
     * 공통 뷰어 컴포넌트 `ResultDataViewer.tsx`, `ResultDataViewerMeta.tsx`를 통해 지식 본문 뷰를 통합하고 검색 결과 카드 및 AI 출처 카드의 클릭 연결을 이전 상세 모달 대신 해당 화면으로 갱신 완료 (`e371500`).
     * Firebase Storage 물리 주소 및 기타 디버그 메타데이터 노출 방지 처리 (보안 DTO 매핑 적용).
     * 기존 실행 리포트 진입 경로 보존 및 뷰어 하단 접힘(Collapsible) 영역에 리포트 모달 호출 보조 링크 연결.
-* **보류 및 추후 확장 후보 항목**:
+* **완료 항목 (액션 배지 보강)**:
   * 본문 복사
   * 링크 복사
-  * 내부 공유
+  * 내부 공유 (권한 정책 준수)
+* **보류 및 추후 확장 후보 항목**:
   * 외부 공개 공유/shareToken
   * 카카오톡 공유 SDK
 * **주요 커밋**:
