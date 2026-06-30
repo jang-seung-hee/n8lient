@@ -99,12 +99,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "이 워크플로우는 소유자의 공개범위 변경이 비활성화되어 있습니다." }, { status: 403 });
     }
 
-    // 모든 보안 검증 통과 시 Firestore submissions 문서 업데이트
-    await submissionRef.update({
+    // 모든 보안 검증 통과 — knowledgeSearchIndex 동기화 대상 조회
+    const indexSnap = await db.collection("knowledgeSearchIndex")
+      .where("submissionId", "==", submissionId)
+      .get();
+
+    const auditFields = {
       accessMode,
       accessModeUpdatedAt: new Date().toISOString(),
-      accessModeUpdatedBy: uid
-    });
+      accessModeUpdatedBy: uid,
+    };
+
+    if (indexSnap.empty) {
+      // 인덱스 문서가 없는 경우: submissions만 업데이트하고 경고 로그
+      console.warn(`[submission-access] knowledgeSearchIndex 문서 없음 (submissionId: ${submissionId}). submissions만 업데이트합니다.`);
+      await submissionRef.update(auditFields);
+    } else {
+      // 인덱스 문서가 존재하는 경우: batch로 원자적 동시 갱신 (보안 불일치 방지)
+      const batch = db.batch();
+      batch.update(submissionRef, auditFields);
+      indexSnap.docs.forEach((indexDoc) => {
+        batch.update(indexDoc.ref, {
+          accessMode,
+          accessModeUpdatedAt: auditFields.accessModeUpdatedAt,
+          accessModeUpdatedBy: uid,
+        });
+      });
+      await batch.commit();
+      console.info(`[submission-access] submissions + knowledgeSearchIndex ${indexSnap.size}건 동기화 완료 (submissionId: ${submissionId}, accessMode: ${accessMode})`);
+    }
 
     return NextResponse.json({
       success: true,
@@ -116,3 +139,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "공개범위를 변경하는 중 서버 오류가 발생했습니다." }, { status: 500 });
   }
 }
+
