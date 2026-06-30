@@ -985,10 +985,8 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
     * 공통 뷰어 컴포넌트 `ResultDataViewer.tsx`, `ResultDataViewerMeta.tsx`를 통해 지식 본문 뷰를 통합하고 검색 결과 카드 및 AI 출처 카드의 클릭 연결을 이전 상세 모달 대신 해당 화면으로 갱신 완료 (`e371500`).
     * Firebase Storage 물리 주소 및 기타 디버그 메타데이터 노출 방지 처리 (보안 DTO 매핑 적용).
     * 기존 실행 리포트 진입 경로 보존 및 뷰어 하단 접힘(Collapsible) 영역에 리포트 모달 호출 보조 링크 연결.
-* **완료 항목 (액션 배지 보강)**:
-  * 본문 복사
-  * 링크 복사
-  * 내부 공유 (권한 정책 준수)
+* **완료 항목 (액션 배지 보강 - Phase 2.3a)**:
+  * 본문 복사, 링크 복사, 내부 공유 (권한 정책 준수) 버튼이 지식 본문 우측 상단에 최종 탑재 및 포함된 상태로 정식 유지 릴리즈 완료 (`6a45774`).
 * **보류 및 추후 확장 후보 항목**:
   * 외부 공개 공유/shareToken
   * 카카오톡 공유 SDK
@@ -997,5 +995,21 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * `f08446f` (2.2b)
   * `19d9d24` (2.2c)
   * `e371500` (2.3)
+  * `6a45774` (2.3a)
+* **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
+
+### [2026-06-30] N8Lient Phase 3.1 Result Access Mode UI 추가
+
+* **결정**: Result Data Viewer에서 사용자가 본인 자료의 공개범위(`accessMode`: private <-> company)를 직접 제어하고, 소유권과 정책에 맞춰 회사 구성원 개방 및 개인 보관 전환을 수행할 수 있는 인터페이스 및 서버 검증 로직을 구현했다.
+* **주요 내용**:
+  * **보안 검증 및 감사 이력 (Audit)**:
+    * 신규 엔드포인트 `/api/knowledge/submission-access`를 개설하여 Firebase ID Token, 사용자 승인 상태, 소속사(clientId) 일치 여부, 작성자 소유 여부, 그리고 자동화/템플릿 연계 `ownerCanChangeAccess` 정책을 서버 측에서 7단계로 교차 검증 처리 완료.
+    * 공개범위 변경 시 감사 필드 `accessMode`, `accessModeUpdatedAt`, `accessModeUpdatedBy`를 Firestore `submissions` 문서에 자동 기록.
+  * **정책 우선순위 조회 구현**:
+    * `clientAutomations` 정책을 1차적으로 탐색하고, 없으면 `workflowTemplates` 정책을 2차 조회하며, 둘 다 정의되어 있지 않은 경우 안전 기본값(`ownerCanChangeAccess: false`)으로 강제 차단.
+  * **프론트엔드 변경 단추 탑재**:
+    * `ResultDataViewerMeta.tsx` 내 배지 우측에 권한 소유자에 한해 `[회사 공개로 전환]` / `[개인 보관으로 되돌리기]` 단추 노출 및 window.confirm 확인 절차 적용.
+* **주요 커밋**:
+  * `ea0c8df` (Phase 3.1 추가 완료)
 * **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
 
