@@ -81,7 +81,7 @@ export function OperatorSidebar({ fullWidth = false, onNavigate }: OperatorSideb
       {/* 하단 유틸리티 */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #1f2937", paddingTop: "16px" }}>
         <Link
-          href="/"
+          href="/user"
           onClick={() => onNavigate?.()}
           style={{
             fontSize: "12px",
