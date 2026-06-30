@@ -194,16 +194,19 @@ export function N8lientDataGrid<TData>({
                 {headerGroup.headers.map((header) => {
                   const isSortable = header.column.getCanSort() && header.column.id !== "select";
                   const size = header.column.columnDef.size; // 컬럼 sizing 확장 대응
+                  const align = (header.column.columnDef.meta as any)?.align;
+                  const alignClass = align === "center" ? "ux_table_th_center" : "";
+                  const combinedClass = [isSortable ? "ux_table_th_sortable" : "", alignClass].filter(Boolean).join(" ");
                   
                   return (
                     <th
                       key={header.id}
                       onClick={isSortable ? header.column.getToggleSortingHandler() : undefined}
-                      className={isSortable ? "ux_table_th_sortable" : ""}
+                      className={combinedClass}
                       style={{
                         userSelect: "none",
                         width: header.column.id === "select" ? "40px" : (size ? `${size}px` : undefined),
-                        textAlign: header.column.id === "select" ? "center" : "left",
+                        textAlign: header.column.id === "select" ? "center" : (align ? undefined : "left"),
                       }}
                     >
                       <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
@@ -239,11 +242,15 @@ export function N8lientDataGrid<TData>({
                 >
                   {row.getVisibleCells().map((cell) => {
                     const size = cell.column.columnDef.size;
+                    const align = (cell.column.columnDef.meta as any)?.align;
+                    const alignClass = align === "center" ? "ux_table_cell_center" : "";
+                    
                     return (
                       <td
                         key={cell.id}
+                        className={alignClass}
                         style={{
-                          textAlign: cell.column.id === "select" ? "center" : "left",
+                          textAlign: cell.column.id === "select" ? "center" : (align ? undefined : "left"),
                           width: cell.column.id === "select" ? "40px" : (size ? `${size}px` : undefined),
                         }}
                       >

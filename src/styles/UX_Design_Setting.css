@@ -2021,3 +2021,11 @@
 .ux_table_th_sortable {
   cursor: pointer;
 }
+
+.ux_table_cell_center {
+  text-align: center;
+}
+
+.ux_table_th_center {
+  text-align: center;
+}
