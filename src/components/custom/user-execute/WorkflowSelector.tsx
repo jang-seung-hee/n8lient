@@ -20,7 +20,7 @@ interface WorkflowSelectorProps {
 }
 
 /**
- * N8N 워크플로우 실행 요청 화면에서 활성화된 워크플로우 목록을 조회하고 
+ * N8N 워크플로우 실행 요청 화면에서 활성화된 워크플로우 목록을 조회하고
  * 워크플로우의 구성 배지 및 개인 설정 유도 상태(상태점)를 포함한 셀렉트 컴포넌트입니다.
  */
 export default function WorkflowSelector({
@@ -38,25 +38,34 @@ export default function WorkflowSelector({
   const currentTemplate = currentAuto ? templates[currentAuto.workflowKey] : null;
   const hasUsageGuide = Boolean(noticeText?.trim());
 
+  const settingGuidanceStatus = resolveUserSettingGuidanceStatus(
+    currentAuto,
+    currentTemplate,
+    userSettings
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <label style={{ fontSize: "12px", fontWeight: 600, color: "#4b5563" }}>
-          N8N 워크플로우 선택
-        </label>
+    <div className="ux_execute_workflow_selector">
+      <div className="ux_execute_selector_meta_row">
+        <label className="ux_execute_selector_label">N8N 워크플로우 선택</label>
         {currentAuto && (
-          <WorkflowConfigBadge
-            automation={currentAuto}
-            template={currentTemplate}
-            userSettings={userSettings}
-          />
+          <span className="ux_execute_setting_status_badge">
+            <WorkflowConfigBadge
+              automation={currentAuto}
+              template={currentTemplate}
+              userSettings={userSettings}
+            />
+          </span>
         )}
       </div>
+
       <div
-        className={`ux_execute_top_control${hasUsageGuide ? " ux_execute_top_control_with_help" : ""}`}
+        className={`ux_execute_selector_control_row${
+          hasUsageGuide ? " ux_execute_selector_control_row_with_help" : ""
+        }`}
       >
         <select
-          className="ux_select ux_execute_top_select"
+          className="ux_select ux_execute_workflow_select"
           value={selectedAutoId}
           onChange={(e) => onSelectChange(e.target.value)}
         >
@@ -70,59 +79,50 @@ export default function WorkflowSelector({
             </option>
           ))}
         </select>
-        <div className="ux_execute_top_actions">
-          <button
-            type="button"
-            className="ux_execute_top_action ux_execute_top_action_settings ux_execute_settings_button"
-            onClick={onOpenSettings}
-            disabled={!selectedAutoId}
-            aria-label="내 설정"
-            title="내 설정"
-          >
-            <span className="ux_execute_top_action_icon" aria-hidden="true">
-              🛠️
-            </span>
-            <span className="ux_execute_top_action_label">내 설정</span>
-            {(() => {
-              const status = resolveUserSettingGuidanceStatus(currentAuto, currentTemplate, userSettings);
-              if (status === "required_missing") {
-                return (
-                  <span
-                    className="ux_settings_status_dot ux_settings_status_dot_required ux_execute_setting_dot"
-                    title="개인 설정 필수 항목이 누락되었습니다."
-                  />
-                );
-              }
-              if (status === "recommended_missing") {
-                return (
-                  <span
-                    className="ux_settings_status_dot ux_settings_status_dot_recommended ux_execute_setting_dot"
-                    title="개인 설정 권장 항목이 누락되었습니다."
-                  />
-                );
-              }
-              if (status === "complete") {
-                return (
-                  <span
-                    className="ux_settings_status_dot ux_settings_status_dot_success ux_execute_setting_dot"
-                    title="모든 안내 대상 개인 설정이 완료되었습니다."
-                  />
-                );
-              }
-              return null;
-            })()}
-          </button>
-          {hasUsageGuide && currentAuto && (
-            <AutomationNoticeBox
-              variant="icon"
-              noticeText={noticeText!}
-              workflowKey={currentAuto.workflowKey}
-              userId={noticeUserId}
-              updatedAt={noticeUpdatedAt ?? currentAuto.updatedAt}
+
+        <button
+          type="button"
+          className="ux_execute_top_action ux_execute_top_action_settings ux_execute_settings_button"
+          onClick={onOpenSettings}
+          disabled={!selectedAutoId}
+          aria-label="내 설정"
+          title="내 설정"
+        >
+          <span className="ux_execute_top_action_icon" aria-hidden="true">
+            🛠️
+          </span>
+          <span className="ux_execute_top_action_label">내 설정</span>
+          {settingGuidanceStatus === "required_missing" && (
+            <span
+              className="ux_settings_status_dot ux_settings_status_dot_required ux_execute_setting_dot"
+              title="개인 설정 필수 항목이 누락되었습니다."
             />
           )}
-        </div>
+          {settingGuidanceStatus === "recommended_missing" && (
+            <span
+              className="ux_settings_status_dot ux_settings_status_dot_recommended ux_execute_setting_dot"
+              title="개인 설정 권장 항목이 누락되었습니다."
+            />
+          )}
+          {settingGuidanceStatus === "complete" && (
+            <span
+              className="ux_settings_status_dot ux_settings_status_dot_success ux_execute_setting_dot"
+              title="모든 안내 대상 개인 설정이 완료되었습니다."
+            />
+          )}
+        </button>
+
+        {hasUsageGuide && currentAuto && (
+          <AutomationNoticeBox
+            variant="icon"
+            noticeText={noticeText!}
+            workflowKey={currentAuto.workflowKey}
+            userId={noticeUserId}
+            updatedAt={noticeUpdatedAt ?? currentAuto.updatedAt}
+          />
+        )}
       </div>
+
       {currentAuto && (
         (() => {
           const policy = currentAuto.retentionPolicy || currentTemplate?.retentionPolicy || { level: "full_archive" };

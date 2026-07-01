@@ -2113,15 +2113,40 @@
   }
 }
 
-/* 실행 화면 상단 컨트롤 (드롭다운 + 내 설정 + 도움말) */
-.ux_execute_top_control {
+/* 실행 화면 워크플로우 선택 (meta row + control row) */
+.ux_execute_workflow_selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ux_execute_selector_meta_row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ux_execute_selector_label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.ux_execute_setting_status_badge {
+  flex-shrink: 0;
+}
+
+.ux_execute_selector_control_row {
   display: flex;
   align-items: stretch;
   gap: 8px;
   min-width: 0;
 }
 
-.ux_execute_top_select {
+.ux_execute_workflow_select {
   flex: 1;
   min-width: 0;
   height: 44px;
@@ -2129,13 +2154,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ux_execute_top_actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: stretch;
-  gap: 6px;
 }
 
 .ux_execute_top_action {
@@ -2212,26 +2230,26 @@
 }
 
 @media (max-width: 768px) {
-  .ux_execute_top_control {
+  .ux_execute_selector_meta_row {
+    margin-bottom: 6px;
+  }
+
+  .ux_execute_selector_control_row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 44px;
     gap: 6px;
     align-items: center;
   }
 
-  .ux_execute_top_control_with_help {
+  .ux_execute_selector_control_row_with_help {
     grid-template-columns: minmax(0, 1fr) 44px 44px;
   }
 
-  .ux_execute_top_actions {
-    display: contents;
-  }
-
-  .ux_execute_top_select {
-    grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
+  .ux_execute_workflow_select {
     width: 100%;
+    min-width: 0;
+    height: 44px;
+    min-height: 44px;
   }
 
   .ux_execute_settings_button,
@@ -2241,30 +2259,37 @@
     height: 44px;
     min-height: 44px;
     padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
+    position: relative;
+    line-height: 1;
+    align-self: center;
     gap: 0;
   }
 
-  .ux_execute_settings_button {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-  }
-
-  .ux_execute_top_control_with_help .ux_execute_help_button {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .ux_execute_top_action_label {
+  .ux_execute_settings_button .ux_execute_top_action_label {
     display: none;
+  }
+
+  .ux_execute_settings_button .ux_execute_top_action_icon,
+  .ux_execute_help_button .ux_execute_top_action_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+    font-size: 18px;
   }
 
   .ux_execute_settings_button .ux_execute_setting_dot {
     position: absolute;
-    top: 5px;
-    right: 5px;
+    top: 7px;
+    right: 7px;
     margin-left: 0;
+    pointer-events: none;
   }
 }
 
