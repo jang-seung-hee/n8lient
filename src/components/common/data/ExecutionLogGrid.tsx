@@ -62,7 +62,7 @@ export function ExecutionLogGrid({
           const resolved = resolveWorkflowDisplayName({ template: templates[key] || null, workflowKey: key });
           const label = resolved || row.original.input?.title || key || "-";
           return (
-            <span className="ux_table_text_ellipsis" style={{ fontWeight: 600, color: "#111827" }} title={key}>
+            <span className="ux_table_text_ellipsis" style={{ color: "#111827" }} title={key}>
               {truncateText(label, 20)}
             </span>
           );
