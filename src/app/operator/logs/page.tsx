@@ -6,8 +6,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { ExecutionLogSearchBar } from "@/components/results/ExecutionLogSearchBar";
-import { ExecutionLogTable } from "@/components/results/ExecutionLogTable";
-import { mapSubmissionToRow } from "@/components/results/executionLogViewModel";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
 import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
@@ -20,8 +18,60 @@ import type {
   ExecutionFailurePhase, 
   ExecutionFailureSource 
 } from "@/types/n8lient";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
+import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
+import { ColumnDef } from "@tanstack/react-table";
 
-const PAGE_SIZE = 20;
+// 텍스트 축약 헬퍼 함수
+const truncateText = (value: string, maxLength = 25) => {
+  if (!value) return "-";
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+};
+
+// 날짜 안전 변환 헬퍼 함수 (Firestore Timestamp, Date, string, number 대응)
+const toDateSafe = (value: unknown): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    const maybeDate = (value as { toDate?: () => Date }).toDate?.();
+    return maybeDate && !Number.isNaN(maybeDate.getTime()) ? maybeDate : null;
+  }
+
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    const seconds = (value as { seconds?: number }).seconds;
+    if (typeof seconds === "number") {
+      const date = new Date(seconds * 1000);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+};
+
+// YY.MM.DD HH:mm 24시간제 변환 헬퍼 함수
+const formatCompactDateTime = (value: unknown, fallback = "-") => {
+  const date = toDateSafe(value);
+  if (!date) return fallback;
+
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+
+  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+};
 
 export default function OperatorLogs() {
   // 데이터 상태
@@ -33,7 +83,6 @@ export default function OperatorLogs() {
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [currentPage, setCurrentPage] = useState(1);
 
   // 상세 모달 상태
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
@@ -92,42 +141,150 @@ export default function OperatorLogs() {
   const actorDisplaySource = useSubmissionActorDisplaySource(activeSubmission);
 
   // 클라이언트 사이드 필터링 적용
-  const filteredList = filterSubmissions(submissions, {
-    searchQuery,
-    status: filters.status as SubmissionStatus | "all",
-    errorPhase: filters.errorPhase as ExecutionFailurePhase | "all",
-    errorSource: filters.errorSource as ExecutionFailureSource | "all",
-  });
+  const filteredList = useMemo(() => {
+    return filterSubmissions(submissions, {
+      searchQuery,
+      status: filters.status as SubmissionStatus | "all",
+      errorPhase: filters.errorPhase as ExecutionFailurePhase | "all",
+      errorSource: filters.errorSource as ExecutionFailureSource | "all",
+    });
+  }, [submissions, searchQuery, filters]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+  const actorLabelByUid = useSubmissionActorLabelMap(filteredList);
 
-  const pagedLogs = useMemo(
-    () =>
-      filteredList.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE
-      ),
-    [filteredList, currentPage]
-  );
+  // TanStack Table 용 ColumnDef 설계
+  const gridColumns = useMemo<ColumnDef<Submission>[]>(() => {
+    return [
+      {
+        accessorKey: "createdAt",
+        header: "실행 시각",
+        size: 140,
+        meta: { headerAlign: "center", cellAlign: "center" },
+        cell: ({ row }) => formatCompactDateTime(row.original.createdAt),
+      },
+      {
+        id: "workflowName",
+        header: "워크플로우",
+        size: 260,
+        meta: { headerAlign: "center", cellAlign: "left" },
+        accessorFn: (row) => row.input?.title || row.workflowKey || "-",
+        cell: ({ row }) => {
+          const key = row.original.workflowKey;
+          const label = row.original.input?.title || key || "-";
+          return (
+            <span className="ux_table_text_ellipsis" style={{ fontWeight: 600, color: "#111827" }} title={key}>
+              {truncateText(label, 20)}
+            </span>
+          );
+        },
+      },
+      {
+        id: "clientName",
+        header: "고객사",
+        size: 200,
+        meta: { headerAlign: "center", cellAlign: "left" },
+        accessorFn: (row) => clientsMap.get(row.clientId || "") || "-",
+        cell: ({ row }) => {
+          const clientName = clientsMap.get(row.original.clientId || "") || "-";
+          return (
+            <span className="ux_table_text_ellipsis" title={clientName}>
+              {truncateText(clientName, 20)}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "userEmail",
+        header: "사용자",
+        size: 240,
+        meta: { headerAlign: "center", cellAlign: "left" },
+        cell: ({ row }) => {
+          const uid = row.original.uid;
+          const emailFallback = (row.original as any).googleEmail || (row.original as any).userEmail || "알 수 없음";
+          let displayLabel = actorLabelByUid[uid] || emailFallback;
+          if (displayLabel.includes("/")) {
+            displayLabel = displayLabel.split("/").pop()?.trim() || displayLabel;
+          }
+          return (
+            <span className="ux_table_text_ellipsis" title={emailFallback}>
+              {truncateText(displayLabel, 25)}
+            </span>
+          );
+        },
+      },
+      {
+        id: "title",
+        header: "실행명",
+        size: 320,
+        meta: { headerAlign: "center", cellAlign: "left" },
+        accessorFn: (row) => row.displayTitle || row.input?.title || row.input?.submissionTitle || "-",
+        cell: ({ row }) => {
+          const title = row.original.displayTitle || row.original.input?.title || row.original.input?.submissionTitle || "-";
+          return (
+            <span className="ux_table_text_ellipsis" title={title}>
+              {truncateText(title, 25)}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "상태",
+        size: 100,
+        meta: { headerAlign: "center", cellAlign: "center" },
+        cell: ({ row }) => {
+          const status = row.original.status as string;
+          let badgeType: "success" | "error" | "pending" | "default" = "default";
+          let label = status;
 
-  const actorLabelByUid = useSubmissionActorLabelMap(pagedLogs);
+          if (status === "success") {
+            badgeType = "success";
+            label = "완료";
+          } else if (status === "failed" || status === "config_error") {
+            badgeType = "error";
+            label = status === "config_error" ? "설정 오류" : "실패";
+          } else if (status === "processing" || status === "queued" || status === "running") {
+            badgeType = "pending";
+            label = "실행 중";
+          } else if (status === "skipped") {
+            badgeType = "default";
+            label = "제외됨";
+          }
 
-  // Submission 객체 리스트를 ExecutionLogRow 리스트로 매핑 변환
-  const tableRows = useMemo(() => {
-    return pagedLogs.map((log) => mapSubmissionToRow(log, clientsMap));
-  }, [pagedLogs, clientsMap]);
-
-  // 필터·검색 변경 시 1페이지로 초기화
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filters.status, filters.errorPhase, filters.errorSource]);
-
-  // 결과 건수 감소 시 현재 페이지 보정
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+          return (
+            <N8lientStatusBadge type={badgeType}>
+              {label}
+            </N8lientStatusBadge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "상세",
+        size: 100,
+        meta: { headerAlign: "center", cellAlign: "center" },
+        cell: ({ row }) => (
+          <div>
+            <button
+              className="ux_button_compact ux_button_secondary"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRowClick(row.original);
+              }}
+              style={{
+                fontSize: "11px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+              }}
+            >
+              상세
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [clientsMap, actorLabelByUid]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -152,74 +309,21 @@ export default function OperatorLogs() {
       )}
 
       {/* 테이블 리스트 */}
-      <div className="ux_card_compact" style={{ padding: 0, overflow: "hidden" }}>
-        {loading && submissions.length === 0 ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
-            플랫폼 로그를 불러오는 중...
-          </div>
-        ) : (
-          <>
-            <ExecutionLogTable
-              rows={tableRows}
-              onRowClick={(row) => handleRowClick(row.raw)}
-              actorLabelByUid={actorLabelByUid}
-            />
-            {filteredList.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  borderTop: "1px solid #e5e7eb",
-                  backgroundColor: "#f9fafb",
-                  fontSize: "13px",
-                  color: "#374151",
-                }}
-              >
-                <span style={{ color: "#6b7280" }}>
-                  총 {filteredList.length}건 · {currentPage} / {totalPages} 페이지
-                </span>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <button
-                    type="button"
-                    className="ux_button_compact ux_button_secondary"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      backgroundColor: currentPage <= 1 ? "#f3f4f6" : "#ffffff",
-                      color: currentPage <= 1 ? "#9ca3af" : "#374151",
-                    }}
-                  >
-                    이전
-                  </button>
-                  <span style={{ fontSize: "12px", color: "#6b7280", minWidth: "48px", textAlign: "center" }}>
-                    {currentPage} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className="ux_button_compact ux_button_secondary"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage >= totalPages}
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      backgroundColor: currentPage >= totalPages ? "#f3f4f6" : "#ffffff",
-                      color: currentPage >= totalPages ? "#9ca3af" : "#374151",
-                    }}
-                  >
-                    다음
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {loading && submissions.length === 0 ? (
+        <N8lientLoadingState message="플랫폼 로그를 불러오는 중..." />
+      ) : filteredList.length === 0 ? (
+        <N8lientEmptyState
+          title="조회된 실행 결과가 없습니다."
+          description="검색 필터 조건을 조정해 보세요."
+        />
+      ) : (
+        <N8lientDataGrid
+          data={filteredList}
+          columns={gridColumns}
+          getRowId={(row) => row.submissionId}
+          onRowClick={handleRowClick}
+        />
+      )}
 
       {isModalOpen && activeSubmission && (
         <ExecutionResultDetailModal
@@ -236,3 +340,4 @@ export default function OperatorLogs() {
     </div>
   );
 }
+
