@@ -1,10 +1,14 @@
 // 이 파일은 N8N 워크플로우 목록(List)을 표 형식으로 보여주고 상세 조회/신규 등록/샘플 생성을 트리거하는 서브 컴포넌트입니다.
+// N8lientDataGrid 표준 v1을 적용했습니다.
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import type { WorkflowTemplate } from "@/types/n8lient";
 import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import type { ColumnDef } from "@tanstack/react-table";
 
 interface WorkflowListProps {
   templates: WorkflowTemplate[];
@@ -66,6 +70,109 @@ export function WorkflowList({
     setFilteredTemplates(filtered);
   };
 
+  // N8lientDataGrid 컬럼 정의
+  const columns = React.useMemo<ColumnDef<WorkflowTemplate, any>[]>(() => [
+    {
+      accessorKey: "name",
+      header: "이름 (줄임말)",
+      size: 260,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "left",
+      },
+      cell: ({ row }) => {
+        const name = row.original.name || "";
+        const shortName = row.original.shortName ? ` (${row.original.shortName})` : "";
+        const fullName = `${name}${shortName}`;
+        const displayName = fullName.length > 25 ? `${fullName.slice(0, 25)}...` : fullName;
+        return (
+          <div className="ux_table_text_ellipsis" title={fullName} style={{ fontWeight: 600, color: "#111111" }}>
+            {name}
+            {row.original.shortName && (
+              <span style={{ color: "#9ca3af", fontWeight: 400, fontSize: "12px", marginLeft: "4px" }}>
+                ({row.original.shortName})
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "workflowKey",
+      header: "워크플로우 식별 Key",
+      size: 240,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "left",
+      },
+      cell: ({ row }) => {
+        const val = row.original.workflowKey || "";
+        const displayName = val.length > 25 ? `${val.slice(0, 25)}...` : val;
+        return (
+          <div className="ux_table_text_ellipsis" title={val} style={{ fontFamily: "monospace", color: "#4b5563" }}>
+            {displayName}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "version",
+      header: "버전",
+      size: 100,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        return <span>v{row.original.version || "1.0.0"}</span>;
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "상태",
+      size: 110,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        const status = row.original.status;
+        let badgeType: "success" | "pending" | "default" | "error" = "default";
+        let statusLabel = "작성 중";
+
+        if (status === "published") {
+          badgeType = "success";
+          statusLabel = "배포 완료";
+        } else if (status === "disabled") {
+          badgeType = "default";
+          statusLabel = "비활성";
+        } else if (status === "draft") {
+          badgeType = "pending";
+          statusLabel = "작성 중";
+        }
+
+        return (
+          <N8lientStatusBadge type={badgeType}>
+            {statusLabel}
+          </N8lientStatusBadge>
+        );
+      },
+    },
+    {
+      accessorKey: "configSchema",
+      header: "설정 키 개수",
+      size: 120,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        const count = row.original.configSchema?.length || 0;
+        return <span>{count}개</span>;
+      },
+    },
+  ], []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 타이틀 및 등록 버튼 액션 바 */}
@@ -78,18 +185,18 @@ export function WorkflowList({
             플랫폼 전체에서 제공되는 자동화 명세 목록입니다. 각 항목을 클릭하여 상세 스키마 조회가 가능합니다.
           </p>
         </div>
-          <button
-            className="ux_button ux_button_primary"
-            onClick={onCreateClick}
-            style={{
-              borderRadius: "6px",
-              padding: "8px 16px",
-              border: "none",
-              transition: "background-color 0.15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#242424")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#111111")}
-          >
+        <button
+          className="ux_button ux_button_primary"
+          onClick={onCreateClick}
+          style={{
+            borderRadius: "6px",
+            padding: "8px 16px",
+            border: "none",
+            transition: "background-color 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#242424")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#111111")}
+        >
           ➕ 새 워크플로우 등록
         </button>
       </div>
@@ -102,75 +209,25 @@ export function WorkflowList({
       />
 
       {/* 테이블 리스트 */}
-      <div className="ux_card_compact" style={{ padding: 0 }}>
-        <div className="ux_scroll_area">
-        <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>이름 (줄임말)</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>워크플로우 식별 Key</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>버전</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>상태</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>설정 키 개수</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && templates.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#6b7280" }}>
-                  불러오는 중...
-                </td>
-              </tr>
-            ) : filteredTemplates.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#6b7280" }}>
-                  {templates.length === 0 ? "등록된 N8N 워크플로우가 없습니다. 우측 상단 버튼을 통해 새 명세를 등록해 주십시오." : "검색 결과가 없습니다."}
-                </td>
-              </tr>
-            ) : (
-              filteredTemplates.map((template) => (
-                <tr
-                  key={template.workflowKey}
-                  onClick={() => onSelect(template)}
-                  style={{
-                    borderBottom: "1px solid #f3f4f6",
-                    cursor: "pointer",
-                    transition: "background-color 0.1s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                >
-                  <td style={{ padding: "14px 16px", fontWeight: 600, color: "#111111" }}>
-                    {template.name} <span style={{ color: "#9ca3af", fontWeight: 400, fontSize: "12px" }}>({template.shortName})</span>
-                  </td>
-                  <td style={{ padding: "14px 16px", fontFamily: "monospace", color: "#4b5563" }}>
-                    {template.workflowKey}
-                  </td>
-                  <td style={{ padding: "14px 16px", color: "#4b5563" }}>v{template.version}</td>
-                  <td style={{ padding: "14px 16px" }}>
-                    <span
-                      className={
-                        template.status === "published"
-                          ? "ux_badge ux_badge_success"
-                          : template.status === "disabled"
-                            ? "ux_badge ux_badge_danger"
-                            : "ux_badge ux_badge_default"
-                      }
-                      style={{ fontSize: "11px", padding: "2px 6px" }}
-                    >
-                      {template.status === "published" ? "배포 완료" : template.status === "disabled" ? "비활성" : "작성 중"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "14px 16px", color: "#6b7280" }}>
-                    {template.configSchema?.length || 0}개
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
+      <div
+        style={{
+          backgroundColor: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        <N8lientDataGrid
+          data={filteredTemplates}
+          columns={columns}
+          getRowId={(row) => row.workflowKey}
+          loading={loading}
+          emptyTitle="등록된 N8N 워크플로우가 없습니다."
+          emptyDescription="우측 상단 버튼을 통해 새 명세를 등록해 주십시오."
+          onRowClick={onSelect}
+        />
       </div>
     </div>
   );
 }
+
