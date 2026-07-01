@@ -1089,8 +1089,36 @@ diff().affectedKeys().hasOnly(['approvalStatus','clientId','companyCode','update
   * `5318555` fix: limit data grid select all to current page
 
 * **아직 적용하지 않은 영역**:
-  * `/operator/*` 화면 DataGrid 표준 적용 (현재 별도 테이블 유지).
   * 서버 사이드 페이지네이션 전환 (현재 클라이언트 페이지네이션).
 
 * **최소 검증 기준**: `npx tsc --noEmit` 및 `npm run build` 성공.
+
+### [2026-07-01] N8Lient Phase 3.5 오퍼레이터 화면 DataGrid 표준 적용
+
+* **결정**: 오퍼레이터 영역의 주요 3개 테이블/리스트 화면 전체에 `N8lientDataGrid` v1 표준을 적용했다.
+* **적용 범위**:
+  - `/operator/clients` (고객사 관리 목록)
+  - `/operator/contracts` (워크플로우 매핑 목록)
+  - `/operator/workflow-templates` (워크플로우 템플릿 목록)
+* **내용**:
+  - 기존 수동 HTML `<table>` 레이아웃 구조를 제거하고 표준 `N8lientDataGrid` v1 공통 컴포넌트 탑재.
+  - 가로폭 크기(size), 헤더 및 셀 정렬 메타(`meta.headerAlign`, `meta.cellAlign`) 설정.
+  - `N8lientStatusBadge` 표준 배지 적용 및 상태값 매핑 통일.
+  - 상세 탭 내부에 있는 단순 통계 및 에러 요약 등의 정보성 단순 테이블들은 기존 구조를 보존하여 불필요한 공통 컴포넌트 강제 적용을 배제함.
+* **최소 검증 기준**: `npx tsc --noEmit` 성공.
+
+### [2026-07-01] N8Lient Phase 3.6 사용자 자료 결과 UI 표준화
+
+* **결정**: 사용자 자료 검색 및 상세 결과 뷰어 화면의 카드/본문 UI 표준화를 위해 `N8lientResultList`, `N8lientResultCard` 공통 컴포넌트를 설계하고 `UX_Design_Setting.css` 중앙화 CSS 클래스를 통해 화면 시각 통일성을 완성했다.
+* **적용 범위**:
+  - `/user/data/search` (통합 자료검색 결과 목록)
+  - `/user/data/ai-search` (AI 지식검색 인용 출처 목록)
+  - `/user/data/view/[submissionId]` (Result Data Viewer 상세 본문 뷰어)
+* **내용**:
+  - 템플릿명, 공개 범위 배지, 제목 하이라이팅, 요약 본문, 태그/키워드 목록, 소요시간 및 소유자, 날짜 메타 영역을 모듈화한 `N8lientResultCard` 적용.
+  - `N8lientResultList`를 통해 데이터 로딩(`N8lientLoadingState`) 및 빈 상태(`N8lientEmptyState`) 구조를 통일하고, 0-based index 콜백 구조를 지원해 AI 지식검색 인용 출처 `[자료번호 N]` 순서 바인딩 유지.
+  - 상세 뷰어 UI에 `N8lientStatusBadge` 표준 컴포넌트를 이식하고, 중앙 CSS에 `ux_viewer_wrap`, `ux_viewer_header`, `ux_viewer_title`, `ux_viewer_meta`, `ux_viewer_content`, `ux_viewer_actions` 클래스를 추가하여 카드형 디자인과의 시각적 연결성 구축.
+  - 기존 Firebase 조회 권한 검증, accessMode 변경(공개/비공개 전환 및 관리자 강제 철회), 본문/링크 복사 및 공유 기능, `/user/data/view/[submissionId]` 이동 구조는 기존 로직 그대로 무결 보존.
+* **최소 검증 기준**: `npx tsc --noEmit` 성공.
+
 
