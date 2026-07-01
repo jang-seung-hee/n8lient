@@ -14,12 +14,11 @@ import { subscribeCompanySubmissions } from "@/features/submission/submissionQue
 import { filterSubmissions } from "@/common/submission/submissionFilters";
 import { doc, getDoc } from "firebase/firestore";
 import type { Submission, SubmissionStatus, WorkflowTemplate } from "@/types/n8lient";
-import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
 import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
 import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
 import { getCompanyContracts } from "@/features/admin/companyAdminService";
 import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
-import { buildExecutionLogGridColumns } from "@/components/results/executionLogGridColumns";
+import { ExecutionLogGrid } from "@/components/common/data/ExecutionLogGrid";
 
 export default function AdminResults() {
   const { userDoc } = useAuthUser();
@@ -131,16 +130,6 @@ export default function AdminResults() {
 
   const actorLabelByUid = useSubmissionActorLabelMap(filteredList);
 
-  // TanStack Table 용 ColumnDef 설계 공통 바인딩
-  const gridColumns = useMemo(() => {
-    return buildExecutionLogGridColumns({
-      templates,
-      actorLabelByUid,
-      onOpenDetail: handleRowClick,
-      singleClientName: companyName,
-    });
-  }, [templates, actorLabelByUid, companyName]);
-
   return (
     <div className="ux_page_layout" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div className="ux_page_header">
@@ -171,11 +160,12 @@ export default function AdminResults() {
           description="검색 필터 조건을 조정해 보세요."
         />
       ) : (
-        <N8lientDataGrid
+        <ExecutionLogGrid
           data={filteredList}
-          columns={gridColumns}
-          getRowId={(row) => row.submissionId}
-          onRowClick={handleRowClick}
+          templates={templates}
+          actorLabelByUid={actorLabelByUid}
+          onOpenDetail={handleRowClick}
+          singleClientName={companyName}
           storageKey="company-admin-results-page-size"
         />
       )}

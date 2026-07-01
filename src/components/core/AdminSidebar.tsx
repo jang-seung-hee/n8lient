@@ -75,7 +75,7 @@ export function AdminSidebar({ fullWidth = false, onNavigate }: AdminSidebarProp
     { label: "사용자 승인", path: "/company-admin/approvals", icon: "👤" },
     { label: "사용자 목록", path: "/company-admin/users", icon: "👥" },
     { label: "N8N 워크플로우 설정", path: "/company-admin/automations", icon: "⚙️" },
-    { label: "실행 결과", path: "/company-admin/results", icon: "📜" },
+    { label: "실행 로그", path: "/company-admin/results", icon: "📜" },
     { label: "자료 공개 관리", path: "/company-admin/knowledge-access", icon: "🛡️" },
   ];
 

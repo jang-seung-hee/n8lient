@@ -11,17 +11,17 @@ import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmis
 import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
 import { subscribeOperatorSubmissions } from "@/features/submission/submissionQueryService";
 import { filterSubmissions } from "@/common/submission/submissionFilters";
-import { getClientsList } from "@/features/operator/operatorService";
+import { getClientsList, getWorkflowTemplates } from "@/features/operator/operatorService";
 import type { 
   Submission, 
   SubmissionStatus, 
   ExecutionFailurePhase, 
-  ExecutionFailureSource 
+  ExecutionFailureSource,
+  WorkflowTemplate
 } from "@/types/n8lient";
-import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { ExecutionLogGrid } from "@/components/common/data/ExecutionLogGrid";
 import { N8lientLoadingState } from "@/components/common/data/N8lientLoadingState";
 import { N8lientEmptyState } from "@/components/common/data/N8lientEmptyState";
-import { buildExecutionLogGridColumns } from "@/components/results/executionLogGridColumns";
 
 export default function OperatorLogs() {
   // 데이터 상태
@@ -29,6 +29,7 @@ export default function OperatorLogs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clientsMap, setClientsMap] = useState<Map<string, string>>(new Map());
+  const [templates, setTemplates] = useState<Record<string, WorkflowTemplate>>({});
 
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,6 +74,21 @@ export default function OperatorLogs() {
       });
   }, []);
 
+  // 전체 워크플로우 템플릿(workflowTemplates) 정보 조회 후 workflowKey -> Template 맵 생성
+  useEffect(() => {
+    getWorkflowTemplates(db)
+      .then((list) => {
+        const map: Record<string, WorkflowTemplate> = {};
+        list.forEach((t) => {
+          map[t.workflowKey] = t;
+        });
+        setTemplates(map);
+      })
+      .catch((err) => {
+        console.error("[OperatorLogs] templates 로드 실패:", err);
+      });
+  }, []);
+
   // 검색 및 필터 변경 이벤트 핸들러
   const handleFilterChange = (q: string, f: Record<string, string>) => {
     setSearchQuery(q);
@@ -101,16 +117,6 @@ export default function OperatorLogs() {
   }, [submissions, searchQuery, filters]);
 
   const actorLabelByUid = useSubmissionActorLabelMap(filteredList);
-
-  // TanStack Table 용 ColumnDef 설계 공통 바인딩
-  const gridColumns = useMemo(() => {
-    return buildExecutionLogGridColumns({
-      templates: {}, // operator/logs 에서는 templates 로드를 직접 수행하지 않으므로 빈 맵 주입 (resolveWorkflowDisplayName fallback 작동)
-      clientsMap,
-      actorLabelByUid,
-      onOpenDetail: handleRowClick,
-    });
-  }, [clientsMap, actorLabelByUid]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -143,11 +149,12 @@ export default function OperatorLogs() {
           description="검색 필터 조건을 조정해 보세요."
         />
       ) : (
-        <N8lientDataGrid
+        <ExecutionLogGrid
           data={filteredList}
-          columns={gridColumns}
-          getRowId={(row) => row.submissionId}
-          onRowClick={handleRowClick}
+          templates={templates}
+          clientsMap={clientsMap}
+          actorLabelByUid={actorLabelByUid}
+          onOpenDetail={handleRowClick}
           storageKey="operator-logs-page-size"
         />
       )}

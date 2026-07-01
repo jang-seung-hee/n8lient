@@ -17,7 +17,7 @@ export function OperatorSidebar({ fullWidth = false, onNavigate }: OperatorSideb
     { label: "고객사 마스터", path: "/operator/clients", icon: "🏭" },
     { label: "N8N 워크플로우 마스터", path: "/operator/workflow-templates", icon: "📋" },
     { label: "N8N 워크플로우 매핑", path: "/operator/contracts", icon: "🤝" },
-    { label: "시스템 로그", path: "/operator/logs", icon: "📂" },
+    { label: "실행 로그", path: "/operator/logs", icon: "📂" },
     { label: "콘솔 홈", path: "/operator", icon: "🏢" },
   ];
 
