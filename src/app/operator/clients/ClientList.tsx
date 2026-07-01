@@ -1,10 +1,14 @@
 // 이 파일은 등록된 고객사(Client) 목록을 표 형식으로 보여주고 상세 조회 및 신규 등록을 트리거하는 컴포넌트입니다.
+// N8lientDataGrid 표준 v1을 적용했습니다.
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import type { ClientDoc } from "@/types/n8lient";
 import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import type { ColumnDef } from "@tanstack/react-table";
 
 interface ClientListProps {
   clients: ClientDoc[];
@@ -66,6 +70,106 @@ export function ClientList({
     setFilteredClients(filtered);
   };
 
+  // N8lientDataGrid 컬럼 정의
+  const columns = React.useMemo<ColumnDef<ClientDoc, any>[]>(() => [
+    {
+      accessorKey: "companyName",
+      header: "고객사명",
+      size: 260,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "left",
+      },
+      cell: ({ row }) => {
+        const val = row.original.companyName || "";
+        const displayVal = val.length > 25 ? `${val.slice(0, 25)}...` : val;
+        return (
+          <div className="ux_table_text_ellipsis" title={val} style={{ fontWeight: 600, color: "#111111" }}>
+            {displayVal}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "clientId",
+      header: "고객사 ID",
+      size: 200,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "left",
+      },
+      cell: ({ row }) => {
+        const val = row.original.clientId || "";
+        const displayVal = val.length > 25 ? `${val.slice(0, 25)}...` : val;
+        return (
+          <div className="ux_table_text_ellipsis" title={val} style={{ fontFamily: "monospace", color: "#4b5563" }}>
+            {displayVal}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "companyCode",
+      header: "발급 회사코드",
+      size: 170,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        const val = row.original.companyCode || "";
+        return (
+          <div title={val} style={{ fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>
+            {val}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "defaultTimezone",
+      header: "기본 타임존",
+      size: 150,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        return <span>{row.original.defaultTimezone || "-"}</span>;
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "상태",
+      size: 110,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        const status = row.original.status;
+        let badgeType: "success" | "error" | "pending" | "default" = "default";
+        let statusLabel = "설정대기";
+
+        if (status === "active") {
+          badgeType = "success";
+          statusLabel = "운영중";
+        } else if (status === "suspended" || status === "terminated") {
+          badgeType = "error";
+          statusLabel = status === "suspended" ? "정지됨" : "계약종료";
+        } else if (status === "pending_setup") {
+          badgeType = "pending";
+          statusLabel = "설정대기";
+        }
+
+        return (
+          <N8lientStatusBadge type={badgeType}>
+            {statusLabel}
+          </N8lientStatusBadge>
+        );
+      },
+    },
+  ], []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 타이틀 및 등록 버튼 액션 바 */}
@@ -114,75 +218,18 @@ export function ClientList({
           overflow: "hidden",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>고객사명</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>고객사 ID</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>발급 회사코드</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>기본 타임존</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>상태</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && clients.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#6b7280" }}>
-                  불러오는 중...
-                </td>
-              </tr>
-            ) : filteredClients.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#6b7280" }}>
-                  {clients.length === 0 ? "등록된 고객사가 없습니다. 우측 상단 버튼을 통해 새 고객사를 등록해 주십시오." : "검색 결과가 없습니다."}
-                </td>
-              </tr>
-            ) : (
-              filteredClients.map((client) => (
-                <tr
-                  key={client.clientId}
-                  onClick={() => onSelect(client)}
-                  style={{
-                    borderBottom: "1px solid #f3f4f6",
-                    cursor: "pointer",
-                    transition: "background-color 0.1s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                >
-                  <td style={{ padding: "14px 16px", fontWeight: 600, color: "#111111" }}>
-                    {client.companyName}
-                  </td>
-                  <td style={{ padding: "14px 16px", fontFamily: "monospace", color: "#4b5563" }}>
-                    {client.clientId}
-                  </td>
-                  <td style={{ padding: "14px 16px", fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>
-                    {client.companyCode}
-                  </td>
-                  <td style={{ padding: "14px 16px", color: "#4b5563" }}>
-                    {client.defaultTimezone}
-                  </td>
-                  <td style={{ padding: "14px 16px" }}>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        backgroundColor: client.status === "active" ? "#d1fae5" : client.status === "suspended" ? "#fee2e2" : "#f3f4f6",
-                        color: client.status === "active" ? "#065f46" : client.status === "suspended" ? "#991b1b" : "#374151",
-                        padding: "2px 6px",
-                        borderRadius: "999px",
-                      }}
-                    >
-                      {client.status === "active" ? "운영중" : client.status === "suspended" ? "정지됨" : "설정대기"}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <N8lientDataGrid
+          data={filteredClients}
+          columns={columns}
+          getRowId={(row) => row.clientId}
+          loading={loading}
+          emptyTitle="등록된 고객사가 없습니다."
+          emptyDescription="우측 상단 버튼을 통해 새 고객사를 등록해 주십시오."
+          onRowClick={onSelect}
+        />
       </div>
     </div>
   );
 }
+
 
