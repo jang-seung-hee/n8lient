@@ -311,6 +311,7 @@ export function ContractMappingList({
           emptyTitle="배정된 워크플로우 매핑 정보가 없습니다."
           emptyDescription="우측 상단 버튼을 통해 새로운 매핑을 추가해 주십시오."
           onRowClick={onSelect}
+          storageKey="operator-contracts-page-size"
         />
       </div>
     </div>

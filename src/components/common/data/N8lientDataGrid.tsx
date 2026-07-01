@@ -33,6 +33,9 @@ interface N8lientDataGridProps<TData> {
   
   // 행 클릭 관련
   onRowClick?: (row: TData) => void;
+
+  // 로컬스토리지 페이지 크기 저장 키
+  storageKey?: string;
 }
 
 export function N8lientDataGrid<TData>({
@@ -47,15 +50,35 @@ export function N8lientDataGrid<TData>({
   onSelectionChange,
   isRowSelectable,
   onRowClick,
+  storageKey,
 }: N8lientDataGridProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   
-  // 페이지네이션 로컬 상태 설정 (기본값: pageSize = 20)
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 20,
+  // 페이지네이션 로컬 상태 설정 (기본값: pageSize = 20, storageKey 존재 시 복원)
+  const [pagination, setPagination] = useState(() => {
+    let initialPageSize = 20;
+    if (typeof window !== "undefined" && storageKey) {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && [10, 20, 50, 100].includes(parsed)) {
+          initialPageSize = parsed;
+        }
+      }
+    }
+    return {
+      pageIndex: 0,
+      pageSize: initialPageSize,
+    };
   });
+
+  // pagination.pageSize가 바뀔 때 localStorage에 동기화
+  useEffect(() => {
+    if (typeof window !== "undefined" && storageKey) {
+      localStorage.setItem(storageKey, String(pagination.pageSize));
+    }
+  }, [pagination.pageSize, storageKey]);
 
   // 외부 selectedIds 프로퍼티 변화와 TanStack 로컬 rowSelection 상태 동기화 (무한 루프 방어)
   useEffect(() => {

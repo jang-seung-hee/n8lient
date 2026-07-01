@@ -421,6 +421,7 @@ export default function KnowledgeAccessPage() {
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         isRowSelectable={isCheckboxSelectable}
+        storageKey="company-admin-knowledge-access-page-size"
       />
     </div>
   );

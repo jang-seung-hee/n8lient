@@ -226,6 +226,7 @@ export function ClientList({
           emptyTitle="등록된 고객사가 없습니다."
           emptyDescription="우측 상단 버튼을 통해 새 고객사를 등록해 주십시오."
           onRowClick={onSelect}
+          storageKey="operator-clients-page-size"
         />
       </div>
     </div>

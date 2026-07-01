@@ -322,6 +322,7 @@ export default function OperatorLogs() {
           columns={gridColumns}
           getRowId={(row) => row.submissionId}
           onRowClick={handleRowClick}
+          storageKey="operator-logs-page-size"
         />
       )}
 

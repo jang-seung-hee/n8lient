@@ -357,6 +357,7 @@ export default function AdminResults() {
           columns={gridColumns}
           getRowId={(row) => row.submissionId}
           onRowClick={handleRowClick}
+          storageKey="company-admin-results-page-size"
         />
       )}
 

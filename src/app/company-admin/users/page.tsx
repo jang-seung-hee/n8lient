@@ -155,6 +155,7 @@ export default function AdminUsers() {
           getRowId={(row) => row.uid}
           loading={loading}
           onRowClick={handleRowClick}
+          storageKey="company-admin-users-page-size"
         />
       )}
 

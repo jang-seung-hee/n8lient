@@ -267,6 +267,7 @@ export default function AdminApprovals() {
             loading={loading}
             emptyTitle="검색 조건과 일치하는 승인 대기자가 없습니다."
             emptyDescription="검색어 철자 또는 필터 조건 값을 확인해 주세요."
+            storageKey="company-admin-approvals-page-size"
           />
         </div>
       )}

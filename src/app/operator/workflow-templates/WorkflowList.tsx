@@ -225,6 +225,7 @@ export function WorkflowList({
           emptyTitle="등록된 N8N 워크플로우가 없습니다."
           emptyDescription="우측 상단 버튼을 통해 새 명세를 등록해 주십시오."
           onRowClick={onSelect}
+          storageKey="operator-workflow-templates-page-size"
         />
       </div>
     </div>

@@ -255,6 +255,7 @@ export default function CompanyAutomationList({
           data={filteredContracts}
           columns={gridColumns}
           getRowId={(row) => row.contractId}
+          storageKey="company-admin-automations-page-size"
         />
       )}
     </div>
