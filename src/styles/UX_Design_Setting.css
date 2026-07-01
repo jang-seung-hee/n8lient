@@ -1709,6 +1709,290 @@
 }
 
 /* ============================================================
+   실행 입력 composer (탭 제거 · textarea + 첨부 영역)
+   ============================================================ */
+
+.ux_execute_composer {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #ffffff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ux_execute_textarea {
+  min-height: 80px;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.ux_attachment_section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ux_attachment_section.ux_dropzone_active {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.ux_attachment_section_header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ux_attachment_section_label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.ux_attachment_section_hint {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.ux_attachment_section_hint_pc {
+  display: none;
+}
+
+.ux_attachment_swap_notice {
+  font-size: 11px;
+  color: #2563eb;
+  margin: 0;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.ux_attachment_actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ux_attach_action_card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1 1 120px;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ux_attach_action_card:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.ux_attach_action_card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ux_attach_action_card_secondary {
+  background-color: #f9fafb;
+}
+
+.ux_attach_action_card_danger {
+  border-color: #fecaca;
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.ux_attach_action_card_danger:hover:not(:disabled) {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.ux_attach_action_card_file {
+  cursor: pointer;
+}
+
+.ux_attach_action_icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ux_attach_action_label {
+  line-height: 1.3;
+  text-align: center;
+}
+
+.ux_attachment_unsupported {
+  font-size: 12px;
+  color: #ef4444;
+  margin: 0;
+  width: 100%;
+}
+
+.ux_audio_recording_controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.ux_recording_dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  margin-right: 4px;
+  animation: pulse 1.5s infinite;
+}
+
+.ux_recording_status {
+  font-size: 12px;
+  color: #059669;
+  margin: 0;
+  font-weight: 600;
+}
+
+.ux_recording_status_paused {
+  color: #d97706;
+}
+
+.ux_audio_complete_notice {
+  font-size: 12px;
+  color: #059669;
+  margin: 0;
+  font-weight: 600;
+}
+
+.ux_attach_preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.ux_attach_preview_image {
+  align-items: flex-start;
+}
+
+.ux_attach_preview_thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.ux_attach_preview_meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.ux_attach_preview_name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111111;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ux_attach_preview_size {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.ux_attach_remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.ux_attachment_upload_guide {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 6px;
+}
+
+@media (min-width: 1024px) {
+  .ux_attachment_section_hint_pc {
+    display: block;
+  }
+
+  .ux_attachment_actions {
+    flex-wrap: nowrap;
+  }
+
+  .ux_attach_action_card {
+    flex: 0 1 auto;
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .ux_attachment_actions {
+    flex-direction: column;
+  }
+
+  .ux_attach_action_card {
+    flex: 1 1 auto;
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+
+  .ux_attach_action_icon {
+    font-size: 20px;
+  }
+
+  .ux_attach_action_label {
+    text-align: left;
+    font-size: 14px;
+  }
+}
+
+/* ============================================================
    중앙 토글 스위치 스타일 (접근성 지원 및 커스텀 스위치)
    ============================================================ */
 

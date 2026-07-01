@@ -16,7 +16,7 @@ import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
 import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 import { useSearchParams, useRouter } from "next/navigation";
-import { validateExecution } from "@/common/validation/validateExecution";
+import { validateExecution, resolveFileType } from "@/common/validation/validateExecution";
 import { buildExecutionTitleContract } from "@/common/execution/buildTitleContract";
 import { mergeAutomationSettings } from "@/common/settings/mergeAutomationSettings";
 import { fetchWorkflowTemplatesByKeys } from "@/common/workflow/fetchWorkflowTemplatesByKeys";
@@ -200,7 +200,9 @@ export default function UserExecute() {
       }) || currentAuto?.workflowKey || "",
     });
 
-    const resolvedInputType = inputType || "text";
+    const resolvedInputType = selectedFile
+      ? resolveFileType({ name: selectedFile.name, type: selectedFile.type })
+      : "text";
     const currentSettings = mergeAutomationSettings(
       currentAuto.settings || {},
       userSettings?.settings
