@@ -12,7 +12,7 @@ interface N8lientResultListProps<T> {
   loading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
-  renderItem: (item: T) => React.ReactNode;
+  renderItem: (item: T, index: number) => React.ReactNode;
 }
 
 export function N8lientResultList<T>({
@@ -37,7 +37,7 @@ export function N8lientResultList<T>({
 
   return (
     <div className="ux_result_list">
-      {items.map((item) => renderItem(item))}
+      {items.map((item, index) => renderItem(item, index))}
     </div>
   );
 }

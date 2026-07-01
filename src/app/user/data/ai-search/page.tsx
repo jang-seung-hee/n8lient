@@ -16,6 +16,8 @@ import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDis
 import type { ClientAutomation, WorkflowTemplate, Submission } from "@/types/n8lient";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { playAppSound } from "@/lib/appSound";
+import { N8lientResultList } from "@/components/common/data/N8lientResultList";
+import { N8lientResultCard } from "@/components/common/data/N8lientResultCard";
 
 // 단순 마크다운 Subset 렌더러 컴포넌트 (dangerouslySetInnerHTML 금지 규칙 준수)
 function SafeMarkdownRenderer({ text }: { text: string }) {
@@ -204,6 +206,40 @@ export default function AIKnowledgeSearchPage() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  // 개별 출처 카드 렌더러 함수
+  const renderSourceCard = (srcDoc: any, idx: number) => {
+    const isCompany = srcDoc.accessMode === "company";
+    const workflowDisplayName = srcDoc.workflowName || srcDoc.workflowKey || "알 수 없는 자동화";
+
+    return (
+      <N8lientResultCard
+        key={srcDoc.submissionId}
+        onClick={() => !loadingDetail && handleCardClick(srcDoc.submissionId)}
+        badges={
+          <>
+            <span style={{ fontSize: "11px", fontWeight: 700, backgroundColor: "#f3f4f6", color: "#4b5563", padding: "2px 6px", borderRadius: "4px" }}>
+              [자료번호 {idx + 1}] {workflowDisplayName}
+            </span>
+            <span style={{ fontSize: "11px", fontWeight: 700, backgroundColor: isCompany ? "#d1fae5" : "#eff6ff", color: isCompany ? "#065f46" : "#1d4ed8", padding: "2px 6px", borderRadius: "4px" }}>
+              {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
+            </span>
+          </>
+        }
+        title={
+          <div className="ux_table_text_ellipsis" title={srcDoc.title || ""}>
+            {srcDoc.title}
+          </div>
+        }
+        description={srcDoc.summary}
+        meta={
+          <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
+            <span>⏱️ {formatDisplayDate(srcDoc.createdAt)}</span>
+          </div>
+        }
+      />
+    );
   };
 
   if (loading) {
@@ -450,60 +486,11 @@ export default function AIKnowledgeSearchPage() {
               <h3 style={{ fontSize: "13px", fontWeight: 700, color: "#4b5563", paddingLeft: "4px", margin: 0 }}>
                 📄 인용된 출처 자료 ({sources.length}건)
               </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {sources.map((srcDoc, idx) => {
-                  const isCompany = srcDoc.accessMode === "company";
-                  return (
-                    <div
-                      key={srcDoc.submissionId}
-                      onClick={() => !loadingDetail && handleCardClick(srcDoc.submissionId)}
-                      style={{
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "10px",
-                        padding: "16px",
-                        cursor: loadingDetail ? "not-allowed" : "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "8px",
-                        boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.02)",
-                        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                        e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 1px 3px 0 rgba(0, 0, 0, 0.02)";
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 700, backgroundColor: "#f3f4f6", color: "#4b5563", padding: "2px 6px", borderRadius: "4px" }}>
-                          [자료번호 {idx + 1}] {srcDoc.workflowName || srcDoc.workflowKey}
-                        </span>
-                        <span style={{ fontSize: "11px", fontWeight: 700, backgroundColor: isCompany ? "#d1fae5" : "#eff6ff", color: isCompany ? "#065f46" : "#1d4ed8", padding: "2px 6px", borderRadius: "4px" }}>
-                          {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
-                        </span>
-                      </div>
-
-                      <h4 style={{ fontSize: "14.5px", fontWeight: 700, color: "#111111", margin: 0 }}>
-                        {srcDoc.title}
-                      </h4>
-
-                      {srcDoc.summary && (
-                        <p style={{ fontSize: "12.5px", color: "#4b5563", margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                          {srcDoc.summary}
-                        </p>
-                      )}
-
-                      <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "8px", marginTop: "4px", display: "flex", justifyContent: "flex-end", fontSize: "11.5px", color: "#9ca3af" }}>
-                        <span>⏱️ {formatDisplayDate(srcDoc.createdAt)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <N8lientResultList
+                items={sources}
+                loading={false}
+                renderItem={(item, idx) => renderSourceCard(item, idx)}
+              />
             </div>
           )}
         </div>
@@ -524,3 +511,4 @@ export default function AIKnowledgeSearchPage() {
     </div>
   );
 }
+
