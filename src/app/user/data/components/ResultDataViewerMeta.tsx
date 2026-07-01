@@ -6,6 +6,7 @@
 
 import React, { useState } from "react";
 import { playAppSound } from "@/lib/appSound";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
 
 export interface SafeSubmissionViewDTO {
   submissionId: string;
@@ -47,6 +48,7 @@ export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode, o
     } else {
       date = new Date(createdAt);
     }
+    if (isNaN(date.getTime())) return "없음";
     return date.toLocaleString("ko-KR", {
       year: "numeric",
       month: "2-digit",
@@ -100,9 +102,9 @@ export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode, o
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "20px" }}>
+    <div className="ux_viewer_wrap" style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "20px" }}>
       {/* 상단 메타 헤더 카드 */}
-      <div className="ux_card" style={{ padding: "16px 20px" }}>
+      <div className="ux_card ux_viewer_header" style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
             {/* 워크플로우 분류 */}
@@ -117,24 +119,16 @@ export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode, o
                 borderRadius: "4px",
                 height: "auto",
               }}
+              title={data.workflowKey}
             >
               📂 {data.workflowName || data.workflowKey}
             </span>
             
             {/* 공개범위 배지 */}
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span
-                className={`ux_badge ${isCompany ? "ux_badge_success" : "ux_badge_info"}`}
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  padding: "2px 8px",
-                  borderRadius: "4px",
-                  height: "auto",
-                }}
-              >
+              <N8lientStatusBadge type={isCompany ? "success" : "private"}>
                 {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
-              </span>
+              </N8lientStatusBadge>
 
               {/* canChangeAccessMode 가 true일 때만 변경 단추 노출 */}
               {data.canChangeAccessMode && onUpdateAccessMode && (
@@ -170,12 +164,12 @@ export function ResultDataViewerMeta({ data, onOpenReport, onUpdateAccessMode, o
         </div>
 
         {/* 대제목 */}
-        <h1 className="ux_page_title" style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 12px 0", lineHeight: 1.4 }}>
+        <h1 className="ux_page_title ux_viewer_title" style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 12px 0", lineHeight: 1.4 }}>
           {data.title || "제목 없는 데이터"}
         </h1>
 
         {/* 작성자 정보 */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "#6b7280", borderTop: "1px solid #f3f4f6", paddingTop: "10px" }}>
+        <div className="ux_viewer_meta" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "#6b7280", borderTop: "1px solid #f3f4f6", paddingTop: "10px" }}>
           <div>
             👤 <strong>{data.ownerName || "작성자"}</strong> ({data.ownerEmail || "이메일 없음"})
           </div>

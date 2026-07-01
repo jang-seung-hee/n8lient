@@ -28,7 +28,7 @@ function SafeMarkdownRenderer({ text }: { text: string }) {
       <>
         {parts.map((part, index) => {
           if (part.startsWith("**") && part.endsWith("**")) {
-            return <strong key={index} style={{ fontWeight: 700, color: "#111827" }}>{part.slice(2, -2)}</strong>;
+             return <strong key={index} style={{ fontWeight: 700, color: "#111827" }}>{part.slice(2, -2)}</strong>;
           }
           return part;
         })}
@@ -179,7 +179,7 @@ export function ResultDataViewer({ data }: ResultDataViewerProps) {
       )}
 
       {/* 2. 본문 영역 */}
-      <div className="ux_card" style={{ padding: "24px 20px" }}>
+      <div className="ux_card ux_viewer_content" style={{ padding: "24px 20px" }}>
         {/* 헤더 부분 flex 정렬 및 액션 그룹 배치 */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f3f4f6", paddingBottom: "10px", margin: "0 0 16px 0" }}>
           <h3 className="ux_section_title" style={{ fontSize: "15px", margin: 0, color: "#111827" }}>
@@ -187,7 +187,7 @@ export function ResultDataViewer({ data }: ResultDataViewerProps) {
           </h3>
           
           {/* 액션 배지 버튼 그룹 */}
-          <div className="ux_viewer_action_group">
+          <div className="ux_viewer_action_group ux_viewer_actions">
             <button
               onClick={handleCopyBody}
               className="ux_viewer_action_btn"
