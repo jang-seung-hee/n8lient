@@ -104,6 +104,8 @@ export default function WorkflowInputPanel({
   const [isAudioDetailOpen, setIsAudioDetailOpen] = useState(false);
   const [isUploadGuideExpanded, setIsUploadGuideExpanded] = useState(false);
   const [isFloatingAttachHidden, setIsFloatingAttachHidden] = useState(false);
+  const [isFloatingAttachIntroReady, setIsFloatingAttachIntroReady] = useState(false);
+  const [isFloatingAttachPopActive, setIsFloatingAttachPopActive] = useState(false);
 
   const floatingAttachDragRef = useRef<{
     startX: number;
@@ -222,6 +224,31 @@ export default function WorkflowInputPanel({
       }
     };
   }, [selectedFile, revokeImagePreview]);
+
+  useEffect(() => {
+    if (!showAttachmentSection || (!showImage && !showAudio)) {
+      setIsFloatingAttachIntroReady(false);
+      setIsFloatingAttachPopActive(false);
+      return;
+    }
+
+    setIsFloatingAttachIntroReady(false);
+    setIsFloatingAttachPopActive(false);
+
+    const introTimer = window.setTimeout(() => {
+      setIsFloatingAttachIntroReady(true);
+      setIsFloatingAttachPopActive(true);
+    }, 2000);
+
+    const popTimer = window.setTimeout(() => {
+      setIsFloatingAttachPopActive(false);
+    }, 2280);
+
+    return () => {
+      window.clearTimeout(introTimer);
+      window.clearTimeout(popTimer);
+    };
+  }, [showAttachmentSection, showImage, showAudio]);
 
   useEffect(() => {
     return () => {
@@ -581,7 +608,7 @@ export default function WorkflowInputPanel({
       const absDeltaX = Math.abs(deltaX);
       const absDeltaY = Math.abs(deltaY);
 
-      if (drag.target === "rail" && !isFloatingAttachHidden && deltaX >= 30 && absDeltaX >= absDeltaY) {
+      if (drag.target === "rail" && isFloatingAttachIntroReady && !isFloatingAttachHidden && deltaX >= 30 && absDeltaX >= absDeltaY) {
         setIsFloatingAttachHidden(true);
       } else if (drag.target === "handle" && isFloatingAttachHidden) {
         if ((deltaX <= -20 && absDeltaX >= absDeltaY) || (absDeltaX < 10 && absDeltaY < 10)) {
@@ -591,7 +618,7 @@ export default function WorkflowInputPanel({
 
       floatingAttachDragRef.current = null;
     },
-    [isFloatingAttachHidden]
+    [isFloatingAttachHidden, isFloatingAttachIntroReady]
   );
 
   const handleFloatingAttachPointerCancel = useCallback(() => {
@@ -599,12 +626,28 @@ export default function WorkflowInputPanel({
   }, []);
 
   const handleFloatingAttachHandleClick = useCallback(() => {
+    // 추후 확장: 사용자 터치 기반 tick 효과음은 여기서 playAppSound 등으로 분리 가능
     setIsFloatingAttachHidden(false);
   }, []);
 
   if (acceptedInputTypes.length === 0) return null;
 
   const showFloatingAttach = showAttachmentSection && (showImage || showAudio);
+
+  const floatingAttachClassName = [
+    "ux_execute_floating_attach",
+    isFloatingAttachHidden
+      ? "ux_execute_floating_attach_hidden"
+      : isFloatingAttachIntroReady
+        ? "ux_execute_floating_attach_intro_ready"
+        : "ux_execute_floating_attach_intro_pending",
+    isFloatingAttachPopActive ? "ux_execute_floating_attach_pop" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const isFloatingAttachVisible =
+    !isFloatingAttachHidden && isFloatingAttachIntroReady;
 
   return (
     <>
@@ -980,11 +1023,9 @@ export default function WorkflowInputPanel({
     {showFloatingAttach && (
       <>
         <div
-          className={`ux_execute_floating_attach${
-            isFloatingAttachHidden ? " ux_execute_floating_attach_hidden" : ""
-          }`}
+          className={floatingAttachClassName}
           aria-label="빠른 첨부"
-          aria-hidden={isFloatingAttachHidden}
+          aria-hidden={!isFloatingAttachVisible}
           onPointerDown={(e) => handleFloatingAttachPointerDown(e, "rail")}
           onPointerUp={handleFloatingAttachPointerUp}
           onPointerCancel={handleFloatingAttachPointerCancel}
