@@ -2114,7 +2114,8 @@
 }
 
 /* 모바일 실행 화면 우측 하단 플로팅 첨부 버튼 */
-.ux_execute_floating_attach {
+.ux_execute_floating_attach,
+.ux_execute_floating_attach_handle {
   display: none;
 }
 
@@ -2138,6 +2139,68 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: transform 180ms ease;
+    will-change: transform;
+    touch-action: pan-y;
+  }
+
+  .ux_execute_floating_attach::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.1);
+    pointer-events: none;
+  }
+
+  .ux_execute_floating_attach_hidden {
+    transform: translateX(calc(100% + 24px));
+    pointer-events: none;
+  }
+
+  .ux_execute_floating_attach_handle {
+    position: fixed;
+    right: 0;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+    z-index: 50;
+    width: 22px;
+    height: 64px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-right: none;
+    border-radius: 999px 0 0 999px;
+    background: #ffffff;
+    box-shadow: -4px 4px 14px rgba(15, 23, 42, 0.12);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: inherit;
+    color: #475569;
+    touch-action: pan-y;
+  }
+
+  .ux_execute_floating_attach_handle_visible {
+    display: inline-flex;
+  }
+
+  .ux_execute_floating_attach_handle_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .ux_execute_floating_attach_handle:focus-visible {
+    outline: none;
+    box-shadow: -4px 4px 14px rgba(15, 23, 42, 0.12), 0 0 0 2px rgba(147, 180, 232, 0.35);
   }
 
   .ux_execute_floating_attach_button {
@@ -2206,6 +2269,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ux_execute_floating_attach {
+    transition: none;
+  }
+
   .ux_execute_floating_attach_button_recording {
     animation: none;
     box-shadow: 0 8px 28px rgba(239, 68, 68, 0.42);

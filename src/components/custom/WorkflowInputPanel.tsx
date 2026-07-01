@@ -103,8 +103,13 @@ export default function WorkflowInputPanel({
   >("idle");
   const [isAudioDetailOpen, setIsAudioDetailOpen] = useState(false);
   const [isUploadGuideExpanded, setIsUploadGuideExpanded] = useState(false);
+  const [isFloatingAttachHidden, setIsFloatingAttachHidden] = useState(false);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const floatingAttachDragRef = useRef<{
+    startX: number;
+    startY: number;
+    target: "rail" | "handle";
+  } | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recordingTimeRef = useRef<number>(0);
@@ -116,6 +121,8 @@ export default function WorkflowInputPanel({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const attachmentKind = selectedFile ? resolveFileType(selectedFile) : null;
   const isImageAttached = attachmentKind === "image";
@@ -556,6 +563,45 @@ export default function WorkflowInputPanel({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleFloatingAttachPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLElement>, target: "rail" | "handle") => {
+      floatingAttachDragRef.current = { startX: e.clientX, startY: e.clientY, target };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    []
+  );
+
+  const handleFloatingAttachPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      const drag = floatingAttachDragRef.current;
+      if (!drag) return;
+
+      const deltaX = e.clientX - drag.startX;
+      const deltaY = e.clientY - drag.startY;
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+
+      if (drag.target === "rail" && !isFloatingAttachHidden && deltaX >= 30 && absDeltaX >= absDeltaY) {
+        setIsFloatingAttachHidden(true);
+      } else if (drag.target === "handle" && isFloatingAttachHidden) {
+        if ((deltaX <= -20 && absDeltaX >= absDeltaY) || (absDeltaX < 10 && absDeltaY < 10)) {
+          setIsFloatingAttachHidden(false);
+        }
+      }
+
+      floatingAttachDragRef.current = null;
+    },
+    [isFloatingAttachHidden]
+  );
+
+  const handleFloatingAttachPointerCancel = useCallback(() => {
+    floatingAttachDragRef.current = null;
+  }, []);
+
+  const handleFloatingAttachHandleClick = useCallback(() => {
+    setIsFloatingAttachHidden(false);
+  }, []);
+
   if (acceptedInputTypes.length === 0) return null;
 
   const showFloatingAttach = showAttachmentSection && (showImage || showAudio);
@@ -932,62 +978,91 @@ export default function WorkflowInputPanel({
     </div>
 
     {showFloatingAttach && (
-      <div className="ux_execute_floating_attach" aria-label="빠른 첨부">
-        {showImage && (
-          <>
-            <button
-              type="button"
-              className="ux_execute_floating_attach_button ux_execute_floating_attach_button_image"
-              onClick={() => imageInputRef.current?.click()}
-              disabled={submitting}
-              aria-label="이미지 추가"
-              title="이미지 추가"
-            >
-              <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
-                🖼️
-              </span>
-            </button>
-            <button
-              type="button"
-              className="ux_execute_floating_attach_button ux_execute_floating_attach_button_camera"
-              onClick={() => cameraInputRef.current?.click()}
-              disabled={submitting}
-              aria-label="카메라 촬영"
-              title="카메라 촬영"
-            >
-              <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
-                📸
-              </span>
-            </button>
-          </>
-        )}
+      <>
+        <div
+          className={`ux_execute_floating_attach${
+            isFloatingAttachHidden ? " ux_execute_floating_attach_hidden" : ""
+          }`}
+          aria-label="빠른 첨부"
+          aria-hidden={isFloatingAttachHidden}
+          onPointerDown={(e) => handleFloatingAttachPointerDown(e, "rail")}
+          onPointerUp={handleFloatingAttachPointerUp}
+          onPointerCancel={handleFloatingAttachPointerCancel}
+        >
+          {showImage && (
+            <>
+              <button
+                type="button"
+                className="ux_execute_floating_attach_button ux_execute_floating_attach_button_image"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={submitting}
+                aria-label="이미지 추가"
+                title="이미지 추가"
+              >
+                <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
+                  🖼️
+                </span>
+              </button>
+              <button
+                type="button"
+                className="ux_execute_floating_attach_button ux_execute_floating_attach_button_camera"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={submitting}
+                aria-label="카메라 촬영"
+                title="카메라 촬영"
+              >
+                <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
+                  📸
+                </span>
+              </button>
+            </>
+          )}
 
-        {showAudio && isRecordingSupported && (
-          <button
-            type="button"
-            className={`ux_execute_floating_attach_button ux_execute_floating_attach_button_audio${
-              isRecording ? " ux_execute_floating_attach_button_recording" : ""
-            }`}
-            onClick={() => {
-              if (isRecording) {
-                stopRecording();
-                return;
+          {showAudio && isRecordingSupported && (
+            <button
+              type="button"
+              className={`ux_execute_floating_attach_button ux_execute_floating_attach_button_audio${
+                isRecording ? " ux_execute_floating_attach_button_recording" : ""
+              }`}
+              onClick={() => {
+                if (isRecording) {
+                  stopRecording();
+                  return;
+                }
+                playAppSound("click");
+                startRecording();
+              }}
+              disabled={submitting}
+              aria-label={
+                isRecording ? `녹음 정지 (${formatTime(recordingTime)})` : "음성 녹음"
               }
-              playAppSound("click");
-              startRecording();
-            }}
-            disabled={submitting}
-            aria-label={
-              isRecording ? `녹음 정지 (${formatTime(recordingTime)})` : "음성 녹음"
-            }
-            title={isRecording ? `녹음 정지 (${formatTime(recordingTime)})` : "음성 녹음"}
-          >
-            <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
-              {isRecording ? "⏹️" : "🎙️"}
-            </span>
-          </button>
-        )}
-      </div>
+              title={isRecording ? `녹음 정지 (${formatTime(recordingTime)})` : "음성 녹음"}
+            >
+              <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
+                {isRecording ? "⏹️" : "🎙️"}
+              </span>
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className={`ux_execute_floating_attach_handle${
+            isFloatingAttachHidden ? " ux_execute_floating_attach_handle_visible" : ""
+          }`}
+          aria-label="첨부 버튼 열기"
+          title="첨부 버튼 열기"
+          aria-hidden={!isFloatingAttachHidden}
+          onClick={handleFloatingAttachHandleClick}
+          onPointerDown={(e) => handleFloatingAttachPointerDown(e, "handle")}
+          onPointerUp={handleFloatingAttachPointerUp}
+          onPointerCancel={handleFloatingAttachPointerCancel}
+        >
+          <span className="ux_execute_floating_attach_handle_icon" aria-hidden="true">
+            ‹
+          </span>
+        </button>
+      </>
     )}
     </>
   );
