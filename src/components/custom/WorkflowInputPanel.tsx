@@ -931,23 +931,27 @@ export default function WorkflowInputPanel({
           <>
             <button
               type="button"
-              className="ux_execute_floating_attach_button"
+              className="ux_execute_floating_attach_button ux_execute_floating_attach_button_image"
               onClick={() => imageInputRef.current?.click()}
               disabled={submitting}
               aria-label="이미지 추가"
               title="이미지 추가"
             >
-              <span aria-hidden="true">🖼️</span>
+              <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
+                🖼️
+              </span>
             </button>
             <button
               type="button"
-              className="ux_execute_floating_attach_button"
+              className="ux_execute_floating_attach_button ux_execute_floating_attach_button_camera"
               onClick={() => cameraInputRef.current?.click()}
               disabled={submitting}
               aria-label="카메라 촬영"
               title="카메라 촬영"
             >
-              <span aria-hidden="true">📸</span>
+              <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
+                📸
+              </span>
             </button>
           </>
         )}
@@ -955,10 +959,8 @@ export default function WorkflowInputPanel({
         {showAudio && isRecordingSupported && (
           <button
             type="button"
-            className={`ux_execute_floating_attach_button${
-              isRecording
-                ? " ux_execute_floating_attach_button_active ux_execute_floating_attach_button_recording"
-                : ""
+            className={`ux_execute_floating_attach_button ux_execute_floating_attach_button_audio${
+              isRecording ? " ux_execute_floating_attach_button_recording" : ""
             }`}
             onClick={() => {
               if (isRecording) {
@@ -972,7 +974,9 @@ export default function WorkflowInputPanel({
             aria-label={isRecording ? "녹음 정지" : "음성 녹음"}
             title={isRecording ? "녹음 정지" : "음성 녹음"}
           >
-            <span aria-hidden="true">{isRecording ? "⏹️" : "🎙️"}</span>
+            <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
+              {isRecording ? "⏹️" : "🎙️"}
+            </span>
           </button>
         )}
       </div>

@@ -2118,47 +2118,77 @@
   display: none;
 }
 
+@keyframes ux_recording_pulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 22px rgba(239, 68, 68, 0.22);
+  }
+
+  50% {
+    box-shadow: 0 8px 28px rgba(239, 68, 68, 0.42);
+  }
+}
+
 @media (max-width: 768px) {
   .ux_execute_floating_attach {
     position: fixed;
     right: 16px;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px));
     z-index: 50;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
 
   .ux_execute_floating_attach_button {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    min-height: 46px;
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
     padding: 0;
     margin: 0;
     border-radius: 999px;
-    border: 1px solid var(--ux-card-border-color, #e5e7eb);
+    border: 1px solid rgba(15, 23, 42, 0.12);
     background: #ffffff;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
     line-height: 1;
     cursor: pointer;
     font-family: inherit;
     transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .ux_execute_floating_attach_button:hover:not(:disabled) {
-    background: #f8fafc;
-    border-color: #d1d5db;
+  .ux_execute_floating_attach_button_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .ux_execute_floating_attach_button_image {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #047857;
+  }
+
+  .ux_execute_floating_attach_button_camera {
+    background: #fffbeb;
+    border-color: #fcd34d;
+    color: #b45309;
+  }
+
+  .ux_execute_floating_attach_button_audio {
+    background: #fff1f2;
+    border-color: #fb7185;
+    color: #be123c;
   }
 
   .ux_execute_floating_attach_button:focus-visible {
     outline: none;
-    border-color: #93b4e8;
-    box-shadow: 0 0 0 2px rgba(147, 180, 232, 0.35);
+    box-shadow: 0 0 0 2px rgba(147, 180, 232, 0.35), 0 8px 22px rgba(15, 23, 42, 0.18);
   }
 
   .ux_execute_floating_attach_button:disabled {
@@ -2167,12 +2197,18 @@
     box-shadow: none;
   }
 
-  .ux_execute_floating_attach_button_active,
   .ux_execute_floating_attach_button_recording {
-    background: #fef2f2;
-    border-color: #fca5a5;
-    color: #b91c1c;
-    box-shadow: 0 6px 18px rgba(185, 28, 28, 0.2);
+    background: #ffe4e6;
+    border-color: #f43f5e;
+    color: #be123c;
+    animation: ux_recording_pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ux_execute_floating_attach_button_recording {
+    animation: none;
+    box-shadow: 0 8px 28px rgba(239, 68, 68, 0.42);
   }
 }
 
