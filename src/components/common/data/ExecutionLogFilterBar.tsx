@@ -1,10 +1,11 @@
 // [ExecutionLogFilterBar.tsx]
 // 이 파일은 실행 로그 화면에서 사용되는 검색 및 다중 필터 UI 바 공통 컴포넌트입니다.
+// 검색 버튼과 초기화 액션 뱃지 기능이 탑재되어 있습니다.
 // 한국어 주석 표준을 준수합니다.
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { WorkflowTemplate } from "@/types/n8lient";
 import { WorkflowMultiSelectFilter, type WorkflowFilterOption } from "./WorkflowMultiSelectFilter";
 
@@ -58,6 +59,7 @@ export function ExecutionLogFilterBar({
   templates,
   onChange,
 }: ExecutionLogFilterBarProps) {
+  // 로컬 draft 필터 상태 관리
   const [searchQuery, setSearchQuery] = useState("");
   const [status, setStatus] = useState("");
   const [errorPhase, setErrorPhase] = useState("");
@@ -86,47 +88,31 @@ export function ExecutionLogFilterBar({
     return Array.from(uniqueMap.values()).sort((a, b) => a.label.localeCompare(b.label, "ko"));
   }, [templates]);
 
-  // 필터 변경 시 부모 컴포넌트에 알림
-  const triggerChange = (
-    q: string,
-    st: string,
-    ep: string,
-    es: string,
-    wk: string[]
-  ) => {
-    onChange(q, {
-      status: st,
-      errorPhase: ep,
-      errorSource: es,
-      workflowKeys: wk,
+  // 검색 조건 유효성 평가
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    status !== "" ||
+    errorPhase !== "" ||
+    errorSource !== "" ||
+    workflowKeys.length > 0;
+
+  // 검색 버튼 클릭 또는 엔터 키 입력 시 상위 컴포넌트로 전달 (지연 적용)
+  const handleSearch = () => {
+    onChange(searchQuery, {
+      status,
+      errorPhase,
+      errorSource,
+      workflowKeys,
     });
   };
 
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    triggerChange(val, status, errorPhase, errorSource, workflowKeys);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
   };
 
-  const handleStatusChange = (val: string) => {
-    setStatus(val);
-    triggerChange(searchQuery, val, errorPhase, errorSource, workflowKeys);
-  };
-
-  const handlePhaseChange = (val: string) => {
-    setErrorPhase(val);
-    triggerChange(searchQuery, status, val, errorSource, workflowKeys);
-  };
-
-  const handleSourceChange = (val: string) => {
-    setErrorSource(val);
-    triggerChange(searchQuery, status, errorPhase, val, workflowKeys);
-  };
-
-  const handleWorkflowKeysChange = (val: string[]) => {
-    setWorkflowKeys(val);
-    triggerChange(searchQuery, status, errorPhase, errorSource, val);
-  };
-
+  // 초기화 처리 (즉시 적용)
   const handleClear = () => {
     setSearchQuery("");
     setStatus("");
@@ -141,13 +127,6 @@ export function ExecutionLogFilterBar({
     });
   };
 
-  const hasActiveFilters =
-    searchQuery !== "" ||
-    status !== "" ||
-    errorPhase !== "" ||
-    errorSource !== "" ||
-    workflowKeys.length > 0;
-
   return (
     <div
       className="ux_info_box"
@@ -161,33 +140,34 @@ export function ExecutionLogFilterBar({
         flexWrap: "wrap",
       }}
     >
-      {/* 텍스트 검색창 */}
+      {/* 1. 텍스트 검색창 */}
       <div style={{ flex: 1, minWidth: "200px" }}>
         <input
           type="text"
           className="ux_input_compact"
           value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={searchPlaceholder}
         />
       </div>
 
-      {/* 워크플로우 다중 선택 필터 */}
+      {/* 2. 워크플로우 다중 선택 필터 */}
       <div style={{ minWidth: "180px" }}>
         <WorkflowMultiSelectFilter
           options={workflowOptions}
           selectedValues={workflowKeys}
-          onChange={handleWorkflowKeysChange}
+          onChange={setWorkflowKeys}
           placeholder="전체 워크플로우"
         />
       </div>
 
-      {/* 실행 상태 필터 */}
+      {/* 3. 실행 상태 필터 */}
       <div style={{ minWidth: "120px" }}>
         <select
           className="ux_select_compact"
           value={status}
-          onChange={(e) => handleStatusChange(e.target.value)}
+          onChange={(e) => setStatus(e.target.value)}
           style={{ cursor: "pointer" }}
         >
           <option value="">전체 (실행 상태)</option>
@@ -199,12 +179,12 @@ export function ExecutionLogFilterBar({
         </select>
       </div>
 
-      {/* 실패 단계 필터 */}
+      {/* 4. 실패 단계 필터 */}
       <div style={{ minWidth: "120px" }}>
         <select
           className="ux_select_compact"
           value={errorPhase}
-          onChange={(e) => handlePhaseChange(e.target.value)}
+          onChange={(e) => setErrorPhase(e.target.value)}
           style={{ cursor: "pointer" }}
         >
           <option value="">전체 (실패 단계)</option>
@@ -216,12 +196,12 @@ export function ExecutionLogFilterBar({
         </select>
       </div>
 
-      {/* 실패 위치 필터 */}
+      {/* 5. 실패 위치 필터 */}
       <div style={{ minWidth: "120px" }}>
         <select
           className="ux_select_compact"
           value={errorSource}
-          onChange={(e) => handleSourceChange(e.target.value)}
+          onChange={(e) => setErrorSource(e.target.value)}
           style={{ cursor: "pointer" }}
         >
           <option value="">전체 (실패 위치)</option>
@@ -233,23 +213,31 @@ export function ExecutionLogFilterBar({
         </select>
       </div>
 
-      {/* 초기화 버튼 */}
-      {hasActiveFilters && (
+      {/* 6. 검색 실행 버튼 */}
+      <div>
         <button
-          onClick={handleClear}
           type="button"
-          className="ux_button_compact ux_button_secondary"
+          onClick={handleSearch}
+          disabled={!hasActiveFilters}
+          className="ux_button_compact ux_button_primary"
           style={{
             height: "34px",
             fontSize: "12.5px",
-            fontWeight: 600,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
+            padding: "0 16px",
           }}
         >
-          🔄 초기화
+          검색
+        </button>
+      </div>
+
+      {/* 7. 초기화 액션 뱃지 */}
+      {hasActiveFilters && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="ux_reset_badge"
+        >
+          ↺ 초기화
         </button>
       )}
     </div>
