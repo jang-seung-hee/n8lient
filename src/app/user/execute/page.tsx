@@ -11,9 +11,7 @@ import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from 
 import { DEFAULT_RETENTION_POLICY } from "@/types/n8lient";
 import { siteConfig } from "@/config/siteConfig";
 import UserPersonalSettingsModal from "@/components/custom/UserPersonalSettingsModal";
-import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
 import WorkflowInputPanel from "@/components/custom/WorkflowInputPanel";
-import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 import { playAppSound, setAppSoundMuted } from "@/lib/appSound";
 import { useSearchParams, useRouter } from "next/navigation";
 import { validateExecution, resolveFileType } from "@/common/validation/validateExecution";
@@ -421,16 +419,10 @@ export default function UserExecute() {
               setError(null);
             }}
             onOpenSettings={handleOpenSettingsModal}
+            noticeText={currentAuto?.noticeText}
+            noticeUserId={user.uid}
+            noticeUpdatedAt={currentAuto?.updatedAt}
           />
-
-          {currentAuto?.noticeText?.trim() && (
-            <AutomationNoticeBox
-              noticeText={currentAuto.noticeText}
-              workflowKey={currentAuto.workflowKey}
-              userId={user.uid}
-              updatedAt={currentAuto.updatedAt}
-            />
-          )}
 
           <ExecutionTitleField
             title={title}

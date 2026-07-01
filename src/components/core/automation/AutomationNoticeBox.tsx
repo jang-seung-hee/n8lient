@@ -1,16 +1,17 @@
 "use client";
 
-// 사용자 실행 화면에서 회사 자동화 사용방법 안내(noticeText)을 표시하는 컴팩트 안내 박스입니다.
+// 사용자 실행 화면에서 회사 자동화 사용방법 안내(noticeText)을 표시하는 안내 컴포넌트입니다.
 
 import { useEffect, useState, useRef } from "react";
 import LinkifiedText from "@/components/core/LinkifiedText";
-
 
 interface AutomationNoticeBoxProps {
   noticeText: string;
   workflowKey: string;
   userId?: string;
   updatedAt?: string;
+  /** inline: 본문 박스 + 모달(관리 미리보기), icon: 도움말 버튼 + 모달(실행 화면) */
+  variant?: "inline" | "icon";
 }
 
 export default function AutomationNoticeBox({
@@ -18,6 +19,7 @@ export default function AutomationNoticeBox({
   workflowKey,
   userId,
   updatedAt,
+  variant = "inline",
 }: AutomationNoticeBoxProps) {
   const [showModal, setShowModal] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -26,14 +28,10 @@ export default function AutomationNoticeBox({
   const noticeVersion = updatedAt || "default";
   const noticeDismissKey = `n8lient.notice.dismissed.${userId || "anonymous"}.${workflowKey}.${noticeVersion}`;
 
-  // 동일한 워크플로우에 대해 사용자가 모달을 명시적으로 닫은 세션 내역을 추적하여
-  // 렌더링 등으로 인해 모달이 무한 반복해서 자동 열림을 방지하는 Ref
   const autoOpenedRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!trimmed || !workflowKey) return;
-
-    // 이미 이번 세션에서 자동 오픈되었거나 닫은 경우 스킵
+    if (variant !== "inline" || !trimmed || !workflowKey) return;
     if (autoOpenedRef.current[workflowKey]) return;
 
     const isDismissed = localStorage.getItem(noticeDismissKey) === "true";
@@ -41,9 +39,8 @@ export default function AutomationNoticeBox({
       setShowModal(true);
       autoOpenedRef.current[workflowKey] = true;
     }
-  }, [workflowKey, trimmed, noticeDismissKey]);
+  }, [workflowKey, trimmed, noticeDismissKey, variant]);
 
-  // localStorage 상태 동기화
   useEffect(() => {
     if (showModal) {
       const isDismissed = localStorage.getItem(noticeDismissKey) === "true";
@@ -62,43 +59,62 @@ export default function AutomationNoticeBox({
     setShowModal(false);
   };
 
-  const handleManualOpen = () => {
+  const handleOpenModal = () => {
     setShowModal(true);
   };
 
   return (
     <>
-      <div
-        className="ux_alert ux_alert_warning"
-        style={{
-          padding: "10px 12px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "12px",
-        }}
-      >
-        <span className="ux_card_title" style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}>
-          📢 사용방법 안내
-        </span>
-        <button
-          type="button"
-          onClick={handleManualOpen}
-          className="ux_button_compact ux_button_secondary"
+      {variant === "inline" ? (
+        <div
+          className="ux_alert ux_alert_warning"
           style={{
-            height: "28px",
-            padding: "0 10px",
-            borderRadius: "4px",
-            fontSize: "11px",
-            fontWeight: 600,
+            padding: "10px 12px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
           }}
         >
-          사용방법 안내 보기
+          <span
+            className="ux_card_title"
+            style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", margin: 0 }}
+          >
+            📢 사용방법 안내
+          </span>
+          <button
+            type="button"
+            onClick={handleOpenModal}
+            className="ux_button_compact ux_button_secondary"
+            style={{
+              height: "28px",
+              padding: "0 10px",
+              borderRadius: "4px",
+              fontSize: "11px",
+              fontWeight: 600,
+            }}
+          >
+            사용방법 안내 보기
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="ux_button ux_button_secondary ux_execute_help_button"
+          onClick={handleOpenModal}
+          aria-label="사용방법 안내"
+          title="사용방법 안내"
+        >
+          <span aria-hidden="true">?</span>
         </button>
-      </div>
+      )}
 
       {showModal && (
-        <div className="ux_modal_overlay" onClick={handleCloseModal} style={{ backdropFilter: "blur(4px)" }}>
+        <div
+          className="ux_modal_overlay ux_execute_help_modal"
+          onClick={handleCloseModal}
+          style={{ backdropFilter: "blur(4px)" }}
+        >
           <div
             className="ux_modal_panel"
             onClick={(e) => e.stopPropagation()}
@@ -150,7 +166,6 @@ export default function AutomationNoticeBox({
               }}
             >
               <LinkifiedText text={trimmed} />
-
             </div>
             <div
               style={{
@@ -161,7 +176,16 @@ export default function AutomationNoticeBox({
                 alignItems: "center",
               }}
             >
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", cursor: "pointer", color: "#4b5563" }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  color: "#4b5563",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={dontShowAgain}
@@ -185,4 +209,3 @@ export default function AutomationNoticeBox({
     </>
   );
 }
-

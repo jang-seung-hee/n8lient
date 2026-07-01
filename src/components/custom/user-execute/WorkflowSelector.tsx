@@ -5,6 +5,7 @@ import type { ClientAutomation, WorkflowTemplate, UserAutomationSettings } from 
 import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDisplayName";
 import { resolveUserSettingGuidanceStatus } from "@/features/user/execute/resolveUserSettingGuidanceStatus";
 import WorkflowConfigBadge from "@/components/custom/WorkflowConfigBadge";
+import AutomationNoticeBox from "@/components/core/automation/AutomationNoticeBox";
 
 interface WorkflowSelectorProps {
   selectedAutoId: string;
@@ -13,6 +14,9 @@ interface WorkflowSelectorProps {
   userSettings: UserAutomationSettings | null;
   onSelectChange: (autoId: string) => void;
   onOpenSettings: () => void;
+  noticeText?: string;
+  noticeUserId?: string;
+  noticeUpdatedAt?: string;
 }
 
 /**
@@ -26,9 +30,13 @@ export default function WorkflowSelector({
   userSettings,
   onSelectChange,
   onOpenSettings,
+  noticeText,
+  noticeUserId,
+  noticeUpdatedAt,
 }: WorkflowSelectorProps) {
   const currentAuto = automations.find((a) => a.automationId === selectedAutoId);
   const currentTemplate = currentAuto ? templates[currentAuto.workflowKey] : null;
+  const hasUsageGuide = Boolean(noticeText?.trim());
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -67,38 +75,53 @@ export default function WorkflowSelector({
             ))}
           </select>
         </div>
-        <button
-          type="button"
-          className="ux_button ux_button_secondary"
-          onClick={onOpenSettings}
-          disabled={!selectedAutoId}
-          style={{
-            flexShrink: 0,
-            height: "38px",
-            padding: "0 12px",
-            borderRadius: "6px",
-            backgroundColor: selectedAutoId ? "#ffffff" : "#f3f4f6",
-            color: selectedAutoId ? "#374151" : "#9ca3af",
-            cursor: selectedAutoId ? "pointer" : "not-allowed",
-            boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-            transition: "all 0.15s ease",
-          }}
-        >
-          🛠️ 내 설정
-          {(() => {
-            const status = resolveUserSettingGuidanceStatus(currentAuto, currentTemplate, userSettings);
-            if (status === "required_missing") {
-              return <span className="ux_settings_status_dot ux_settings_status_dot_required" title="개인 설정 필수 항목이 누락되었습니다." />;
-            }
-            if (status === "recommended_missing") {
-              return <span className="ux_settings_status_dot ux_settings_status_dot_recommended" title="개인 설정 권장 항목이 누락되었습니다." />;
-            }
-            if (status === "complete") {
-              return <span className="ux_settings_status_dot ux_settings_status_dot_success" title="모든 안내 대상 개인 설정이 완료되었습니다." />;
-            }
-            return null;
-          })()}
-        </button>
+        <div className="ux_execute_top_actions">
+          <button
+            type="button"
+            className="ux_button ux_button_secondary ux_execute_settings_button"
+            onClick={onOpenSettings}
+            disabled={!selectedAutoId}
+          >
+            🛠️ 내 설정
+            {(() => {
+              const status = resolveUserSettingGuidanceStatus(currentAuto, currentTemplate, userSettings);
+              if (status === "required_missing") {
+                return (
+                  <span
+                    className="ux_settings_status_dot ux_settings_status_dot_required"
+                    title="개인 설정 필수 항목이 누락되었습니다."
+                  />
+                );
+              }
+              if (status === "recommended_missing") {
+                return (
+                  <span
+                    className="ux_settings_status_dot ux_settings_status_dot_recommended"
+                    title="개인 설정 권장 항목이 누락되었습니다."
+                  />
+                );
+              }
+              if (status === "complete") {
+                return (
+                  <span
+                    className="ux_settings_status_dot ux_settings_status_dot_success"
+                    title="모든 안내 대상 개인 설정이 완료되었습니다."
+                  />
+                );
+              }
+              return null;
+            })()}
+          </button>
+          {hasUsageGuide && currentAuto && (
+            <AutomationNoticeBox
+              variant="icon"
+              noticeText={noticeText!}
+              workflowKey={currentAuto.workflowKey}
+              userId={noticeUserId}
+              updatedAt={noticeUpdatedAt ?? currentAuto.updatedAt}
+            />
+          )}
+        </div>
       </div>
       {currentAuto && (
         (() => {
