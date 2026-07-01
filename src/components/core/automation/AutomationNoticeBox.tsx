@@ -100,12 +100,14 @@ export default function AutomationNoticeBox({
       ) : (
         <button
           type="button"
-          className="ux_button ux_button_secondary ux_execute_help_button"
+          className="ux_execute_top_action ux_execute_top_action_help"
           onClick={handleOpenModal}
           aria-label="사용방법 안내"
           title="사용방법 안내"
         >
-          <span aria-hidden="true">?</span>
+          <span className="ux_execute_top_action_icon" aria-hidden="true">
+            📖
+          </span>
         </button>
       )}
 

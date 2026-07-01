@@ -52,37 +52,33 @@ export default function WorkflowSelector({
           />
         )}
       </div>
-      <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", minWidth: 0 }}>
-        <div style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
-          <select
-            className="ux_select"
-            value={selectedAutoId}
-            onChange={(e) => onSelectChange(e.target.value)}
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {automations.map((a) => (
-              <option key={a.automationId} value={a.automationId}>
-                {resolveWorkflowDisplayName({
-                  template: templates[a.workflowKey],
-                  automation: a,
-                  workflowKey: a.workflowKey,
-                })}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="ux_execute_top_control">
+        <select
+          className="ux_select ux_execute_top_select"
+          value={selectedAutoId}
+          onChange={(e) => onSelectChange(e.target.value)}
+        >
+          {automations.map((a) => (
+            <option key={a.automationId} value={a.automationId}>
+              {resolveWorkflowDisplayName({
+                template: templates[a.workflowKey],
+                automation: a,
+                workflowKey: a.workflowKey,
+              })}
+            </option>
+          ))}
+        </select>
         <div className="ux_execute_top_actions">
           <button
             type="button"
-            className="ux_button ux_button_secondary ux_execute_settings_button"
+            className="ux_execute_top_action ux_execute_top_action_settings"
             onClick={onOpenSettings}
             disabled={!selectedAutoId}
           >
-            🛠️ 내 설정
+            <span className="ux_execute_top_action_icon" aria-hidden="true">
+              🛠️
+            </span>
+            <span className="ux_execute_top_action_label">내 설정</span>
             {(() => {
               const status = resolveUserSettingGuidanceStatus(currentAuto, currentTemplate, userSettings);
               if (status === "required_missing") {
