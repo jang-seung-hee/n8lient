@@ -52,7 +52,9 @@ export default function WorkflowSelector({
           />
         )}
       </div>
-      <div className="ux_execute_top_control">
+      <div
+        className={`ux_execute_top_control${hasUsageGuide ? " ux_execute_top_control_with_help" : ""}`}
+      >
         <select
           className="ux_select ux_execute_top_select"
           value={selectedAutoId}
@@ -71,9 +73,11 @@ export default function WorkflowSelector({
         <div className="ux_execute_top_actions">
           <button
             type="button"
-            className="ux_execute_top_action ux_execute_top_action_settings"
+            className="ux_execute_top_action ux_execute_top_action_settings ux_execute_settings_button"
             onClick={onOpenSettings}
             disabled={!selectedAutoId}
+            aria-label="내 설정"
+            title="내 설정"
           >
             <span className="ux_execute_top_action_icon" aria-hidden="true">
               🛠️
@@ -84,7 +88,7 @@ export default function WorkflowSelector({
               if (status === "required_missing") {
                 return (
                   <span
-                    className="ux_settings_status_dot ux_settings_status_dot_required"
+                    className="ux_settings_status_dot ux_settings_status_dot_required ux_execute_setting_dot"
                     title="개인 설정 필수 항목이 누락되었습니다."
                   />
                 );
@@ -92,7 +96,7 @@ export default function WorkflowSelector({
               if (status === "recommended_missing") {
                 return (
                   <span
-                    className="ux_settings_status_dot ux_settings_status_dot_recommended"
+                    className="ux_settings_status_dot ux_settings_status_dot_recommended ux_execute_setting_dot"
                     title="개인 설정 권장 항목이 누락되었습니다."
                   />
                 );
@@ -100,7 +104,7 @@ export default function WorkflowSelector({
               if (status === "complete") {
                 return (
                   <span
-                    className="ux_settings_status_dot ux_settings_status_dot_success"
+                    className="ux_settings_status_dot ux_settings_status_dot_success ux_execute_setting_dot"
                     title="모든 안내 대상 개인 설정이 완료되었습니다."
                   />
                 );

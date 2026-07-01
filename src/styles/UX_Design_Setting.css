@@ -2211,6 +2211,63 @@
   white-space: nowrap;
 }
 
+@media (max-width: 768px) {
+  .ux_execute_top_control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .ux_execute_top_control_with_help {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+  }
+
+  .ux_execute_top_actions {
+    display: contents;
+  }
+
+  .ux_execute_top_select {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ux_execute_settings_button,
+  .ux_execute_help_button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .ux_execute_settings_button {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+  }
+
+  .ux_execute_top_control_with_help .ux_execute_help_button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .ux_execute_top_action_label {
+    display: none;
+  }
+
+  .ux_execute_settings_button .ux_execute_setting_dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    margin-left: 0;
+  }
+}
+
 /* ============================================================
    중앙 토글 스위치 스타일 (접근성 지원 및 커스텀 스위치)
    ============================================================ */
