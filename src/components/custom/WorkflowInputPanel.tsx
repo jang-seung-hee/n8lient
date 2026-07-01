@@ -573,22 +573,9 @@ export default function WorkflowInputPanel({
           onDrop={handleDrop}
           onPaste={handlePaste}
         >
-          <div className="ux_attachment_section_header">
+          <div className="ux_attachment_top_row">
             <span className="ux_attachment_section_label">첨부 자료</span>
-            {showImage && (
-              <span className="ux_attachment_section_hint ux_attachment_section_hint_pc">
-                PC: 이미지를 여기에 끌어다 놓거나 붙여넣을 수 있습니다.
-              </span>
-            )}
-          </div>
-
-          {swapNotice && (
-            <p className="ux_attachment_swap_notice" role="status">
-              ℹ️ {swapNotice}
-            </p>
-          )}
-
-          <div className="ux_attachment_actions">
+            <div className="ux_attachment_actions">
             {showImage && (
               <>
                 <button
@@ -598,16 +585,18 @@ export default function WorkflowInputPanel({
                   disabled={submitting}
                 >
                   <span className="ux_attach_action_icon">🖼️</span>
-                  <span className="ux_attach_action_label">이미지 추가</span>
+                  <span className="ux_attach_action_label ux_attach_action_label_long">이미지 추가</span>
+                  <span className="ux_attach_action_label ux_attach_action_label_short">이미지</span>
                 </button>
                 <button
                   type="button"
-                  className="ux_attach_action_card ux_attach_action_card_secondary"
+                  className="ux_attach_action_card ux_attach_action_card_secondary ux_attach_action_camera"
                   onClick={() => cameraInputRef.current?.click()}
                   disabled={submitting}
                 >
                   <span className="ux_attach_action_icon">📸</span>
-                  <span className="ux_attach_action_label">카메라 촬영</span>
+                  <span className="ux_attach_action_label ux_attach_action_label_long">카메라 촬영</span>
+                  <span className="ux_attach_action_label ux_attach_action_label_short">카메라</span>
                 </button>
                 <input
                   type="file"
@@ -642,10 +631,11 @@ export default function WorkflowInputPanel({
                     disabled={submitting}
                   >
                     <span className="ux_attach_action_icon">🎙️</span>
-                    <span className="ux_attach_action_label">음성 녹음</span>
+                    <span className="ux_attach_action_label ux_attach_action_label_long">음성 녹음</span>
+                    <span className="ux_attach_action_label ux_attach_action_label_short">녹음</span>
                   </button>
                 ) : (
-                  <div className="ux_audio_recording_controls">
+                  <div className="ux_audio_recording_controls ux_audio_recording_controls_full">
                     {!isPaused ? (
                       <button
                         type="button"
@@ -671,7 +661,8 @@ export default function WorkflowInputPanel({
             {showFile && (
               <label className="ux_attach_action_card ux_attach_action_card_file">
                 <span className="ux_attach_action_icon">📎</span>
-                <span className="ux_attach_action_label">일반 파일 선택</span>
+                <span className="ux_attach_action_label ux_attach_action_label_long">일반 파일 선택</span>
+                <span className="ux_attach_action_label ux_attach_action_label_short">파일</span>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -688,7 +679,20 @@ export default function WorkflowInputPanel({
                 />
               </label>
             )}
+            </div>
           </div>
+
+          {showImage && (
+            <span className="ux_attachment_section_hint ux_attachment_section_hint_pc">
+              PC: 이미지를 여기에 끌어다 놓거나 붙여넣을 수 있습니다.
+            </span>
+          )}
+
+          {swapNotice && (
+            <p className="ux_attachment_swap_notice" role="status">
+              ℹ️ {swapNotice}
+            </p>
+          )}
 
           {isRecording && (
             <p className={`ux_recording_status${isPaused ? " ux_recording_status_paused" : ""}`}>

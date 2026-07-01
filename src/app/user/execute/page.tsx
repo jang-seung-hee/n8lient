@@ -375,7 +375,7 @@ export default function UserExecute() {
 
   return (
     <div style={{ boxSizing: "border-box", minWidth: 0 }}>
-      <h2 className="ux_section_title" style={{ marginBottom: "16px" }}>
+      <h2 className="ux_section_title ux_execute_section_title" style={{ marginBottom: "16px" }}>
         🚀 N8N 워크플로우 실행 요청
       </h2>
 

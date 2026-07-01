@@ -114,44 +114,43 @@ export default function WorkflowSelector({
           }
           const resolvedAccessMode = rawAccessMode === "company" ? "company" : "private";
 
-          let accessModeBadgeText = "";
+          let accessSummaryText = "";
           let badgeBgColor = "";
           let badgeTextColor = "";
+          const accessSummaryTitle =
+            "DB 결과 공개 범위입니다. 이메일·캘린더·Google Drive는 공개 전환 대상이 아닙니다.";
 
           if (level === "notify_only") {
-            accessModeBadgeText = "DB 결과: 저장 안 함";
+            accessSummaryText = "DB 결과 : 저장 안 함 (DB에 보관하지 않습니다)";
             badgeBgColor = "#f3f4f6";
             badgeTextColor = "#4b5563";
           } else if (resolvedAccessMode === "company") {
-            accessModeBadgeText = "DB 결과: 회사 공개";
+            accessSummaryText = "DB 결과 : 회사 공개 (소속 직원이 볼 수 있습니다)";
             badgeBgColor = "#d1fae5";
             badgeTextColor = "#065f46";
           } else {
-            accessModeBadgeText = "DB 결과: 개인 보관";
+            accessSummaryText = "DB 결과 : 개인 보관 (다른 사람은 볼 수 없습니다)";
             badgeBgColor = "#eff6ff";
             badgeTextColor = "#1d4ed8";
           }
 
           return (
-            <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    padding: "2px 8px",
-                    borderRadius: "4px",
-                    fontWeight: 600,
-                    backgroundColor: badgeBgColor,
-                    color: badgeTextColor,
-                  }}
-                >
-                  🔒 {accessModeBadgeText}
-                </span>
-              </div>
-              <p className="ux_caption" style={{ margin: 0, fontSize: "11px", color: "#6b7280", lineHeight: 1.3 }}>
-                💡 DB 결과 공개 범위입니다. 이메일·캘린더·Google Drive는 공개 전환 대상이 아닙니다.
-              </p>
-            </div>
+            <p
+              className="ux_execute_db_access_summary"
+              title={accessSummaryTitle}
+              style={{
+                margin: "6px 0 0",
+                fontSize: "11px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                fontWeight: 600,
+                backgroundColor: badgeBgColor,
+                color: badgeTextColor,
+                lineHeight: 1.35,
+              }}
+            >
+              🔒 {accessSummaryText}
+            </p>
           );
         })()
       )}

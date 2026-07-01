@@ -1843,6 +1843,37 @@
   text-align: center;
 }
 
+.ux_attach_action_label_short {
+  display: none;
+}
+
+.ux_attachment_top_row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ux_execute_title_row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ux_execute_title_label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.ux_execute_title_input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ux_audio_recording_controls_full {
+  width: 100%;
+}
+
 .ux_attachment_unsupported {
   font-size: 12px;
   color: #ef4444;
@@ -1989,6 +2020,96 @@
   .ux_attach_action_label {
     text-align: left;
     font-size: 14px;
+  }
+}
+
+/* 실행 화면 모바일 압축 (≤768px) */
+@media (max-width: 768px) {
+  .ux_execute_section_title {
+    display: none;
+  }
+
+  .ux_execute_title_row {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ux_execute_title_label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .ux_execute_title_input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ux_execute_composer {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .ux_execute_textarea {
+    min-height: 64px;
+  }
+
+  .ux_attachment_section {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .ux_attachment_top_row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ux_attachment_section_label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  .ux_attachment_actions {
+    flex: 1 1 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .ux_attach_action_card {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 44px;
+    padding: 6px 10px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .ux_attach_action_icon {
+    font-size: 16px;
+  }
+
+  .ux_attach_action_label_long {
+    display: none;
+  }
+
+  .ux_attach_action_label_short {
+    display: inline;
+    font-size: 10px;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .ux_audio_recording_controls_full {
+    flex-basis: 100%;
+    width: 100%;
   }
 }
 
@@ -2639,4 +2760,4 @@
 }
 
 
-
+
