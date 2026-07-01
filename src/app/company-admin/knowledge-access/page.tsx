@@ -230,7 +230,7 @@ export default function KnowledgeAccessPage() {
               {truncateText(displayTitle, 25)}
             </a>
           ) : (
-            <span style={{ color: "#6b7280", fontStyle: "italic" }} title={displayTitle}>
+            <span style={{ color: "#6b7280" }} title={displayTitle}>
               🔒 {truncateText(displayTitle, 25)}
             </span>
           );
@@ -243,10 +243,11 @@ export default function KnowledgeAccessPage() {
         meta: { headerAlign: "center", cellAlign: "left" },
         cell: ({ row }) => {
           const item = row.original;
+          const fullLabel = `${item.ownerName} / ${item.ownerEmail}`;
           return (
-            <>
-              {item.ownerName} <span style={{ fontSize: "11px", color: "#9ca3af" }}>({item.ownerEmail})</span>
-            </>
+            <span className="ux_table_text_ellipsis" title={fullLabel}>
+              {truncateText(fullLabel, 15)}
+            </span>
           );
         },
       },
