@@ -2130,23 +2130,6 @@
   }
 }
 
-@keyframes ux_floating_attach_pop {
-  0% {
-    transform: translateX(0) scale(0.96);
-    opacity: 0.88;
-  }
-
-  70% {
-    transform: translateX(0) scale(1.02);
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateX(0) scale(1);
-    opacity: 1;
-  }
-}
-
 @media (max-width: 768px) {
   .ux_execute_floating_attach {
     position: fixed;
@@ -2156,8 +2139,8 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    transition: transform 220ms ease-out, opacity 160ms ease-out;
-    will-change: transform, opacity;
+    transition: transform 320ms ease-out;
+    will-change: transform;
     touch-action: pan-y;
   }
 
@@ -2175,23 +2158,16 @@
   }
 
   .ux_execute_floating_attach_intro_pending {
-    transform: translateX(88px);
-    opacity: 0;
+    transform: translateX(calc(100% + 24px));
     pointer-events: none;
   }
 
   .ux_execute_floating_attach_intro_ready {
     transform: translateX(0);
-    opacity: 1;
-  }
-
-  .ux_execute_floating_attach_pop {
-    animation: ux_floating_attach_pop 240ms ease-out;
   }
 
   .ux_execute_floating_attach_hidden {
     transform: translateX(calc(100% + 24px));
-    opacity: 0;
     pointer-events: none;
   }
 
@@ -2304,10 +2280,6 @@
 @media (prefers-reduced-motion: reduce) {
   .ux_execute_floating_attach {
     transition: none;
-  }
-
-  .ux_execute_floating_attach_pop {
-    animation: none;
   }
 
   .ux_execute_floating_attach_button_recording {

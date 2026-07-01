@@ -105,7 +105,6 @@ export default function WorkflowInputPanel({
   const [isUploadGuideExpanded, setIsUploadGuideExpanded] = useState(false);
   const [isFloatingAttachHidden, setIsFloatingAttachHidden] = useState(false);
   const [isFloatingAttachIntroReady, setIsFloatingAttachIntroReady] = useState(false);
-  const [isFloatingAttachPopActive, setIsFloatingAttachPopActive] = useState(false);
 
   const floatingAttachDragRef = useRef<{
     startX: number;
@@ -228,25 +227,17 @@ export default function WorkflowInputPanel({
   useEffect(() => {
     if (!showAttachmentSection || (!showImage && !showAudio)) {
       setIsFloatingAttachIntroReady(false);
-      setIsFloatingAttachPopActive(false);
       return;
     }
 
     setIsFloatingAttachIntroReady(false);
-    setIsFloatingAttachPopActive(false);
 
     const introTimer = window.setTimeout(() => {
       setIsFloatingAttachIntroReady(true);
-      setIsFloatingAttachPopActive(true);
     }, 2000);
-
-    const popTimer = window.setTimeout(() => {
-      setIsFloatingAttachPopActive(false);
-    }, 2280);
 
     return () => {
       window.clearTimeout(introTimer);
-      window.clearTimeout(popTimer);
     };
   }, [showAttachmentSection, showImage, showAudio]);
 
@@ -641,10 +632,7 @@ export default function WorkflowInputPanel({
       : isFloatingAttachIntroReady
         ? "ux_execute_floating_attach_intro_ready"
         : "ux_execute_floating_attach_intro_pending",
-    isFloatingAttachPopActive ? "ux_execute_floating_attach_pop" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  ].join(" ");
 
   const isFloatingAttachVisible =
     !isFloatingAttachHidden && isFloatingAttachIntroReady;
