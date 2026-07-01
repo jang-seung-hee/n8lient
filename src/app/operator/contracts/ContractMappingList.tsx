@@ -1,11 +1,15 @@
 // 이 파일은 고객사별 N8N 워크플로우 매핑 목록을 표 형식으로 보여주는 컴포넌트입니다.
 // 기존 계약 토글 등의 제어 액션을 배제하고 오직 조회 및 상세 선택, 신규 매핑 등록 트리거만 처리합니다.
+// N8lientDataGrid 표준 v1을 적용했습니다.
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import type { ClientContract, ClientDoc, WorkflowTemplate } from "@/types/n8lient";
 import { ListSearchFilterBar, type FilterField } from "@/components/core/ListSearchFilterBar";
+import { N8lientDataGrid } from "@/components/common/data/N8lientDataGrid";
+import { N8lientStatusBadge } from "@/components/common/data/N8lientStatusBadge";
+import type { ColumnDef } from "@tanstack/react-table";
 
 interface ContractMappingListProps {
   contracts: ClientContract[];
@@ -35,6 +39,21 @@ const mappingFilterFields: FilterField[] = [
     ],
   },
 ];
+
+// YY.MM.DD HH:mm 날짜 포맷팅 헬퍼
+function formatCompactDateTime(dateVal: any): string {
+  if (!dateVal) return "없음";
+  const date = new Date(dateVal);
+  if (isNaN(date.getTime())) return "없음";
+
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+
+  return `${yy}.${mm}.${dd} ${hh}:${min}`;
+}
 
 export function ContractMappingList({
   contracts,
@@ -104,6 +123,138 @@ export function ContractMappingList({
     setFilteredContracts(filtered);
   };
 
+  // N8lientDataGrid 컬럼 정의
+  const columns = React.useMemo<ColumnDef<ClientContract, any>[]>(() => [
+    {
+      accessorKey: "clientId",
+      header: "고객사명 (ID)",
+      size: 240,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "left",
+      },
+      cell: ({ row }) => {
+        const clientId = row.original.clientId || "";
+        const clientName = getClientName(clientId);
+        const displayName = clientName.length > 25 ? `${clientName.slice(0, 25)}...` : clientName;
+        return (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="ux_table_text_ellipsis" title={clientName} style={{ fontWeight: 600, color: "#111111" }}>
+              {displayName}
+            </div>
+            <div className="ux_table_text_ellipsis" title={clientId} style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 400, marginTop: "2px", fontFamily: "monospace" }}>
+              {clientId}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "workflowKey",
+      header: "N8N 워크플로우명 (Key)",
+      size: 260,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "left",
+      },
+      cell: ({ row }) => {
+        const key = row.original.workflowKey || "";
+        const workflowName = getWorkflowName(key);
+        const displayWorkflowName = workflowName.length > 25 ? `${workflowName.slice(0, 25)}...` : workflowName;
+        return (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="ux_table_text_ellipsis" title={workflowName} style={{ fontWeight: 600, color: "#374151" }}>
+              {displayWorkflowName}
+            </div>
+            <div className="ux_table_text_ellipsis" title={key} style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 400, marginTop: "2px", fontFamily: "monospace" }}>
+              {key}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "enabled",
+      header: "활성 여부",
+      size: 110,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        const isEnabled = row.original.enabled;
+        return (
+          <N8lientStatusBadge type={isEnabled ? "success" : "default"}>
+            {isEnabled ? "활성" : "비활성"}
+          </N8lientStatusBadge>
+        );
+      },
+    },
+    {
+      accessorKey: "contractStatus",
+      header: "계약 상태",
+      size: 120,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        const status = row.original.contractStatus;
+        let badgeType: "success" | "pending" | "error" | "default" = "default";
+        let statusLabel = "종료(ended)";
+
+        if (status === "active") {
+          badgeType = "success";
+          statusLabel = "유효(active)";
+        } else if (status === "paused") {
+          badgeType = "pending";
+          statusLabel = "일시정지(paused)";
+        } else if (status === "ended") {
+          badgeType = "error";
+          statusLabel = "종료(ended)";
+        }
+
+        return (
+          <N8lientStatusBadge type={badgeType}>
+            {statusLabel}
+          </N8lientStatusBadge>
+        );
+      },
+    },
+    {
+      accessorKey: "startedAt",
+      header: "시작일",
+      size: 140,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: ({ row }) => {
+        return (
+          <span style={{ fontSize: "12px", color: "#6b7280" }}>
+            {formatCompactDateTime(row.original.startedAt)}
+          </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "상세",
+      size: 100,
+      meta: {
+        headerAlign: "center",
+        cellAlign: "center",
+      },
+      cell: () => {
+        return (
+          <span style={{ color: "#2563eb", fontWeight: 600 }}>
+            보기 ➡️
+          </span>
+        );
+      },
+    },
+  ], [clients, templates]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 타이틀 및 매핑 등록 버튼 */}
@@ -152,92 +303,17 @@ export function ContractMappingList({
           overflow: "hidden",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>고객사명 (ID)</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>N8N 워크플로우명 (Key)</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151", textAlign: "center" }}>활성 여부</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151", textAlign: "center" }}>계약 상태</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151" }}>시작일</th>
-              <th style={{ padding: "12px 16px", fontWeight: 600, color: "#374151", textAlign: "right" }}>상세</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && contracts.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "#6b7280" }}>
-                  불러오는 중...
-                </td>
-              </tr>
-            ) : filteredContracts.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "#6b7280" }}>
-                  {contracts.length === 0 ? "배정된 워크플로우 매핑 정보가 없습니다. 우측 상단 버튼을 통해 새로운 매핑을 추가해 주십시오." : "검색 결과가 없습니다."}
-                </td>
-              </tr>
-            ) : (
-              filteredContracts.map((contract) => (
-                <tr
-                  key={contract.contractId}
-                  onClick={() => onSelect(contract)}
-                  style={{
-                    borderBottom: "1px solid #f3f4f6",
-                    cursor: "pointer",
-                    transition: "background-color 0.1s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                >
-                  <td style={{ padding: "14px 16px", fontWeight: 600, color: "#111111" }}>
-                    <div>{getClientName(contract.clientId)}</div>
-                    <div style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 400, marginTop: "2px", fontFamily: "monospace" }}>
-                      {contract.clientId}
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 16px", color: "#374151" }}>
-                    <div style={{ fontWeight: 600 }}>{getWorkflowName(contract.workflowKey)}</div>
-                    <div style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 400, marginTop: "2px", fontFamily: "monospace" }}>
-                      {contract.workflowKey}
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 16px", textAlign: "center" }}>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        backgroundColor: contract.enabled ? "#d1fae5" : "#fee2e2",
-                        color: contract.enabled ? "#065f46" : "#991b1b",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      {contract.enabled ? "활성" : "비활성"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "14px 16px", textAlign: "center" }}>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: contract.contractStatus === "active" ? "#047857" : contract.contractStatus === "paused" ? "#d97706" : "#b91c1c",
-                      }}
-                    >
-                      {contract.contractStatus === "active" ? "유효(active)" : contract.contractStatus === "paused" ? "일시정지(paused)" : "종료(ended)"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "14px 16px", color: "#6b7280", fontSize: "12px" }}>
-                    {contract.startedAt ? new Date(contract.startedAt).toLocaleDateString() : "없음"}
-                  </td>
-                  <td style={{ padding: "14px 16px", textAlign: "right", color: "#2563eb", fontWeight: 600 }}>
-                    보기 ➡️
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <N8lientDataGrid
+          data={filteredContracts}
+          columns={columns}
+          getRowId={(row) => row.contractId}
+          loading={loading}
+          emptyTitle="배정된 워크플로우 매핑 정보가 없습니다."
+          emptyDescription="우측 상단 버튼을 통해 새로운 매핑을 추가해 주십시오."
+          onRowClick={onSelect}
+        />
       </div>
     </div>
   );
 }
+
