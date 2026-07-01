@@ -552,7 +552,10 @@ export default function WorkflowInputPanel({
 
   if (acceptedInputTypes.length === 0) return null;
 
+  const showFloatingAttach = showAttachmentSection && (showImage || showAudio);
+
   return (
+    <>
     <div className="ux_execute_composer">
       {showText && (
         <textarea
@@ -921,5 +924,59 @@ export default function WorkflowInputPanel({
         </div>
       )}
     </div>
+
+    {showFloatingAttach && (
+      <div className="ux_execute_floating_attach" aria-label="빠른 첨부">
+        {showImage && (
+          <>
+            <button
+              type="button"
+              className="ux_execute_floating_attach_button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={submitting}
+              aria-label="이미지 추가"
+              title="이미지 추가"
+            >
+              <span aria-hidden="true">🖼️</span>
+            </button>
+            <button
+              type="button"
+              className="ux_execute_floating_attach_button"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={submitting}
+              aria-label="카메라 촬영"
+              title="카메라 촬영"
+            >
+              <span aria-hidden="true">📸</span>
+            </button>
+          </>
+        )}
+
+        {showAudio && isRecordingSupported && (
+          <button
+            type="button"
+            className={`ux_execute_floating_attach_button${
+              isRecording
+                ? " ux_execute_floating_attach_button_active ux_execute_floating_attach_button_recording"
+                : ""
+            }`}
+            onClick={() => {
+              if (isRecording) {
+                stopRecording();
+                return;
+              }
+              playAppSound("click");
+              startRecording();
+            }}
+            disabled={submitting}
+            aria-label={isRecording ? "녹음 정지" : "음성 녹음"}
+            title={isRecording ? "녹음 정지" : "음성 녹음"}
+          >
+            <span aria-hidden="true">{isRecording ? "⏹️" : "🎙️"}</span>
+          </button>
+        )}
+      </div>
+    )}
+    </>
   );
 }
