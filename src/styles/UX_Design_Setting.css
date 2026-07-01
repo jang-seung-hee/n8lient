@@ -2234,4 +2234,101 @@
   }
 }
 
+/* ============================================================
+   워크플로우 다중 선택 필터 (WorkflowMultiSelectFilter) 스타일
+   ============================================================ */
+.ux_dropdown_container {
+  position: relative;
+  display: inline-block;
+  min-width: 180px;
+}
+
+.ux_dropdown_button {
+  width: 100%;
+  height: var(--ux-input-height-compact);
+  padding: 0 var(--ux-input-padding-x);
+  font-size: var(--ux-input-font-size);
+  border: var(--ux-input-border);
+  border-radius: var(--ux-input-radius);
+  background: var(--ux-input-bg);
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.ux_dropdown_button:focus {
+  outline: none;
+  border-color: var(--ux-input-focus-border-color);
+}
+
+.ux_dropdown_menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 280px;
+  max-width: 360px;
+  max-height: 285px;
+  overflow-y: auto;
+  margin-top: 4px;
+  background: var(--ux-card-bg);
+  border: var(--ux-card-border);
+  border-radius: var(--ux-card-radius);
+  box-shadow: var(--ux-card-shadow-soft);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ux_dropdown_item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: var(--ux-font-size-body);
+  color: var(--ux-text-color-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ux_dropdown_item:hover {
+  background: #f3f4f6;
+  color: var(--ux-text-color-primary);
+}
+
+.ux_dropdown_item_checkbox {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ux-button-primary-bg);
+}
+
+.ux_dropdown_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px 8px 8px;
+  border-bottom: 1px solid var(--ux-card-border-color);
+  margin-bottom: 6px;
+}
+
+.ux_dropdown_clear_btn {
+  background: none;
+  border: none;
+  color: var(--ux-text-color-muted);
+  font-size: var(--ux-font-size-caption);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.ux_dropdown_clear_btn:hover {
+  color: var(--ux-text-color-primary);
+}
+
 

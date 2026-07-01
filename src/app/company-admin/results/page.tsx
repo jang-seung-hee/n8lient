@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { useAuthUser } from "@/features/auth/useAuthUser";
-import { ExecutionLogSearchBar } from "@/components/results/ExecutionLogSearchBar";
+import { ExecutionLogFilterBar, type ExecutionLogFilters } from "@/components/common/data/ExecutionLogFilterBar";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { useSubmissionActorDisplaySource } from "@/features/submission/useSubmissionActorDisplaySource";
 import { useSubmissionActorLabelMap } from "@/features/submission/useSubmissionActorLabelMap";
@@ -32,7 +32,12 @@ export default function AdminResults() {
 
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<ExecutionLogFilters>({
+    status: "",
+    errorPhase: "",
+    errorSource: "",
+    workflowKeys: [],
+  });
 
   // 상세 모달 상태
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
@@ -102,7 +107,7 @@ export default function AdminResults() {
     fetchTemplates();
   }, [userDoc?.clientId]);
 
-  const handleFilterChange = (query: string, filterValues: Record<string, string>) => {
+  const handleFilterChange = (query: string, filterValues: ExecutionLogFilters) => {
     setSearchQuery(query);
     setFilters(filterValues);
   };
@@ -122,9 +127,10 @@ export default function AdminResults() {
   const filteredList = useMemo(() => {
     return filterSubmissions(submissions, {
       searchQuery,
-      status: filters.status as SubmissionStatus | "all",
-      errorPhase: filters.errorPhase as any,
-      errorSource: filters.errorSource as any,
+      status: (filters.status || "all") as SubmissionStatus | "all",
+      errorPhase: (filters.errorPhase || "all") as any,
+      errorSource: (filters.errorSource || "all") as any,
+      workflowKeys: filters.workflowKeys,
     });
   }, [submissions, searchQuery, filters]);
 
@@ -142,7 +148,8 @@ export default function AdminResults() {
       </div>
 
       {/* 검색 및 필터 UI */}
-      <ExecutionLogSearchBar
+      <ExecutionLogFilterBar
+        templates={templates}
         onChange={handleFilterChange}
       />
 

@@ -19,6 +19,7 @@ export interface SubmissionListFilters {
   httpStatus?: string;
   gatewayTraceId?: string;
   n8nWebhookPath?: string;
+  workflowKeys?: string[];
 }
 
 /**
@@ -29,6 +30,13 @@ export function filterSubmissions(list: Submission[], filters: SubmissionListFil
     // 1. 상태 필터
     if (filters.status && filters.status !== "all" && sub.status !== filters.status) {
       return false;
+    }
+
+    // 1.5 워크플로우 다중 선택 필터 (OR 조건)
+    if (filters.workflowKeys && filters.workflowKeys.length > 0) {
+      if (!filters.workflowKeys.includes(sub.workflowKey)) {
+        return false;
+      }
     }
 
     // 2. 검색어 필터 (ID, Key, 실행명, 에러코드 등)
