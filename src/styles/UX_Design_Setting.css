@@ -2172,4 +2172,66 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ============================================================
+   모바일 반응형 보강 (Phase 3.7 QA 대응)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 필터바 정렬 최적화 (2열 또는 1열 스택) */
+  .ux_filter_bar {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  
+  .ux_filter_bar > div {
+    flex: 1 1 100% !important; /* 모바일에서 1열 전체 점유 */
+  }
+
+  /* 결과 카드 메타 정보 줄바꿈 처리 */
+  .ux_result_card_meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .ux_result_card_meta > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 모바일에서 뷰어 메타 카드 및 액션 버튼 겹침 방지 */
+  .ux_viewer_header > div {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .ux_viewer_header > div > div {
+    width: 100%;
+  }
+
+  .ux_viewer_meta {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+
+  .ux_viewer_meta > div {
+    word-break: break-all;
+  }
+
+  /* 모바일 테이블 가로 스크롤 시 찌그러짐 방지 */
+  .ux_table th, .ux_table td {
+    padding: 8px 10px;
+  }
+
+  /* 모바일 데이터그리드 하단 페이지네이션 감싸기 */
+  .ux_pagination {
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+}
+
 
