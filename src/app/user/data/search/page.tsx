@@ -16,6 +16,8 @@ import { resolveWorkflowDisplayName } from "@/common/workflow/resolveWorkflowDis
 import type { ClientAutomation, WorkflowTemplate, Submission } from "@/types/n8lient";
 import { ExecutionResultDetailModal } from "@/components/results/ExecutionResultDetailModal";
 import { playAppSound } from "@/lib/appSound";
+import { N8lientResultList } from "@/components/common/data/N8lientResultList";
+import { N8lientResultCard } from "@/components/common/data/N8lientResultCard";
 
 import { useRouter } from "next/navigation";
 
@@ -208,6 +210,73 @@ export default function IntegratedSearchPage() {
     e.stopPropagation(); // 카드 클릭 모달 팝업 방지
     setQuery(tag);
     handleSearch(undefined, tag);
+  };
+
+  // 개별 카드 공통 렌더링 함수
+  const renderCard = (result: any) => {
+    const workflowDisplayName = result.workflowName || result.workflowKey;
+    const isCompany = result.accessMode === "company";
+    const durationText = getDurationText(result.createdAt, result.completedAt);
+
+    return (
+      <N8lientResultCard
+        key={result.submissionId}
+        onClick={() => !loadingDetail && handleCardClick(result.submissionId)}
+        badges={
+          <>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                backgroundColor: "#f3f4f6",
+                color: "#4b5563",
+                padding: "2px 6px",
+                borderRadius: "4px",
+              }}
+            >
+              📂 {workflowDisplayName}
+            </span>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                backgroundColor: isCompany ? "#d1fae5" : "#eff6ff",
+                color: isCompany ? "#065f46" : "#1d4ed8",
+                padding: "2px 6px",
+                borderRadius: "4px",
+              }}
+            >
+              {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
+            </span>
+          </>
+        }
+        title={<HighlightText text={result.title} search={query} />}
+        description={
+          result.summary && (
+            <HighlightText text={result.summary} search={query} />
+          )
+        }
+        tags={result.keywords || []}
+        onTagClick={handleTagClick}
+        meta={
+          <>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <span>
+                👤 {result.ownerName || result.ownerEmail || "알 수 없는 사용자"}
+              </span>
+              {durationText && (
+                <span style={{ color: "#4b5563", fontWeight: 500 }}>
+                  {durationText}
+                </span>
+              )}
+            </div>
+            <span>
+              ⏱️ {formatDisplayDate(result.createdAt)}
+            </span>
+          </>
+        }
+      />
+    );
   };
 
   if (loading) {
@@ -411,242 +480,71 @@ export default function IntegratedSearchPage() {
         </div>
       )}
 
-      {/* 로딩 인디케이터 */}
-      {searching && (
-        <div style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}>
-          <span style={{ fontSize: "13px" }}>검색 인덱스를 스캔하는 중입니다... 잠시만 기다려주세요.</span>
-        </div>
-      )}
-
       {/* 검색 결과 목록 */}
-      {!searching && (
-        <>
-          {searchResults.length === 0 ? (
-            <div
-              className="ux_card"
-              style={{
-                padding: "36px 24px",
-                textAlign: "center",
-                color: "#6b7280",
-                fontSize: "13.5px",
-                borderStyle: "dashed",
-                backgroundColor: "#f9fafb",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "12px",
-              }}
-            >
-              <div>
-                <p style={{ margin: "0 0 4px 0", fontWeight: 600 }}>검색 조건에 맞는 자료가 없습니다.</p>
-                <p style={{ margin: 0, fontSize: "12.5px", color: "#9ca3af" }}>검색어를 줄이거나 필터를 초기화해 보세요.</p>
-              </div>
-              <button
-                type="button"
-                className="ux_button ux_button_secondary"
-                onClick={handleResetFilters}
-                style={{
-                  padding: "6px 16px",
-                  fontSize: "12.5px",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  height: "auto",
-                }}
-              >
-                필터 초기화
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#4b5563", paddingLeft: "4px" }}>
-                검색 결과 총 {searchResults.length}건
-              </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {searchResults.length > 0 && !searching && (
+          <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#4b5563", paddingLeft: "4px" }}>
+            검색 결과 총 {searchResults.length}건
+          </div>
+        )}
 
-              {(() => {
-                // 개별 카드 공통 렌더링 함수
-                const renderCard = (result: any) => {
-                  const workflowDisplayName = result.workflowName || result.workflowKey;
-                  const isCompany = result.accessMode === "company";
-                  const durationText = getDurationText(result.createdAt, result.completedAt);
+        {(() => {
+          if (groupByWorkflow) {
+            // 워크플로우별 그룹화 수행
+            const groups: Record<string, { name: string; items: any[] }> = {};
+            searchResults.forEach((item) => {
+              const key = item.workflowKey || "unknown";
+              const name = item.workflowName || item.workflowKey || "기타 자동화";
+              if (!groups[key]) {
+                groups[key] = { name, items: [] };
+              }
+              groups[key].items.push(item);
+            });
 
-                  return (
-                    <div
-                      key={result.submissionId}
-                      onClick={() => !loadingDetail && handleCardClick(result.submissionId)}
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                {Object.entries(groups).map(([key, group]) => (
+                  <div key={key} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <h3
                       style={{
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "10px",
-                        padding: "16px",
-                        cursor: loadingDetail ? "not-allowed" : "pointer",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: "#374151",
+                        borderBottom: "2px solid #e5e7eb",
+                        paddingBottom: "6px",
+                        margin: "0 0 4px 0",
                         display: "flex",
-                        flexDirection: "column",
-                        gap: "8px",
-                        boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.03)",
-                        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                        e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 1px 3px 0 rgba(0, 0, 0, 0.03)";
+                        justifyContent: "space-between",
+                        alignItems: "center"
                       }}
                     >
-                      {/* 카드 상단 헤더 (분류 및 배지) */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            backgroundColor: "#f3f4f6",
-                            color: "#4b5563",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                          }}
-                        >
-                          📂 {workflowDisplayName}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            backgroundColor: isCompany ? "#d1fae5" : "#eff6ff",
-                            color: isCompany ? "#065f46" : "#1d4ed8",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                          }}
-                        >
-                          {isCompany ? "🏢 회사 공개" : "🔒 개인 보관"}
-                        </span>
-                      </div>
-
-                      {/* 제목 (하이라이트 적용) */}
-                      <h4 style={{ fontSize: "14.5px", fontWeight: 700, color: "#111111", margin: 0 }}>
-                        <HighlightText text={result.title} search={query} />
-                      </h4>
-
-                      {/* 요약 내용 (하이라이트 적용) */}
-                      {result.summary && (
-                        <p style={{ fontSize: "12.5px", color: "#4b5563", margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                          <HighlightText text={result.summary} search={query} />
-                        </p>
-                      )}
-
-                      {/* 키워드/태그 목록 */}
-                      {result.keywords && result.keywords.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "2px" }}>
-                          {result.keywords.slice(0, 5).map((kw: string, idx: number) => (
-                            <span
-                              key={idx}
-                              onClick={(e) => handleTagClick(e, kw)}
-                              style={{
-                                fontSize: "11px",
-                                color: "#6b7280",
-                                backgroundColor: "#f9fafb",
-                                border: "1px solid #e5e7eb",
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#eff6ff";
-                                e.currentTarget.style.color = "#2563eb";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "#f9fafb";
-                                e.currentTarget.style.color = "#6b7280";
-                              }}
-                            >
-                              #{kw}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* 카드 하단 메타정보 */}
-                      <div
-                        style={{
-                          borderTop: "1px solid #f3f4f6",
-                          paddingTop: "8px",
-                          marginTop: "4px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          fontSize: "11.5px",
-                          color: "#9ca3af",
-                        }}
-                      >
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                          <span>
-                            👤 {result.ownerName || result.ownerEmail || "알 수 없는 사용자"}
-                          </span>
-                          {durationText && (
-                            <span style={{ color: "#4b5563", fontWeight: 500 }}>
-                              {durationText}
-                            </span>
-                          )}
-                        </div>
-                        <span>
-                          ⏱️ {formatDisplayDate(result.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                };
-
-                if (groupByWorkflow) {
-                  // 워크플로우별 그룹화 수행
-                  const groups: Record<string, { name: string; items: any[] }> = {};
-                  searchResults.forEach((item) => {
-                    const key = item.workflowKey || "unknown";
-                    const name = item.workflowName || item.workflowKey || "기타 자동화";
-                    if (!groups[key]) {
-                      groups[key] = { name, items: [] };
-                    }
-                    groups[key].items.push(item);
-                  });
-
-                  return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                      {Object.entries(groups).map(([key, group]) => (
-                        <div key={key} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                          <h3
-                            style={{
-                              fontSize: "13px",
-                              fontWeight: 700,
-                              color: "#374151",
-                              borderBottom: "2px solid #e5e7eb",
-                              paddingBottom: "6px",
-                              margin: "0 0 4px 0",
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center"
-                            }}
-                          >
-                            <span>{group.name}</span>
-                            <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>{group.items.length}건</span>
-                          </h3>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                            {group.items.map(renderCard)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                } else {
-                  return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      {searchResults.map(renderCard)}
-                    </div>
-                  );
-                }
-              })()}
-            </div>
-          )}
-        </>
-      )}
+                      <span>{group.name}</span>
+                      <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 500 }}>{group.items.length}건</span>
+                    </h3>
+                    <N8lientResultList
+                      items={group.items}
+                      loading={searching}
+                      emptyTitle="검색 조건에 맞는 자료가 없습니다."
+                      emptyDescription="검색어를 줄이거나 필터를 초기화해 보세요."
+                      renderItem={renderCard}
+                    />
+                  </div>
+                ))}
+              </div>
+            );
+          } else {
+            return (
+              <N8lientResultList
+                items={searchResults}
+                loading={searching}
+                emptyTitle="검색 조건에 맞는 자료가 없습니다."
+                emptyDescription="검색어를 줄이거나 필터를 초기화해 보세요."
+                renderItem={renderCard}
+              />
+            );
+          }
+        })()}
+      </div>
 
       {/* 결과 상세 보기 모달 */}
       {showDetailModal && selectedSubmission && (
@@ -663,3 +561,4 @@ export default function IntegratedSearchPage() {
     </div>
   );
 }
+

@@ -2038,3 +2038,93 @@
   white-space: nowrap;
   vertical-align: middle;
 }
+
+/* ============================================================
+   User ResultList / ResultCard Centralized Style
+   ============================================================ */
+
+.ux_result_list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ux_result_card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ux_result_card_clickable {
+  cursor: pointer;
+}
+
+.ux_result_card_clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.ux_result_card_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ux_result_card_title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111111;
+  margin: 0;
+  line-height: var(--ux-line-height-title);
+}
+
+.ux_result_card_desc {
+  font-size: 12.5px;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ux_result_card_tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ux_result_card_tag {
+  font-size: 11px;
+  color: #6b7280;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 1px 6px;
+  borderRadius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ux_result_card_tag:hover {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.ux_result_card_meta {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 8px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: #9ca3af;
+}
