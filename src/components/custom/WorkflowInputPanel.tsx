@@ -467,6 +467,9 @@ export default function WorkflowInputPanel({
       timerRef.current = setInterval(() => {
         recordingTimeRef.current += 1;
         setRecordingTime(recordingTimeRef.current);
+        if (onRecordingStateChange) {
+          onRecordingStateChange(true, recordingTimeRef.current);
+        }
       }, 1000);
     } catch (err: unknown) {
       console.error("마이크 사용 권한 획득 실패:", err);
@@ -528,6 +531,9 @@ export default function WorkflowInputPanel({
     timerRef.current = setInterval(() => {
       recordingTimeRef.current += 1;
       setRecordingTime(recordingTimeRef.current);
+      if (onRecordingStateChange) {
+        onRecordingStateChange(true, recordingTimeRef.current);
+      }
     }, 1000);
   };
 
@@ -971,8 +977,10 @@ export default function WorkflowInputPanel({
               startRecording();
             }}
             disabled={submitting}
-            aria-label={isRecording ? "녹음 정지" : "음성 녹음"}
-            title={isRecording ? "녹음 정지" : "음성 녹음"}
+            aria-label={
+              isRecording ? `녹음 정지 (${formatTime(recordingTime)})` : "음성 녹음"
+            }
+            title={isRecording ? `녹음 정지 (${formatTime(recordingTime)})` : "음성 녹음"}
           >
             <span className="ux_execute_floating_attach_button_icon" aria-hidden="true">
               {isRecording ? "⏹️" : "🎙️"}
