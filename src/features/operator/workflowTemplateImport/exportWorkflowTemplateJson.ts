@@ -77,6 +77,7 @@ export function buildWorkflowTemplateImportJson(template: WorkflowTemplate): obj
     retentionPolicy: template.retentionPolicy || null,
     retentionCapabilities: template.retentionCapabilities || null,
     operatorRetentionPolicy: template.operatorRetentionPolicy || null,
+    activeSettingsProfile: template.activeSettingsProfile || null,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
   };

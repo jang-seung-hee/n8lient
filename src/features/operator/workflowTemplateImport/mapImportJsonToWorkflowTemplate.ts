@@ -139,6 +139,7 @@ export function mapImportJsonToWorkflowTemplate(
     retentionPolicy,
     retentionCapabilities,
     operatorRetentionPolicy,
+    activeSettingsProfile: t.activeSettingsProfile || null,
     createdAt: t.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };

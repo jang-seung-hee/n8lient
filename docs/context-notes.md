@@ -22,6 +22,71 @@
 
 ---
 
+## 2026-07-02: Gateway active-settings API (n8n Schedule Polling)
+
+### 1. 배경
+* call-catcher 워크플로우의 Schedule Trigger [01A]에서 Gateway가 활성 사용자 설정을 일괄 조회해야 한다.
+* 기존 `/api/automation/execute`는 사용자 1명·automationId 1건 단위 실행 API이므로 Polling 대상 목록 API와 분리한다.
+
+### 2. 결정 (초기 구현)
+* **경로**: `GET /api/n8n/active-settings?workflowKey={workflowKey}`
+* **인증**: `X-N8N-TOKEN` = Gateway `N8N_SERVER_MAIN_TOKEN` (Firebase Bearer 미사용)
+* **read-only**: Firestore 쓰기·submissions 생성·n8n Webhook 호출 없음
+* **retentionPolicy**: execute와 동일 shared resolver 재사용, n8n 재계산 불필요
+* **로그**: workflowKey, returnedUsers, excludedCounts 또는 errorCode만 기록 (uid/email/folderId/token 미기록)
+
+### 3. workflowKey 범용화
+* call-catcher 전용 하드코딩 제거 → `activeSettingsScheduleRequirements.ts`의 `SCHEDULE_WORKFLOW_PROFILES` map으로 분리.
+* 공통 활성 판정(계약·승인·병합·retentionPolicy)은 core에 유지, workflowKey별 필수 설정·기본값·응답 settings는 profile 책임.
+* `meta.excludedCounts`: legacy `missingCallDriveFolderId` / `invalidCallStartDateYmd` + 범용 `missingRequiredSettings` / `invalidRequiredSettings`.
+
+### 4. fail-closed (2026-07-02 안전 보강)
+* active-settings는 workflowKey 기반 Schedule Trigger read-only 조회 API다. n8n은 Firestore를 직접 조회하지 않는다.
+* Gateway가 settings 병합과 retentionPolicy 계산을 담당한다.
+* workflowKey별 schedule profile(`SCHEDULE_WORKFLOW_PROFILES`)이 **반드시 등록**되어야 한다.
+* profile 미등록 workflowKey는 HTTP 400 + `errorCode: SCHEDULE_PROFILE_NOT_REGISTERED`로 차단한다 (fail-closed).
+* 현재 등록 profile은 `call-catcher`뿐이다. reddit-digest, llm-wiki 등은 workflowKey/configSchema 확정 후 별도 profile 추가.
+* scheduled submission 생성 API는 이번 범위에서 제외한다.
+* `returnedUsers: 0` 및 `users: []`는 오류가 아니다 (등록 profile 내 필터 결과).
+
+### 5. workflowTemplates.activeSettingsProfile 기반 설정형 구조 전환 (2026-07-02 전환 완료)
+* **목적**: Schedule Trigger형 워크플로우를 추가할 때마다 Gateway 코드를 수정하거나 배포할 필요 없이, 워크플로우 마스터 Import JSON / `workflowTemplates` 설정값만으로 처리가 가능하도록 한다.
+* **static profile map 제거**: Gateway 코드 내 하드코딩된 `SCHEDULE_WORKFLOW_PROFILES` 맵을 완전히 제거하고, `workflowTemplates` 문서의 `activeSettingsProfile` 필드를 읽어 범용 처리하도록 전환.
+* **선언형 activeSettingsProfile 스키마**:
+  - `enabled`: active-settings API 사용 여부 (boolean)
+  - `failClosed`: 운영 안전을 위해 반드시 `true`여야 함 (boolean)
+  - `requiredSettings`: 스케줄 실행 전 반드시 검증할 settings 목록 (배열)
+    - `key`: 설정 Key
+    - `type`: 지원 검증 타입 (`nonEmptyString`, `yyyymmdd`, `email`, `number`, `positiveNumber`, `boolean`, `stringArray`)
+    - `missingCountKey` / `invalidCountKey`: 기존 하위 호환용 legacy 메타 카운트 키 매핑
+  - `defaults`: settings 병합 후 적용할 기본값 객체
+  - `responseSettingsAllowlist`: n8n으로 내려줄 settings key allowlist (배열, 필수)
+* **보안 가이드라인**:
+  - 임의 JS, 임의 함수명, 임의 regex 문자열은 `activeSettingsProfile`에서 허용하지 않고 선언형 설정만 허용하여 보안 위협 방지.
+  - `responseSettingsAllowlist`가 없거나 빈 배열인 경우 `SCHEDULE_PROFILE_INVALID` 에러로 차단하여 민감 설정 노출 방지.
+* **Import JSON 연동**:
+  - `WorkflowTemplate` 타입 정의에 `activeSettingsProfile` 추가.
+  - `mapImportJsonToWorkflowTemplate.ts` 및 `exportWorkflowTemplateJson.ts`에 `activeSettingsProfile` 매핑/내보내기 연동 완료.
+  - 이를 통해 새로운 Schedule Trigger 워크플로우 추가 시 Gateway 배포 없이 Import JSON 등록만으로 처리가 가능함.
+
+---
+
+### 1. 원인
+* `google-calendar-scheduler` (v0.9.0.0, draft) 삭제 시 submissions 16건에 `isTestExecution` 필드 누락 → `deleteDraftWorkflowTemplate` pre-flight 차단.
+* userAutomationSettings 1건은 이미 `isTestSetting: true`로 설정되어 있었음.
+
+### 2. 백필
+* Firebase 프로젝트 `n8lient`에 `scripts/backfillTestSettingsAndSubmissions.ts --confirm BACKFILL_TEST_DATA` 실행.
+* 전체 submissions 97건 백필 (현재 workflowTemplates 4개 모두 draft 상태 → 전부 `isTestExecution: true` 분류).
+* userAutomationSettings 누락 0건 (변경 없음).
+
+### 3. 분류 기준 (기존 스크립트)
+* `isTestExecution/isTestSetting === undefined` 문서만 대상.
+* 연결 `workflowKey`의 현재 `workflowTemplates.status === "draft"` → true, 그 외 → false.
+* 현재 환경은 published 템플릿 없음 → 운영 오분류 위험 없음.
+
+---
+
 ## 2026-06-16: Draft 삭제 실패 원인 및 pre-flight 정렬
 
 ### 1. 원인

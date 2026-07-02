@@ -298,6 +298,7 @@ export interface WorkflowTemplate {
   retentionCapabilities?: RetentionCapabilities; // [v2.6] 지원 범위
   operatorRetentionPolicy?: OperatorRetentionPolicy; // [v2.6] 오퍼레이터 제한 정책
   resultAccessPolicy?: ResultAccessPolicy; // [v1.0] 결과 데이터 권한 정책
+  activeSettingsProfile?: any; // [v1.3] n8n Schedule Polling용 활성 사용자 설정 조회 프로필
   createdAt: string;
   updatedAt: string;
 }

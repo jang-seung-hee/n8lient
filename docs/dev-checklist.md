@@ -1,5 +1,24 @@
 # 개발 작업 체크리스트
 
+## 2026-07-02: Gateway active-settings workflowTemplates.activeSettingsProfile 기반 설정형 구조 전환
+- [x] `n8lient-gateway/src/shared/activeSettingsScheduleRequirements.ts` — static profile map 제거, 선언형 `ActiveSettingsProfile` 스키마 및 범용 유틸 함수 구현
+- [x] `n8lient-gateway/src/server.ts` — `workflowTemplates`에서 `activeSettingsProfile` 조회, fail-closed 검증 및 범용 유틸 연동
+- [x] `src/types/n8lient.ts` — `WorkflowTemplate` 인터페이스에 `activeSettingsProfile?: any;` 추가
+- [x] `src/features/operator/workflowTemplateImport/mapImportJsonToWorkflowTemplate.ts` — `activeSettingsProfile` 매핑 추가
+- [x] `src/features/operator/workflowTemplateImport/exportWorkflowTemplateJson.ts` — `activeSettingsProfile` 내보내기 추가
+- [x] 단위 검증 테스트 스크립트 작성 및 실행 (`npx tsx n8lient-gateway/src/shared/activeSettingsScheduleRequirements.test.ts` 35개 케이스 통과)
+- [x] `npx tsc --noEmit` 및 `npm run build` 컴파일/빌드 검증 통과
+
+## 2026-07-01: Draft 삭제 차단 — isTestExecution 백필 (google-calendar-scheduler)
+- [x] `scripts/backfillTestSettingsAndSubmissions.ts` dry-run (submissions 97건 누락, userAutomationSettings 0건)
+- [x] `--confirm BACKFILL_TEST_DATA` 백필 실행 (submissions 97건 반영)
+- [x] 재 dry-run 0건, `google-calendar-scheduler` 16건 `isTestExecution: true` 확인
+- [x] `deleteDraftWorkflowTemplate` pre-flight legacy 차단 해소 (16 → 0)
+- [ ] UI에서 `google-calendar-scheduler` draft 삭제 재시도 (operator 세션 필요)
+- [x] `npx tsc --noEmit` 통과
+
+---
+
 ## 2026-06-19: Gateway 보관 정책 상속/clamp 패치
 - [x] `resolveEffectiveRetentionLevel.ts` — live∩autoDoc contract, company allowedUserLevels, allowUserOverride
 - [x] `resolveRetentionPolicy.ts` — optional export는 full_archive만 허용, settings 정규화
@@ -206,7 +225,24 @@
   - 파일 용량 제한 메시지가 하드코딩 용량이 아닌 템플릿의 `maxFileSizeMB`와 동적 연동되도록 수정
 - [x] **E2E 실행 및 빌드 검증**: `sub_20260612065844_08jxfn` 성공 케이스(mp3 업로드 및 callback 수신 완료)를 기준으로 E2E 전 흐름 작동 및 Next.js 프로덕션 빌드 통과 완료
 
-## 2026-06-18: Gateway retentionPolicy optionalExportProvider PATCH
+## 2026-07-02: Gateway active-settings fail-closed 보강
+- [x] profile 미등록 workflowKey → HTTP 400 `SCHEDULE_PROFILE_NOT_REGISTERED` (users 무반환)
+- [x] `ScheduleWorkflowProfile` 타입 명세 강화 (workflowKey, validateRequiredSettings excludedReason/legacyCountKey/genericCountKey)
+- [x] call-catcher profile 동작 유지, reddit-digest/llm-wiki 향후 후보 주석만 추가
+- [x] `npx tsc --noEmit` / `npm run build` 및 로컬 HTTP 테스트 통과
+
+## 2026-07-02: Gateway active-settings workflowKey 범용화
+- [x] `n8lient-gateway/src/shared/activeSettingsScheduleRequirements.ts` — workflowKey별 Schedule requirement map 분리 (현재 `call-catcher`만 등록)
+- [x] `server.ts` active-settings core — 공통 활성 판정 유지, 필수 설정 검증은 profile 위임
+- [x] `meta.excludedCounts`에 `missingRequiredSettings` / `invalidRequiredSettings` 범용 카운트 추가, call-catcher legacy 키 유지
+
+## 2026-07-02: Gateway n8n Schedule Polling active-settings API
+- [x] `n8lient-gateway/src/middleware/n8nTokenAuth.ts` — `X-N8N-TOKEN` ↔ `N8N_SERVER_MAIN_TOKEN` 검증 미들웨어 추가
+- [x] `n8lient-gateway/src/server.ts` — `GET /api/n8n/active-settings?workflowKey=` read-only 조회 API 추가 (execute/callback/download 핸들러 미수정)
+- [x] call-catcher Drive Polling 대상 필터: `callDriveFolderId` / `callStartDateYmd(YYYYMMDD)` / 계약·승인·자동화 활성 조건
+- [x] `resolveEffectiveRetentionLevel` + `resolveRetentionPolicy` 재사용, `meta.excludedCounts` 요약 반환
+- [x] `n8lient-gateway` `npx tsc --noEmit` 통과, 로컬 HTTP 테스트(401/400/200/health) 및 기존 route 회귀(401) 확인
+
 - [x] `n8lient-gateway/src/server.ts` — `retentionPolicy.optionalExportProvider` 하드코딩 `"none"` 제거, `finalSettings.optionalExportProvider` 반영
 - [x] `npm run build:gateway` 통과
 - [x] Cloud Run 재배포: revision `n8lient-gateway-00029-qsz`, URL `https://n8lient-gateway-769159846381.asia-northeast3.run.app`
